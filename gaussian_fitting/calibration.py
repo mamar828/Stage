@@ -60,7 +60,7 @@ class Spectrum:
                 except Exception:
                     # For few points
                     plt.plot(value[:,0], value[:,1], "og", label=name)
-        axs[0].plot(self.x_values, self.y_values_modified, "y--", label="translated spectrum")
+        axs[0].plot(self.x_values, self.y_values, "y--", label="translated spectrum")
         if self.displacement:
             axs[0].plot(self.x_values, self.y_values, "g:", label="ds9 spectrum")
         else:
@@ -75,32 +75,10 @@ class Spectrum:
         plt.show()
 
     def fit_single(self):
-        bounds = self.get_peak_bounds()
-        # The coordinates comprised in the bounds are [bounds[0]-1:bounds[1]]
-        print("bounds:", bounds)
-
-        if self.displacement:
-            self.mean = (np.sum(self.y_values[0:bounds[0]-1]) + np.sum(self.y_values[bounds[1]:48])) / (
-                max(self.x_values) - (bounds[1] - bounds[0] + 1))
-        else:
-            self.mean = np.sum(self.y_values[0:25]) / 25
-
-        # self.y_values_modified = self.y_values - self.mean
-        self.y_values_modified = self.y_values
-
         g_init = self.gauss_function(a=self.max_tuple[1], x0=self.max_tuple[2])
         self.fit_g = fitting.LevMarLSQFitter()
-        # self.fitted_gaussian = fit_g(g_init, self.x_values[22:48], self.y_values_modified[22:48])
         
-        self.fitted_gaussian = self.fit_g(g_init, self.x_values,
-                                           self.y_values_modified)
-
-        # self.y_values_modified = self.y_values - self.mean
-        # g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
-        # self.fit_g = fitting.LevMarLSQFitter()
-        # # self.fitted_gaussian = fit_g(g_init, self.x_values[22:48], self.y_values_modified[22:48])
-        # self.fitted_gaussian = self.fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], 
-        #                                   self.y_values_modified[bounds[0]-1:bounds[1]])
+        self.fitted_gaussian = self.fit_g(g_init, self.x_values, self.y_values)
 
     def get_fitted_gaussian_parameters(self):
         return self.fitted_gaussian
@@ -136,13 +114,11 @@ class Spectrum:
                 higher_bound = i + 1
                 break
         
+        # The coordinates comprised in the bounds are [bounds[0]-1:bounds[1]]
         return lower_bound, higher_bound
-
-        # interval = min(self.max_tuple[2] - lower_bound, higher_bound - self.max_tuple[2])
-        # return (self.max_tuple[2] - interval, self.max_tuple[2] + interval)
     
     def get_subtracted_fit(self):
-        subtracted_y = self.y_values_modified - self.fitted_gaussian(self.x_values)
+        subtracted_y = self.y_values - self.fitted_gaussian(self.x_values)
         return subtracted_y
 
 def extract_data(file_name=str):
@@ -152,7 +128,7 @@ def extract_data(file_name=str):
 def loop_di_loop():
     for x in range(300):
         data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
-        spectrum = Spectrum(data[:,x,120], displacement=False)
+        spectrum = Spectrum(data[:,x,120], displacement=True)
         print(f"\n----------------\ncoords: {x,120}")
         spectrum.fit_single()
         spectrum.plot_fit()
