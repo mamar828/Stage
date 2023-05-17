@@ -89,3 +89,11 @@ c = False
 print(a == b and (a == a))
 
 
+# -------------------------------------------------------------
+
+# g_init = models.Voigt1D(x_0=self.max_tuple[0], amplitude_L=500, fwhm_L=3., fwhm_G=3.5)
+        # g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
+        # g_init = gauss_function(self.x_values, a=500., x0=self.max_tuple, sigma=1., h=100.)
+        # fit_g = fitting.LevMarLSQFitter()
+        # bounds = self.get_peak_bounds()
+        # self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values[bounds[0]-1:bounds[1]])

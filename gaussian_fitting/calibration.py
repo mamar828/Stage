@@ -8,9 +8,7 @@ from astropy.io import fits
 
 
 
-
-def gauss_function(x, a, x0, sigma, h):
-    return a*np.exp(-(x-x0)**2/(2*sigma**2))+h
+    
 
 class Spectrum:
 
@@ -41,6 +39,10 @@ class Spectrum:
             max_intensity_x = list(self.y_values).index(max(self.y_values))
             self.max_tuple = (float(self.x_values[max_intensity_x]), float(self.y_values[max_intensity_x]), max_intensity_x + 1)
     
+    @models.custom_model
+    def gauss_function(x, a=1., x0=1., sigma=1., h=100.):
+        return a*np.exp(-(x-x0)**2/(2*sigma**2))+h
+
     def plot(self, **other_values):
         fig, axs = plt.subplots(2)
         for name, value in other_values.items():
@@ -67,9 +69,9 @@ class Spectrum:
         axs[1].legend(loc="upper left", fontsize="8")
         plt.xlabel("channels")
         plt.ylabel("intensity")
-        print(self.get_uncertainties())
+        print("uncertainties:",self.get_uncertainties())
         print(self.get_fitted_gaussian_parameters())
-        print("stdd:", self.get_stdd(self.get_subtracted_fit()))
+        print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         plt.show()
 
     def fit_single(self):
@@ -83,20 +85,22 @@ class Spectrum:
         else:
             self.mean = np.sum(self.y_values[0:25]) / 25
 
-        self.y_values_modified = self.y_values - self.mean
-        g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
+        # self.y_values_modified = self.y_values - self.mean
+        self.y_values_modified = self.y_values
+
+        g_init = self.gauss_function(a=self.max_tuple[1], x0=self.max_tuple[2])
         self.fit_g = fitting.LevMarLSQFitter()
         # self.fitted_gaussian = fit_g(g_init, self.x_values[22:48], self.y_values_modified[22:48])
-        self.fitted_gaussian = self.fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]],
-                                           self.y_values_modified[bounds[0]-1:bounds[1]])
         
-        
-        # g_init = models.Voigt1D(x_0=self.max_tuple[0], amplitude_L=500, fwhm_L=3., fwhm_G=3.5)
+        self.fitted_gaussian = self.fit_g(g_init, self.x_values,
+                                           self.y_values_modified)
+
+        # self.y_values_modified = self.y_values - self.mean
         # g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
-        # g_init = gauss_function(self.x_values, a=500., x0=self.max_tuple, sigma=1., h=100.)
-        # fit_g = fitting.LevMarLSQFitter()
-        # bounds = self.get_peak_bounds()
-        # self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values[bounds[0]-1:bounds[1]])
+        # self.fit_g = fitting.LevMarLSQFitter()
+        # # self.fitted_gaussian = fit_g(g_init, self.x_values[22:48], self.y_values_modified[22:48])
+        # self.fitted_gaussian = self.fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], 
+        #                                   self.y_values_modified[bounds[0]-1:bounds[1]])
 
     def get_fitted_gaussian_parameters(self):
         return self.fitted_gaussian
@@ -105,7 +109,7 @@ class Spectrum:
         cov_matrix = self.fit_g.fit_info["param_cov"]
         return np.sqrt(np.diag(cov_matrix))
     
-    def get_stdd(self, array):
+    def get_stddev(self, array):
         return np.std(array)
 
     def plot_fit(self):
@@ -148,8 +152,8 @@ def extract_data(file_name=str):
 def loop_di_loop():
     for x in range(300):
         data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
-        spectrum = Spectrum(data[:,x,200], displacement=False)
-        print(f"\n----------------\ncoords: {x,200}")
+        spectrum = Spectrum(data[:,x,120], displacement=False)
+        print(f"\n----------------\ncoords: {x,120}")
         spectrum.fit_single()
         spectrum.plot_fit()
 
@@ -161,6 +165,7 @@ loop_di_loop()
 spectrum = Spectrum(extract_data(file_name="ds9.dat"))
 spectrum.fit_single()
 spectrum.plot_fit()
+
 
 
 
