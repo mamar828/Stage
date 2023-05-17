@@ -54,7 +54,7 @@ plt.show()
 # ----------------------------------------------------------------------------------------------------------
 
 
-
+"""
 data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
 rdata = data[:,0,600]
 
@@ -76,7 +76,16 @@ plt.legend(loc="upper left")
 plt.xlabel("channels")
 plt.ylabel("intensity")
 plt.show()
+"""
 
 
+
+# --------------------------------------------------------------------
+
+
+a = True
+b = True
+c = False
+print(a == b and (a == a))
 
 
