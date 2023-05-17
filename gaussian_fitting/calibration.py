@@ -119,7 +119,7 @@ def loop_di_loop():
     for x in range(300):
         data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
         spectrum = Spectrum(data[:,x,200], displacement=False)
-        print(f"\n-----------------\ncoords: {x,200}\n-----------------")
+        print(f"\n----------------\ncoords: {x,200}")
         spectrum.fit_single()
         spectrum.plot_fit()
 
