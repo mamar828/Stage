@@ -42,20 +42,34 @@ class Spectrum:
             self.max_tuple = (float(self.x_values[max_intensity_x]), float(self.y_values[max_intensity_x]), max_intensity_x + 1)
     
     def plot(self, **other_values):
+        fig, axs = plt.subplots(2)
         for name, value in other_values.items():
             try:
+                # For gaussian function
                 x_plot = np.arange(1,49,0.05)
-                plt.plot(x_plot, value(x_plot), "r-", label=name)
-            except:
+                axs[0].plot(x_plot, value(x_plot), "r-", label=name)
+            except Exception:
                 try:
-                    plt.plot(self.x_values, value, label=name)
-                except:
+                    # For function evaluated at the same x_values
+                    if name == "subtracted_fit":
+                        axs[1].plot(self.x_values, value, label=name)
+                    else:
+                        plt.plot(self.x_values, value, label=name)
+                except Exception:
+                    # For few points
                     plt.plot(value[:,0], value[:,1], "og", label=name)
-        plt.plot(self.x_values, self.y_values_modified, "y--", label="translated spectrum")
-        plt.plot(self.x_values, self.old_y_values, "g:", label="ds9 spectrum")
-        plt.legend(loc="upper left")
+        axs[0].plot(self.x_values, self.y_values_modified, "y--", label="translated spectrum")
+        if self.displacement:
+            axs[0].plot(self.x_values, self.y_values, "g:", label="ds9 spectrum")
+        else:
+            axs[0].plot(self.x_values, self.old_y_values, "g:", label="ds9 spectrum")
+        axs[0].legend(loc="upper left", fontsize="8")
+        axs[1].legend(loc="upper left", fontsize="8")
         plt.xlabel("channels")
         plt.ylabel("intensity")
+        print(self.get_uncertainties())
+        print(self.get_fitted_gaussian_parameters())
+        print("stdd:", self.get_stdd(self.get_subtracted_fit()))
         plt.show()
 
     def fit_single(self):
@@ -71,8 +85,11 @@ class Spectrum:
 
         self.y_values_modified = self.y_values - self.mean
         g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
-        fit_g = fitting.LevMarLSQFitter()
-        self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values_modified[bounds[0]-1:bounds[1]])
+        self.fit_g = fitting.LevMarLSQFitter()
+        # self.fitted_gaussian = fit_g(g_init, self.x_values[22:48], self.y_values_modified[22:48])
+        self.fitted_gaussian = self.fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]],
+                                           self.y_values_modified[bounds[0]-1:bounds[1]])
+        
         
         # g_init = models.Voigt1D(x_0=self.max_tuple[0], amplitude_L=500, fwhm_L=3., fwhm_G=3.5)
         # g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
@@ -80,10 +97,19 @@ class Spectrum:
         # fit_g = fitting.LevMarLSQFitter()
         # bounds = self.get_peak_bounds()
         # self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values[bounds[0]-1:bounds[1]])
-        
+
+    def get_fitted_gaussian_parameters(self):
+        return self.fitted_gaussian
+    
+    def get_uncertainties(self):
+        cov_matrix = self.fit_g.fit_info["param_cov"]
+        return np.sqrt(np.diag(cov_matrix))
+    
+    def get_stdd(self, array):
+        return np.std(array)
 
     def plot_fit(self):
-        self.plot(fit=self.fitted_gaussian)
+        self.plot(fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
     def get_peak_bounds(self):
         # Determines the ratio of derivatives that identify a peak's boundaries
@@ -110,6 +136,10 @@ class Spectrum:
 
         # interval = min(self.max_tuple[2] - lower_bound, higher_bound - self.max_tuple[2])
         # return (self.max_tuple[2] - interval, self.max_tuple[2] + interval)
+    
+    def get_subtracted_fit(self):
+        subtracted_y = self.y_values_modified - self.fitted_gaussian(self.x_values)
+        return subtracted_y
 
 def extract_data(file_name=str):
     raw_data = np.fromfile(os.path.abspath(file_name), sep=" ")
