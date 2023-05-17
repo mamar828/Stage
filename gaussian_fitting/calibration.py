@@ -16,6 +16,8 @@ class Spectrum:
 
     def __init__(self, data=np.ndarray, displacement=True, desired_peak_position=35):
         self.data = data
+        self.displacement = displacement
+
         try:
             self.x_values, self.y_values = np.split(data, 2, axis=1)
         except Exception:
@@ -58,28 +60,27 @@ class Spectrum:
 
     def fit_single(self):
         bounds = self.get_peak_bounds()
-        print(bounds)
-        self.mean = (np.sum(self.y_values[0:bounds[0]-1]) + np.sum(self.y_values[bounds[1]+1:48])) / (
-            max(self.x_values) - (bounds[1] - bounds[0] + 2))
-        print(self.x_values[bounds[0]])
-        a = self.y_values[0:bounds[0]]
-        b = self.y_values[bounds[1]+1:48]
-        print(a.shape, b.shape)
-        print(max(self.x_values) - (bounds[1] - bounds[0] + 2))
+        # The coordinates comprised in the bounds are [bounds[0]-1:bounds[1]]
+        print("bounds:", bounds)
+
+        if self.displacement:
+            self.mean = (np.sum(self.y_values[0:bounds[0]-1]) + np.sum(self.y_values[bounds[1]:48])) / (
+                max(self.x_values) - (bounds[1] - bounds[0] + 1))
+        else:
+            self.mean = np.sum(self.y_values[0:25]) / 25
 
         self.y_values_modified = self.y_values - self.mean
         g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
         fit_g = fitting.LevMarLSQFitter()
         self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values_modified[bounds[0]-1:bounds[1]])
         
-        """
-        g_init = models.Voigt1D(x_0=self.max_tuple[0], amplitude_L=500, fwhm_L=3., fwhm_G=3.5)
+        # g_init = models.Voigt1D(x_0=self.max_tuple[0], amplitude_L=500, fwhm_L=3., fwhm_G=3.5)
         # g_init = models.Gaussian1D(amplitude=1., mean=self.max_tuple[0], stddev=1.)
         # g_init = gauss_function(self.x_values, a=500., x0=self.max_tuple, sigma=1., h=100.)
-        fit_g = fitting.LevMarLSQFitter()
-        bounds = self.get_peak_bounds()
-        self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values[bounds[0]-1:bounds[1]])
-        """
+        # fit_g = fitting.LevMarLSQFitter()
+        # bounds = self.get_peak_bounds()
+        # self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values[bounds[0]-1:bounds[1]])
+        
 
     def plot_fit(self):
         self.plot(fit=self.fitted_gaussian)
@@ -93,7 +94,7 @@ class Spectrum:
             derivatives[i,0] = i + 1
             derivatives[i,1] = self.y_values[i+1] - self.y_values[i]
         
-        lower_bound = 0
+        lower_bound = 1
         higher_bound = 48
 
         for i in range(1, self.max_tuple[2]-1):
