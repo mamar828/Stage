@@ -4,11 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy.modeling import models, fitting
-from astropy.io import fits
-
-
-
-    
+from astropy.io import fits    
 
 class Spectrum:
 
@@ -47,7 +43,7 @@ class Spectrum:
         fig, axs = plt.subplots(2)
         for name, value in other_values.items():
             try:
-                # For gaussian function
+                # For neat gaussian function
                 x_plot = np.arange(1,49,0.05)
                 axs[0].plot(x_plot, value(x_plot), "r-", label=name)
             except Exception:
@@ -141,12 +137,3 @@ loop_di_loop()
 spectrum = Spectrum(extract_data(file_name="ds9.dat"))
 spectrum.fit_single()
 spectrum.plot_fit()
-
-
-
-
-
-# fits_data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
-# fits_wcs = WCS((fits.open('calibration.fits', mode = 'denywrite'))[0].header)
-# plt.plot(fits_data[:,150,150])
-# plt.show()
