@@ -61,7 +61,7 @@ class Spectrum:
         axs[1].legend(loc="upper left", fontsize="8")
         plt.xlabel("channels")
         plt.ylabel("intensity")
-        # print("uncertainties:",self.get_uncertainties())
+        print("uncertainties:",self.get_uncertainties())
         # print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         fig.text(0.4, 0.92, f"coords: {coords}")
@@ -77,7 +77,7 @@ class Spectrum:
     def fit_NII(self):
         # Initialize the Gaussians
         g_init_OH1 = self.gauss_function(a=10, x0=0, h=4)
-        g_init_OH2 = self.gauss_function(a=4, x0=19, h=4, bounds={"x0": (18, 20)})
+        g_init_OH2 = self.gauss_function(a=4, x0=19, h=4, bounds={"x0": (18, 21)})
         g_init_OH3 = self.gauss_function(a=4, x0=38, h=4, bounds={"x0": (36, 41)})
         g_init_OH4 = self.gauss_function(a=8, x0=47, h=4)
         g_init_NII = self.gauss_function(a=10, x0=14, h=4, bounds={"x0": (13, 15)})
@@ -85,19 +85,20 @@ class Spectrum:
         g_init_OH1.x0.max = 4
         g_init_OH4.x0.min = 47
                 
-        gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
-
-        self.fit_g = fitting.LevMarLSQFitter()
+        gaussian_addition_init = g_init_OH1
+        # gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
+        self.fit_g = fitting.LevMarLSQFitter(calc_uncertainties=True)
         
         right_peak_bound = 25
         self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
-        # print(self.fitted_gaussian)
+        print(self.fit_g.fit_info)
 
     def get_fitted_gaussian_parameters(self):
         return self.fitted_gaussian
     
     def get_uncertainties(self):
         cov_matrix = self.fit_g.fit_info["param_cov"]
+        print(cov_matrix)
         return np.sqrt(np.diag(cov_matrix))
     
     def get_stddev(self, array):
