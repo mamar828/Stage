@@ -74,7 +74,7 @@ class Spectrum:
         plt.show()
 
     def fit_single(self):
-        g_init = self.gauss_function(a=self.max_tuple[1], x0=self.max_tuple[2])
+        g_init = self.gauss_function(a=self.max_tuple[1], x0=self.max_tuple[2], h=100)
         self.fit_g = fitting.LevMarLSQFitter()
         
         self.fitted_gaussian = self.fit_g(g_init, self.x_values, self.y_values)

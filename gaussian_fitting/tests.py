@@ -102,9 +102,17 @@ plt.show()
 
 # -----------------------------------------------------------------------------
 
-stack = np.stack((x_values, self.fitted_gaussian(x_values)), axis=1)
-b = []
-for i in stack:
-    b.append(tuple(i))
+# stack = np.stack((x_values, self.fitted_gaussian(x_values)), axis=1)
+# b = []
+# for i in stack:
+#     b.append(tuple(i))
 
-print(b)
+# print(b)
+
+
+
+
+# -------------------------------------------------------------------------------------------
+
+a = np.zeros(shape=(1,2))
+print(a)
