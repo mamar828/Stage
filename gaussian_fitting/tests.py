@@ -83,10 +83,10 @@ plt.show()
 # --------------------------------------------------------------------
 
 
-a = True
-b = True
-c = False
-print(a == b and (a == a))
+# a = True
+# b = True
+# c = False
+# print(a == b and (a == a))
 
 
 # -------------------------------------------------------------
@@ -97,3 +97,14 @@ print(a == b and (a == a))
         # fit_g = fitting.LevMarLSQFitter()
         # bounds = self.get_peak_bounds()
         # self.fitted_gaussian = fit_g(g_init, self.x_values[bounds[0]-1:bounds[1]], self.y_values[bounds[0]-1:bounds[1]])
+
+
+
+# -----------------------------------------------------------------------------
+
+stack = np.stack((x_values, self.fitted_gaussian(x_values)), axis=1)
+b = []
+for i in stack:
+    b.append(tuple(i))
+
+print(b)

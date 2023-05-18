@@ -5,8 +5,6 @@ import numpy as np
 
 from astropy.modeling import models, fitting
 from astropy.io import fits    
-from scipy.interpolate import UnivariateSpline
-from scipy.optimize import fsolve
 
 class Spectrum:
 
@@ -58,6 +56,7 @@ class Spectrum:
                 except Exception:
                     # For few points
                     plt.plot(value[:,0], value[:,1], "og", label=name)
+            
         axs[0].plot(self.x_values, self.y_values, "y--", label="translated spectrum")
         if self.displacement:
             axs[0].plot(self.x_values, self.y_values, "g:", label="ds9 spectrum")
@@ -67,10 +66,9 @@ class Spectrum:
         axs[1].legend(loc="upper left", fontsize="8")
         plt.xlabel("channels")
         plt.ylabel("intensity")
-        print("uncertainties:",self.get_uncertainties())
-        print(self.get_fitted_gaussian_parameters())
-        print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        print("FWHM:", self.get_FWHM(self.fitted_gaussian(x_plot)))
+        # print("uncertainties:",self.get_uncertainties())
+        # print(self.get_fitted_gaussian_parameters())
+        # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         plt.show()
 
     def fit_single(self):
@@ -119,19 +117,6 @@ class Spectrum:
     def get_subtracted_fit(self):
         subtracted_y = self.y_values - self.fitted_gaussian(self.x_values)
         return subtracted_y
-    
-    def get_FWHM(self, y_values):
-        mid_height = (max(y_values) - self.fitted_gaussian.h.value)/2 + self.fitted_gaussian.h.value
-
-        def function(xy):
-            x, y = xy
-            z = np.array([y - (self.fitted_gaussian.a.value*np.exp(
-                -(x-self.fitted_gaussian.x0.value)**2/(2*self.fitted_gaussian.sigma.value**2))
-                +self.fitted_gaussian.h.value), y - mid_height])
-            return z
-        
-        root1 = fsolve(function, [self.max_tuple[2]-1, self.max_tuple[2]+1])[0]
-        return (self.fitted_gaussian.x0.value - root1) * 2
 
 
 def extract_data(file_name=str):
@@ -139,18 +124,18 @@ def extract_data(file_name=str):
     return np.array(np.split(raw_data, len(raw_data)/2))
 
 def loop_di_loop():
-    for x in range(300):
-        data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
+    for x in range(100, 300):
+        data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
         spectrum = Spectrum(data[:,x,120], displacement=True)
-        print(f"\n----------------\ncoords: {x,120}")
+        print(f"\n----------------\ncoords: {x,200}")
         spectrum.fit_single()
         spectrum.plot_fit()
 
-loop_di_loop()
+# loop_di_loop()
 
-# data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
-# spectrum = Spectrum(data[:,600,600])
+data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
+spectrum = Spectrum(data[:,153,150])
 
-spectrum = Spectrum(extract_data(file_name="ds9.dat"))
+# spectrum = Spectrum(extract_data(file_name="ds9.dat"))
 spectrum.fit_single()
 spectrum.plot_fit()
