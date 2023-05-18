@@ -17,6 +17,9 @@ class Spectrum:
         except Exception:
             self.x_values, self.y_values = np.arange(48) + 1, data
 
+
+        # ------------- SHITSHOW ------------- ↴
+
         # We research the max peak in the region between channels 1 and 25
         max_intensity_x = list(self.y_values[0:25]).index(max(self.y_values[0:25]))
         self.max_tuple = (float(self.x_values[max_intensity_x]), float(self.y_values[max_intensity_x]), max_intensity_x + 1)
@@ -35,7 +38,7 @@ class Spectrum:
                                   float(self.y_values[right_peak_max_x]), right_peak_max_x + 1)
         
         
-    def plot(self, fullscreen=False, **other_values):
+    def plot(self, coords, fullscreen=False, **other_values):
         fig, axs = plt.subplots(2)
         for name, value in other_values.items():
             try:
@@ -61,7 +64,7 @@ class Spectrum:
         # print("uncertainties:",self.get_uncertainties())
         # print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        fig.text(0.4, 0.92, f"right peak bounds: {self.bounds}")
+        fig.text(0.4, 0.92, f"coords: {coords}")
         if fullscreen == True:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -72,18 +75,23 @@ class Spectrum:
         return a*np.exp(-(x-x0)**2/(2*sigma**2))+h
 
     def fit_NII(self):
-        g1_init = self.gauss_function(a=self.max_tuple[1], x0=self.max_tuple[2])
-        g2_init = self.gauss_function(a=self.second_max_tuple[1], x0=self.second_max_tuple[2])
-
-        print(self.max_tuple, self.second_max_tuple)
-
-        two_g_init = g1_init + g2_init
-        # right_peak_bound = self.get_peak_bound()
+        # Initialize the Gaussians
+        g_init_OH1 = self.gauss_function(a=10, x0=0, h=4)
+        g_init_OH2 = self.gauss_function(a=4, x0=19, h=4, bounds={"x0": (18, 20)})
+        g_init_OH3 = self.gauss_function(a=4, x0=38, h=4, bounds={"x0": (36, 41)})
+        g_init_OH4 = self.gauss_function(a=8, x0=47, h=4)
+        g_init_NII = self.gauss_function(a=10, x0=14, h=4, bounds={"x0": (13, 15)})
+        g_init_Ha  = self.gauss_function(a=20, x0=43, h=4, bounds={"x0": (42, 44)})
+        g_init_OH1.x0.max = 4
+        g_init_OH4.x0.min = 47
+                
+        gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
 
         self.fit_g = fitting.LevMarLSQFitter()
         
         right_peak_bound = 25
-        self.fitted_gaussian = self.fit_g(two_g_init, self.x_values[0:right_peak_bound], self.y_values[0:right_peak_bound])
+        self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
+        # print(self.fitted_gaussian)
 
     def get_fitted_gaussian_parameters(self):
         return self.fitted_gaussian
@@ -95,8 +103,8 @@ class Spectrum:
     def get_stddev(self, array):
         return np.std(array)
 
-    def plot_fit(self, fulscreen=False):
-        self.plot(fulscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
+    def plot_fit(self, coord, fullscreen=False):
+        self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
     def get_peak_bounds(self):
         # Determines the ratio of derivatives that identify a peak's boundaries
@@ -170,12 +178,12 @@ def extract_data(file_name=str):
 
 def loop_di_loop():
     y = 150
-    for x in range(150, 300):
+    for x in range(185, 300):
         data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot()
+        spectrum.plot_fit(fullscreen=True, coord=(x,y))
 
 loop_di_loop()
 
