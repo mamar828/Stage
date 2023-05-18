@@ -169,18 +169,19 @@ def extract_data(file_name=str):
     return np.array(np.split(raw_data, len(raw_data)/2))
 
 def loop_di_loop():
-    for x in range(211, 300):
+    y = 150
+    for x in range(150, 300):
         data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
-        spectrum = Spectrum(data[:,x,120])
-        print(f"\n----------------\ncoords: {x,200}")
+        spectrum = Spectrum(data[:,x,y])
+        print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
         spectrum.plot()
 
 loop_di_loop()
 
-data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
-spectrum = Spectrum(data[:,153,150])
+# data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
+# spectrum = Spectrum(data[:,153,150])
 
 # spectrum = Spectrum(extract_data(file_name="ds9.dat"))
-spectrum.fit_NII()
-spectrum.plot_fit()
+# spectrum.fit_NII()
+# spectrum.plot_fit()
