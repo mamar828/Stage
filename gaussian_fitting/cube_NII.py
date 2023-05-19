@@ -16,26 +16,9 @@ class Spectrum:
             self.x_values, self.y_values = np.split(data, 2, axis=1)
         except Exception:
             self.x_values, self.y_values = np.arange(48) + 1, data
-
-
-        # ------------- BAADDDD ------------- ↴
-
-        # We research the max peak in the region between channels 1 and 25
-        max_intensity_x = list(self.y_values[0:25]).index(max(self.y_values[0:25]))
-        self.max_tuple = (float(self.x_values[max_intensity_x]), float(self.y_values[max_intensity_x]), max_intensity_x + 1)
-
-        # We store the second peak's location
-        self.get_peak_bounds()
-        temp_y_values = copy(self.y_values)
-        temp_y_values[max_intensity_x] = 0
-        second_peak_max_x = list(temp_y_values[0:25]).index(max(temp_y_values[0:25])) 
-        self.second_max_tuple =  (float(self.x_values[second_peak_max_x]), 
-                                  float(temp_y_values[second_peak_max_x]), second_peak_max_x + 1)
-
-        # We store the right peak's location
-        right_peak_max_x = list(self.y_values[25:47]).index(max(self.y_values[25:47])) + 25
-        self.right_peak_max_tuple =  (float(self.x_values[right_peak_max_x]), 
-                                  float(self.y_values[right_peak_max_x]), right_peak_max_x + 1)
+        
+        mean = np.sum(self.y_values[24:34]) / 10
+        self.y_values -= mean
         
         
     def plot(self, coords, fullscreen=False, **other_values):
@@ -44,7 +27,7 @@ class Spectrum:
             try:
                 # For neat gaussian function
                 x_plot = np.arange(1,49,0.05)
-                axs[0].plot(x_plot, value(x_plot), "r-", label=name)
+                axs[0].plot(x_plot, value(x_plot), label=name)
             except Exception:
                 try:
                     # For function evaluated at the same x_values
@@ -62,36 +45,83 @@ class Spectrum:
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
-        print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
-        print(self.get_fitted_gaussian_parameters())
-        print("stddev:", self.get_stddev(self.get_subtracted_fit()))
+        # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
+        # print(self.get_fitted_gaussian_parameters())
+        # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
+        fig.text(0.2, 0.92, self.peaks)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
         plt.show()
 
+    def plot_fit(self, coord, fullscreen=False, plot_all=False):
+        if plot_all:
+            g = self.fitted_gaussian
+            oh1 = self.gauss_function(a=g.a_0.value, x0=g.x0_0.value, h=g.h_0.value, sigma=g.sigma_0.value)
+            oh2 = self.gauss_function(a=g.a_1.value, x0=g.x0_1.value, h=g.h_1.value, sigma=g.sigma_1.value)
+            oh3 = self.gauss_function(a=g.a_2.value, x0=g.x0_2.value, h=g.h_2.value, sigma=g.sigma_2.value)
+            oh4 = self.gauss_function(a=g.a_3.value, x0=g.x0_3.value, h=g.h_3.value, sigma=g.sigma_3.value)
+            nii = self.gauss_function(a=g.a_4.value, x0=g.x0_4.value, h=g.h_4.value, sigma=g.sigma_4.value)
+            ha  = self.gauss_function(a=g.a_5.value, x0=g.x0_5.value, h=g.h_5.value, sigma=g.sigma_5.value)
+            self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                      OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
+        
+        else:
+            self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
+
     @models.custom_model
-    def gauss_function(x, a=1., x0=1., sigma=1., h=0.):
+    def gauss_function(x, a=1., x0=1., sigma=2., h=0.):
         return a*np.exp(-(x-x0)**2/(2*sigma**2))+h
 
     def fit_NII(self):
         # Initialize the Gaussians
-        g_init_OH1 = self.gauss_function(a=10, x0=1, h=4)
-        g_init_OH2 = self.gauss_function(a=3, x0=19, h=4, bounds={"x0": (18, 21)})
-        g_init_OH3 = self.gauss_function(a=4, x0=38, h=4, bounds={"x0": (36, 41)})
-        g_init_OH4 = self.gauss_function(a=8, x0=47, h=4)
-        g_init_NII = self.gauss_function(a=10, x0=14, h=4, bounds={"x0": (13, 15)})
-        g_init_Ha  = self.gauss_function(a=20, x0=43, h=4, bounds={"x0": (42, 44)})
+        g_init_OH1 = self.gauss_function(a=10, x0=0)
+        g_init_OH2 = self.gauss_function(a=3, x0=19, bounds={"x0": (18, 21)})
+        g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (36, 41)})
+        g_init_OH4 = self.gauss_function(a=8, x0=47)
+        g_init_NII = self.gauss_function(a=10, x0=14, bounds={"x0": (13, 15)})
+        g_init_Ha  = self.gauss_function(a=20, x0=43, bounds={"x0": (42, 44)})
         g_init_OH1.x0.max = 4
         g_init_OH4.x0.min = 47
 
         gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
         self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
         self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
+        self.get_initial_guesses()
 
-    def get_individual_y_values(self, peak_function):
-        pass
+    def get_initial_guesses(self):
+        # Outputs a dict of every peak and the a and x0 initial guesses
+        params = {}
+
+        x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1
+
+        derivatives = np.zeros(shape=(47,2))
+        for i in range(0, len(self.x_values)-1):
+            derivatives[i,0] = i + 1
+            derivatives[i,1] = self.y_values[i+1] - self.y_values[i]
+
+
+        # x is i + 17
+        derivatives_diff = []
+        for x in range(1,49):
+            x_list = x - 1
+            derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
+        
+        
+        
+        
+        x_peak_OH2 = list(self.y_values[17:20]).index(max(self.y_values[17:20])) + 1 + 17
+        x_peak_OH3 = list(self.y_values[36:41]).index(max(self.y_values[36:41])) + 1 + 36
+        x_peak_OH4 = 48
+        x_peak_NII = list(self.y_values[12:15]).index(max(self.y_values[12:15])) + 1 + 12
+        x_peak_Ha  = list(self.y_values[41:44]).index(max(self.y_values[41:44])) + 1 + 41
+        
+        self.peaks = x_peak_OH1, x_peak_OH2, x_peak_OH3, x_peak_OH4
+        
+
+
+
 
     def get_fitted_gaussian_parameters(self):
         return self.fitted_gaussian
@@ -102,24 +132,6 @@ class Spectrum:
     
     def get_stddev(self, array):
         return np.std(array)
-
-    def plot_fit(self, coord, fullscreen=False, plotall=False):
-        if plotall:
-            g = self.fitted_gaussian
-            f = self.gauss_function
-            for n, ray in enumerate(["oH1", "OH2", "OH3", "OH4", "NII", "Ha"]):
-                print(ray)
-                ldic = locals()
-                # exec(f"{ray}_fct = self.gauss_function(a=g.a_{n}.value, x0=g.x0_{n}.value, h=g.h_{n}.value, sigma=g.sigma_{n}.value)",
-                #      locals())
-                exec(f"oH1 = self.gauss_function(a=g.a_{n}.value, x0=g.x0_{n}.value, h=g.h_{n}.value, sigma=g.sigma_{n}.value)", globals(), locals())
-                # exec(f"{ray} = ldic["{ray}"])
-            print(oH1)
-            self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
-                      OH1=OH1, OH2=OH2, OH3=OH3, OH4=OH4, NII=NII, Ha=Ha)
-        
-        else:
-            self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
     def get_peak_bounds(self):
         # Determines the ratio of derivatives that identify a peak's boundaries
@@ -198,7 +210,7 @@ def loop_di_loop():
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=True, coord=(x,y), plotall=True)
+        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=False)
 
 loop_di_loop()
 

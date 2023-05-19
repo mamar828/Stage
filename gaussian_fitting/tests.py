@@ -37,18 +37,18 @@ plt.show()"""
 # ----------------------------------------------------------------------------------------------------------
 
 
-"""
-data = np.fromfile(os.path.abspath("test.dat"), sep=" ")
-print(data)
-real_data = np.array(np.split(data, 2))
-print(real_data)
+
+# data = np.fromfile(os.path.abspath("test.dat"), sep=" ")
+# print(data)
+# real_data = np.array(np.split(data, 2))
+# print(real_data)
 
 
-fits_data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
-fits_wcs = WCS((fits.open('calibration.fits', mode = 'denywrite'))[0].header)
-plt.plot(fits_data[:,150,150])
-plt.show()
-"""
+# fits_data = (fits.open(os.path.abspath("calibration.fits"))[0].data)
+# fits_wcs = WCS((fits.open('calibration.fits', mode = 'denywrite'))[0].header)
+# plt.plot(fits_data[:,150,150])
+# plt.show()
+
 
 
 # ----------------------------------------------------------------------------------------------------------
@@ -141,12 +141,12 @@ plt.show()
 # -----------------------------------------------------------------------------------
 
 
-numbers = [2, 3, 7, 4, 8]
+# numbers = [2, 3, 7, 4, 8]
 
-sum(number**2 for number in numbers if number % 2 == 0)
-exec("result = sum(number**2 for number in numbers if number % 2 == 0)")
-print(result)
+# sum(number**2 for number in numbers if number % 2 == 0)
+# exec("result = sum(number**2 for number in numbers if number % 2 == 0)")
+# print(result)
 
-pro = "allo = 3"
-exec(pro)
-print(allo)
+# pro = "allo = 3"
+# exec(pro)
+# print(allo)
