@@ -27,7 +27,7 @@ class Spectrum:
             try:
                 # For neat gaussian function
                 x_plot = np.arange(1,49,0.05)
-                axs[0].plot(x_plot, value(x_plot), label=name)
+                axs[0].plot(x_plot, value(x_plot), "r-", label=name)
             except Exception:
                 try:
                     # For function evaluated at the same x_values
@@ -93,6 +93,7 @@ class Spectrum:
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
         params = {}
+        diff_threshold = -1.8
 
         x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1
 
@@ -101,14 +102,22 @@ class Spectrum:
             derivatives[i,0] = i + 1
             derivatives[i,1] = self.y_values[i+1] - self.y_values[i]
 
-
-        # x is i + 17
         derivatives_diff = []
-        for x in range(1,49):
+        for x in range(1,48):
             x_list = x - 1
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
         
+        potential_peaks = []
+        x_peak = 0
+        for x in range(18,21):
+            x_list = x - 1
+            if derivatives_diff[x_list] < diff_threshold and self.y_values[x_list] > self.y_values[x_peak] :
+                x_peak = x
         
+        if len(potential_peaks) == 0:
+            x_peak = list(self.y_values[18-1:21-1]).index(max(self.y_values[18-1:21-1])) + 18
+        
+        self.peaks = x_peak
         
         
         x_peak_OH2 = list(self.y_values[17:20]).index(max(self.y_values[17:20])) + 1 + 17
@@ -117,7 +126,7 @@ class Spectrum:
         x_peak_NII = list(self.y_values[12:15]).index(max(self.y_values[12:15])) + 1 + 12
         x_peak_Ha  = list(self.y_values[41:44]).index(max(self.y_values[41:44])) + 1 + 41
         
-        self.peaks = x_peak_OH1, x_peak_OH2, x_peak_OH3, x_peak_OH4
+        # self.peaks = x_peak_OH1, x_peak_OH2, x_peak_OH3, x_peak_OH4
         
 
 
