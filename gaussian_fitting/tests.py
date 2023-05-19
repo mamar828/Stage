@@ -120,8 +120,33 @@ plt.show()
 
 # -------------------------------------------------------------------------------------------------------
 
-a = " [1.55726605e+01 2.88057290e+01 9.92512489e+00 4.79773984e+07"
-n = 0
-for i in a:
-    n += 1
-print(n)
+# a = " [1.55726605e+01 2.88057290e+01 9.92512489e+00 4.79773984e+07"
+# n = 0
+# for i in a:
+#     n += 1
+# print(n)
+
+
+# -----------------------------------------------------------------------------
+
+# def func(a, **other):
+#     print(a)
+#     for e, i in other.items():
+#         print(i)
+
+# func("lol", lol=["binou", "toupie"])
+
+
+
+# -----------------------------------------------------------------------------------
+
+
+numbers = [2, 3, 7, 4, 8]
+
+sum(number**2 for number in numbers if number % 2 == 0)
+exec("result = sum(number**2 for number in numbers if number % 2 == 0)")
+print(result)
+
+pro = "allo = 3"
+exec(pro)
+print(allo)

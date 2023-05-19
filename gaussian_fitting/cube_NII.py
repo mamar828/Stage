@@ -65,7 +65,7 @@ class Spectrum:
         print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         print(self.get_fitted_gaussian_parameters())
         print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        fig.text(0.4, 0.92, f"coords: {coords}")
+        fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -90,6 +90,9 @@ class Spectrum:
         self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
         self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
 
+    def get_individual_y_values(self, peak_function):
+        pass
+
     def get_fitted_gaussian_parameters(self):
         return self.fitted_gaussian
     
@@ -100,8 +103,23 @@ class Spectrum:
     def get_stddev(self, array):
         return np.std(array)
 
-    def plot_fit(self, coord, fullscreen=False):
-        self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
+    def plot_fit(self, coord, fullscreen=False, plotall=False):
+        if plotall:
+            g = self.fitted_gaussian
+            f = self.gauss_function
+            for n, ray in enumerate(["oH1", "OH2", "OH3", "OH4", "NII", "Ha"]):
+                print(ray)
+                ldic = locals()
+                # exec(f"{ray}_fct = self.gauss_function(a=g.a_{n}.value, x0=g.x0_{n}.value, h=g.h_{n}.value, sigma=g.sigma_{n}.value)",
+                #      locals())
+                exec(f"oH1 = self.gauss_function(a=g.a_{n}.value, x0=g.x0_{n}.value, h=g.h_{n}.value, sigma=g.sigma_{n}.value)", globals(), locals())
+                # exec(f"{ray} = ldic["{ray}"])
+            print(oH1)
+            self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                      OH1=OH1, OH2=OH2, OH3=OH3, OH4=OH4, NII=NII, Ha=Ha)
+        
+        else:
+            self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
     def get_peak_bounds(self):
         # Determines the ratio of derivatives that identify a peak's boundaries
@@ -175,12 +193,12 @@ def extract_data(file_name=str):
 
 def loop_di_loop():
     y = 150
-    for x in range(185, 300):
+    for x in range(200, 300):
         data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=True, coord=(x,y))
+        spectrum.plot_fit(fullscreen=True, coord=(x,y), plotall=True)
 
 loop_di_loop()
 
