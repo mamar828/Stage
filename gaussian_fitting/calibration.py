@@ -5,7 +5,6 @@ import numpy as np
 
 from astropy.modeling import models, fitting
 from astropy.io import fits    
-from scipy.interpolate import UnivariateSpline
 from scipy.optimize import fsolve
 
 class Spectrum:
@@ -91,30 +90,6 @@ class Spectrum:
     def plot_fit(self):
         self.plot(fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def get_peak_bounds(self):
-        # Determines the ratio of derivatives that identify a peak's boundaries
-        sensitivity = 7
-
-        derivatives = np.zeros(shape=(47,2))
-        for i in range(0, len(self.x_values)-1):
-            derivatives[i,0] = i + 1
-            derivatives[i,1] = self.y_values[i+1] - self.y_values[i]
-        
-        lower_bound = 1
-        higher_bound = 48
-
-        for i in range(1, self.max_tuple[2]-1):
-            if derivatives[i,1] / derivatives[i-1,1] > sensitivity or (derivatives[i,1] > 0 and derivatives[i-1,1] < 0):
-                lower_bound = i + 1
-
-        for i in range(self.max_tuple[2]+2, int(max(self.x_values))-1):
-            if derivatives[i,1] / derivatives[i-1,1] < 1/sensitivity or (derivatives[i,1] > 0 and derivatives[i-1,1] < 0):
-                higher_bound = i + 1
-                break
-        
-        # The coordinates comprised in the bounds are [bounds[0]-1:bounds[1]]
-        return lower_bound, higher_bound
-    
     def get_subtracted_fit(self):
         subtracted_y = self.y_values - self.fitted_gaussian(self.x_values)
         return subtracted_y

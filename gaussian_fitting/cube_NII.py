@@ -5,7 +5,7 @@ import numpy as np
 
 from astropy.modeling import models, fitting
 from astropy.io import fits
-from copy import copy
+from scipy.optimize import fsolve
 
 class Spectrum:
 
@@ -51,15 +51,12 @@ class Spectrum:
         # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        nooo = self.fitted_gaussian[4]
-        print(nooo)
-        print(self.get_FWHM(nooo(x_plot)))
+        print(self.get_FWHM(self.fitted_gaussian[4]))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        fig.text(0.05, 0.96, self.peaks, fontsize=10)
+        fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
-        
         plt.show()
 
     def plot_fit(self, coord, fullscreen=False, plot_all=False):
@@ -83,7 +80,6 @@ class Spectrum:
 
     def fit_NII(self):
         params = self.get_initial_guesses()
-        print(params)
         # Initialize the Gaussians
         g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"], bounds={"h": (0,20), "a": (0,100)})
         g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (18,21)})
@@ -94,27 +90,15 @@ class Spectrum:
         g_init_OH1.x0.max = 4
         g_init_OH4.x0.min = 47
 
-
-        # g_init_OH1 = self.gauss_function(a=10, x0=0)
-        # g_init_OH2 = self.gauss_function(a=3, x0=19, bounds={"x0": (18, 21)})
-        # g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (36, 39)})
-        # g_init_OH4 = self.gauss_function(a=8, x0=47)
-        # g_init_NII = self.gauss_function(a=10, x0=14, bounds={"x0": (13, 15)})
-        # g_init_Ha  = self.gauss_function(a=20, x0=43, bounds={"x0": (42, 44)})
-        # g_init_OH1.x0.max = 4
-        # g_init_OH4.x0.min = 47
-
         gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
         self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
         self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
-        
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
         params = {}
         diff_threshold = -0.45
         diff_threshold_OH3 = 1.8
-
 
         derivatives = np.zeros(shape=(47,2))
         for i in range(0, len(self.x_values)-1):
@@ -146,7 +130,6 @@ class Spectrum:
                             x_peak = x
 
             if x_peak == 0:
-                # print(list(self.y_values[bounds[0]-1:bounds[1]-1]))
                 x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
             
             x_peaks[ray] = x_peak
@@ -156,15 +139,7 @@ class Spectrum:
         
         self.peaks = params
         return params
-
-        # x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1        
-        # x_peak_OH2 = list(self.y_values[17:20]).index(max(self.y_values[17:20])) + 1 + 17
-        # x_peak_OH3 = list(self.y_values[36:41]).index(max(self.y_values[36:41])) + 1 + 36
-        # x_peak_OH4 = 48
-        # x_peak_NII = list(self.y_values[12:15]).index(max(self.y_values[12:15])) + 1 + 12
-        # x_peak_Ha  = list(self.y_values[41:44]).index(max(self.y_values[41:44])) + 1 + 41
-
-
+    
     def get_fitted_gaussian_parameters(self):
         return self.fitted_gaussian
     
@@ -179,19 +154,19 @@ class Spectrum:
         subtracted_y = self.y_values - self.fitted_gaussian(self.x_values)
         return subtracted_y
     
-    def get_FWHM(self, y_values):
-        mid_height = (max(y_values) - self.fitted_gaussian.h.value)/2 + self.fitted_gaussian.h.value
+    def get_FWHM(self, function):
+        x = np.arange(1,49,0.01)
+        mid_height = (max(function(x)) - function.h.value)/2 + function.h.value
 
-        def function(xy):
+        def gauss_function_intersection(xy):
             x, y = xy
-            z = np.array([y - (self.fitted_gaussian.a.value*np.exp(
-                -(x-self.fitted_gaussian.x0.value)**2/(2*self.fitted_gaussian.sigma.value**2))
-                +self.fitted_gaussian.h.value), y - mid_height])
+            z = np.array([y - (function.a.value*np.exp(
+                -(x-function.x0.value)**2/(2*function.sigma.value**2))
+                +function.h.value), y - mid_height])
             return z
         
-        root1 = fsolve(function, [self.max_tuple[2]-1, self.max_tuple[2]+1])[0]
-        return (self.fitted_gaussian.x0.value - root1) * 2
-
+        root1 = fsolve(gauss_function_intersection, [function.x0.value-1, function.x0.value+1])[0]
+        return (function.x0.value - root1) * 2
 
 def extract_data(file_name=str):
     raw_data = np.fromfile(os.path.abspath(file_name), sep=" ")
