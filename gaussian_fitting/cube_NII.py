@@ -96,7 +96,6 @@ class Spectrum:
         diff_threshold = -0.45
         diff_threshold_OH3 = 1.8
 
-        x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1
 
         derivatives = np.zeros(shape=(47,2))
         for i in range(0, len(self.x_values)-1):
@@ -109,7 +108,7 @@ class Spectrum:
             x_list = x - 1
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
         
-        x_peaks = {}
+        x_peaks = {"OH1": list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1}
         for ray, bounds in [("OH2", (18,22)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
             x_peak = 0
             
@@ -119,6 +118,7 @@ class Spectrum:
                     x_list = x - 1
                     if ray == "OH3":
                         print(derivatives_diff[x_list_deriv])
+                    
                     if ray == "OH3":
                         if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
                             x_peak = x
@@ -129,15 +129,6 @@ class Spectrum:
                         if derivatives_diff[x_list_deriv] < diff_threshold and (
                             self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
                             x_peak = x
-            
-            # if ray == "OH3" and x_peak == 0:
-            #     for x in range(bounds[0], bounds[1]):
-            #         x_list_deriv = x - 2
-            #         x_list = x - 1
-            #         if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
-            #             print(x)
-            #             x_peak = x
-            #             break
 
             if x_peak == 0:
                 # print(list(self.y_values[bounds[0]-1:bounds[1]-1]))
@@ -147,17 +138,13 @@ class Spectrum:
             
         self.peaks = x_peaks
         
-        
+        x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1        
         x_peak_OH2 = list(self.y_values[17:20]).index(max(self.y_values[17:20])) + 1 + 17
         x_peak_OH3 = list(self.y_values[36:41]).index(max(self.y_values[36:41])) + 1 + 36
         x_peak_OH4 = 48
         x_peak_NII = list(self.y_values[12:15]).index(max(self.y_values[12:15])) + 1 + 12
         x_peak_Ha  = list(self.y_values[41:44]).index(max(self.y_values[41:44])) + 1 + 41
         
-        # self.peaks = x_peak_OH1, x_peak_OH2, x_peak_OH3, x_peak_OH4
-        
-
-
 
 
     def get_fitted_gaussian_parameters(self):
@@ -242,7 +229,7 @@ def extract_data(file_name=str):
 
 def loop_di_loop():
     y = 150
-    for x in range(122, 300):
+    for x in range(160, 300):
         data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
