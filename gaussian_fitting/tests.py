@@ -150,3 +150,12 @@ plt.show()
 # pro = "allo = 3"
 # exec(pro)
 # print(allo)
+
+
+
+
+# -----------------------------------------
+
+a = int()
+
+print(a == 0)

@@ -49,7 +49,7 @@ class Spectrum:
         # print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        fig.text(0.2, 0.92, self.peaks)
+        fig.text(0.1, 0.92, self.peaks)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -78,7 +78,7 @@ class Spectrum:
         # Initialize the Gaussians
         g_init_OH1 = self.gauss_function(a=10, x0=0)
         g_init_OH2 = self.gauss_function(a=3, x0=19, bounds={"x0": (18, 21)})
-        g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (36, 41)})
+        g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (35, 39)})
         g_init_OH4 = self.gauss_function(a=8, x0=47)
         g_init_NII = self.gauss_function(a=10, x0=14, bounds={"x0": (13, 15)})
         g_init_Ha  = self.gauss_function(a=20, x0=43, bounds={"x0": (42, 44)})
@@ -93,7 +93,8 @@ class Spectrum:
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
         params = {}
-        diff_threshold = -1.8
+        diff_threshold = -0.45
+        diff_threshold_OH3 = 1.8
 
         x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1
 
@@ -102,22 +103,43 @@ class Spectrum:
             derivatives[i,0] = i + 1
             derivatives[i,1] = self.y_values[i+1] - self.y_values[i]
 
+        # The first element is the derivative difference at point x = 2.
         derivatives_diff = []
-        for x in range(1,48):
+        for x in range(2,48):
             x_list = x - 1
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
         
-        potential_peaks = []
-        x_peak = 0
-        for x in range(18,21):
-            x_list = x - 1
-            if derivatives_diff[x_list] < diff_threshold and self.y_values[x_list] > self.y_values[x_peak] :
-                x_peak = x
-        
-        if len(potential_peaks) == 0:
-            x_peak = list(self.y_values[18-1:21-1]).index(max(self.y_values[18-1:21-1])) + 18
-        
-        self.peaks = x_peak
+        x_peaks = {}
+        for ray, bounds in [("OH2", (18,22)), ("OH3", (35,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
+            x_peak = 0
+            
+            if ray != "OH4":
+                for x in range(bounds[0], bounds[1]):
+                    x_list_deriv = x - 2
+                    x_list = x - 1
+                    if ray == "OH3":
+                        print(derivatives_diff[x_list_deriv])
+                    if derivatives_diff[x_list_deriv] < diff_threshold and (self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
+                        x_peak = x
+                        if ray == "OH3":
+                            print(x_peak)
+            
+            if ray == "OH3" and x_peak == 0:
+                for x in range(bounds[0], bounds[1]):
+                    x_list_deriv = x - 2
+                    x_list = x - 1
+                    if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
+                        print(x)
+                        x_peak = x
+                        break
+
+            if x_peak == 0:
+                # print(list(self.y_values[bounds[0]-1:bounds[1]-1]))
+                x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
+            
+            x_peaks[ray] = x_peak
+            
+        self.peaks = x_peaks
         
         
         x_peak_OH2 = list(self.y_values[17:20]).index(max(self.y_values[17:20])) + 1 + 17
@@ -214,12 +236,12 @@ def extract_data(file_name=str):
 
 def loop_di_loop():
     y = 150
-    for x in range(200, 300):
+    for x in range(122, 300):
         data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=False)
+        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=False)
 
 loop_di_loop()
 
