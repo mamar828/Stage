@@ -49,7 +49,7 @@ class Spectrum:
         # print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        fig.text(0.1, 0.92, self.peaks)
+        fig.text(0.1, 0.96, self.peaks)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -135,15 +135,19 @@ class Spectrum:
                 x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
             
             x_peaks[ray] = x_peak
-            
-        self.peaks = x_peaks
         
-        x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1        
-        x_peak_OH2 = list(self.y_values[17:20]).index(max(self.y_values[17:20])) + 1 + 17
-        x_peak_OH3 = list(self.y_values[36:41]).index(max(self.y_values[36:41])) + 1 + 36
-        x_peak_OH4 = 48
-        x_peak_NII = list(self.y_values[12:15]).index(max(self.y_values[12:15])) + 1 + 12
-        x_peak_Ha  = list(self.y_values[41:44]).index(max(self.y_values[41:44])) + 1 + 41
+        for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
+            params[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
+        
+        self.peaks = params
+        return params
+
+        # x_peak_OH1 = list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1        
+        # x_peak_OH2 = list(self.y_values[17:20]).index(max(self.y_values[17:20])) + 1 + 17
+        # x_peak_OH3 = list(self.y_values[36:41]).index(max(self.y_values[36:41])) + 1 + 36
+        # x_peak_OH4 = 48
+        # x_peak_NII = list(self.y_values[12:15]).index(max(self.y_values[12:15])) + 1 + 12
+        # x_peak_Ha  = list(self.y_values[41:44]).index(max(self.y_values[41:44])) + 1 + 41
         
 
 
