@@ -7,6 +7,11 @@ from astropy.modeling import models, fitting
 from astropy.io import fits
 from scipy.optimize import fsolve
 
+from astropy import units as u
+
+from specutils.spectra import Spectrum1D
+from specutils.fitting import fit_lines
+
 class Spectrum:
 
     def __init__(self, data=np.ndarray, desired_peak_position=35):
@@ -81,18 +86,58 @@ class Spectrum:
     def fit_NII(self):
         params = self.get_initial_guesses()
         # Initialize the Gaussians
-        g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"], bounds={"h": (0,20), "a": (0,100)})
-        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (18,21)})
-        g_init_OH3 = self.gauss_function(a=params["OH3"]["a"], x0=params["OH3"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (36,39)})
-        g_init_OH4 = self.gauss_function(a=params["OH4"]["a"], x0=params["OH4"]["x0"], bounds={"h": (0,20), "a": (0,100)})
-        g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (13,15)})
-        g_init_Ha  = self.gauss_function(a=params["Ha"]["a"],  x0=params["Ha"]["x0"],  bounds={"h": (0,20), "a": (0,100), "x0": (42,44)})
-        g_init_OH1.x0.max = 4
-        g_init_OH4.x0.min = 47
+        g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  mean=params["Ha"]["x0"]*u.um,  bounds={"amplitude": (0,100)*u.Jy})
+                
+        g_init_OH1.mean.max = 4
+        g_init_OH4.mean.min = 47
 
-        gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
-        self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
-        self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
+        # gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
+        # y_values_fitted = gaussian_addition_init(np.arange(1,49,0.05))
+
+        # gaussian_spectrum = Spectrum1D(flux=y_values_fitted*u.Jy, spectral_axis=np.arange(1,49,0.05)*u.um)
+        # fit_g = fit_lines(gaussian_spectrum, gaussian_addition_init)
+        # y_fit = fit_g(x*u.um)
+
+        # plt.plot(np.arange(1,49,0.05), self.y_values)
+        # plt.plot(np.arange(1,49,0.05), y_fit)
+        # plt.title('Double Peak Fit')
+        # plt.grid(True)
+
+        
+        # self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
+        # self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
+        # Create a simple spectrum with a Gaussian.
+        g_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"], mean=params["OH1"]["x0"], bounds={"amplitude": (0,100)})
+        g_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"], mean=params["OH2"]["x0"], bounds={"amplitude": (0,100)})        
+        g_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"], mean=params["OH3"]["x0"], bounds={"amplitude": (0,100)})        
+        g_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"], mean=params["OH4"]["x0"], bounds={"amplitude": (0,100)})        
+        g_NII = models.Gaussian1D(amplitude=params["NII"]["a"], mean=params["NII"]["x0"], bounds={"amplitude": (0,100)})        
+        g_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"],  mean=params["Ha"]["x0"],  bounds={"amplitude": (0,100)})        
+        
+        # g1 = models.Gaussian1D(1, 4.6, 0.2)
+        # g2 = models.Gaussian1D(2.5, 5.5, 0.1)
+        x = np.arange(1, 49, 0.05)
+        y = g_OH1(x) + g_OH2(x) + g_OH3(x) + g_OH4(x) + g_NII(x) + g_Ha(x)
+
+        # Create the spectrum to fit
+        spectrum = Spectrum1D(flux=y*u.Jy, spectral_axis=x*u.um)
+
+        # Fit the spectrum
+        # g1_init = models.Gaussian1D(amplitude=2.3*u.Jy, mean=5.6*u.um, stddev=0.1*u.um)
+        # g2_init = models.Gaussian1D(amplitude=1.*u.Jy, mean=4.4*u.um, stddev=0.1*u.um)
+        g12_fit = fit_lines(spectrum, g_init_OH1+g_init_OH2+g_init_OH3+g_init_OH4+g_init_NII+g_init_Ha)
+        y_fit = g12_fit(x*u.um)
+
+        plt.plot(self.x_values, self.y_values)
+        plt.plot(x, y_fit)
+        plt.title('6 Peak Fit')
+        plt.grid(True)
+        plt.show()
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
