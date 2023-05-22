@@ -51,11 +51,15 @@ class Spectrum:
         # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
+        nooo = self.fitted_gaussian[4]
+        print(nooo)
+        print(self.get_FWHM(nooo(x_plot)))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         fig.text(0.05, 0.96, self.peaks, fontsize=10)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
+        
         plt.show()
 
     def plot_fit(self, coord, fullscreen=False, plot_all=False):
@@ -82,7 +86,7 @@ class Spectrum:
         print(params)
         # Initialize the Gaussians
         g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"], bounds={"h": (0,20), "a": (0,100)})
-        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], sigma=2.1, bounds={"h": (0,20), "a": (0,100), "x0": (18,21)})
+        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (18,21)})
         g_init_OH3 = self.gauss_function(a=params["OH3"]["a"], x0=params["OH3"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (36,39)})
         g_init_OH4 = self.gauss_function(a=params["OH4"]["a"], x0=params["OH4"]["x0"], bounds={"h": (0,20), "a": (0,100)})
         g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (13,15)})
