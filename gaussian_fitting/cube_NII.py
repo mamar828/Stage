@@ -27,7 +27,10 @@ class Spectrum:
             try:
                 # For neat gaussian function
                 x_plot = np.arange(1,49,0.05)
-                axs[0].plot(x_plot, value(x_plot), "r-", label=name)
+                if name == "fit":
+                    axs[0].plot(x_plot, value(x_plot), "r-", label=name)
+                else:
+                    axs[0].plot(x_plot, value(x_plot), "y-", label=name, linewidth="1")
             except Exception:
                 try:
                     # For function evaluated at the same x_values
@@ -39,7 +42,7 @@ class Spectrum:
                     # For few points
                     plt.plot(value[:,0], value[:,1], "og", label=name)
             
-        axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum")
+        axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
         axs[0].legend(loc="upper left", fontsize="8")
         axs[1].legend(loc="upper left", fontsize="8")
         plt.xlabel("channels")
@@ -78,12 +81,12 @@ class Spectrum:
         params = self.get_initial_guesses()
         print(params)
         # Initialize the Gaussians
-        g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"], bounds={"h": (0,0), "a": (0,100)})
-        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], sigma=2.1, bounds={"h": (0,0), "a": (0,100), "x0": (18,21)})
-        g_init_OH3 = self.gauss_function(a=params["OH3"]["a"], x0=params["OH3"]["x0"], bounds={"h": (0,0), "a": (0,100), "x0": (36,39)})
-        g_init_OH4 = self.gauss_function(a=params["OH4"]["a"], x0=params["OH4"]["x0"], bounds={"h": (0,0), "a": (0,100)})
-        g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"], bounds={"h": (0,0), "a": (0,100), "x0": (13,15)})
-        g_init_Ha  = self.gauss_function(a=params["Ha"]["a"],  x0=params["Ha"]["x0"],  bounds={"h": (0,0), "a": (0,100), "x0": (42,44)})
+        g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"], bounds={"h": (0,20), "a": (0,100)})
+        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], sigma=2.1, bounds={"h": (0,20), "a": (0,100), "x0": (18,21)})
+        g_init_OH3 = self.gauss_function(a=params["OH3"]["a"], x0=params["OH3"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (36,39)})
+        g_init_OH4 = self.gauss_function(a=params["OH4"]["a"], x0=params["OH4"]["x0"], bounds={"h": (0,20), "a": (0,100)})
+        g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (13,15)})
+        g_init_Ha  = self.gauss_function(a=params["Ha"]["a"],  x0=params["Ha"]["x0"],  bounds={"h": (0,20), "a": (0,100), "x0": (42,44)})
         g_init_OH1.x0.max = 4
         g_init_OH4.x0.min = 47
 
@@ -192,12 +195,12 @@ def extract_data(file_name=str):
 
 def loop_di_loop():
     y = 150
-    for x in range(160, 300):
+    for x in range(184, 300):
         data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=False)
+        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
 
 loop_di_loop()
 
