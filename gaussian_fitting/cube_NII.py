@@ -78,7 +78,7 @@ class Spectrum:
         # Initialize the Gaussians
         g_init_OH1 = self.gauss_function(a=10, x0=0)
         g_init_OH2 = self.gauss_function(a=3, x0=19, bounds={"x0": (18, 21)})
-        g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (35, 39)})
+        g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (36, 39)})
         g_init_OH4 = self.gauss_function(a=8, x0=47)
         g_init_NII = self.gauss_function(a=10, x0=14, bounds={"x0": (13, 15)})
         g_init_Ha  = self.gauss_function(a=20, x0=43, bounds={"x0": (42, 44)})
@@ -110,7 +110,7 @@ class Spectrum:
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
         
         x_peaks = {}
-        for ray, bounds in [("OH2", (18,22)), ("OH3", (35,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
+        for ray, bounds in [("OH2", (18,22)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
             x_peak = 0
             
             if ray != "OH4":
@@ -119,19 +119,25 @@ class Spectrum:
                     x_list = x - 1
                     if ray == "OH3":
                         print(derivatives_diff[x_list_deriv])
-                    if derivatives_diff[x_list_deriv] < diff_threshold and (self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
-                        x_peak = x
-                        if ray == "OH3":
+                    if ray == "OH3":
+                        if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
+                            x_peak = x
                             print(x_peak)
+                            break
+
+                    else:
+                        if derivatives_diff[x_list_deriv] < diff_threshold and (
+                            self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
+                            x_peak = x
             
-            if ray == "OH3" and x_peak == 0:
-                for x in range(bounds[0], bounds[1]):
-                    x_list_deriv = x - 2
-                    x_list = x - 1
-                    if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
-                        print(x)
-                        x_peak = x
-                        break
+            # if ray == "OH3" and x_peak == 0:
+            #     for x in range(bounds[0], bounds[1]):
+            #         x_list_deriv = x - 2
+            #         x_list = x - 1
+            #         if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
+            #             print(x)
+            #             x_peak = x
+            #             break
 
             if x_peak == 0:
                 # print(list(self.y_values[bounds[0]-1:bounds[1]-1]))
