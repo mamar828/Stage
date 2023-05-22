@@ -46,10 +46,10 @@ class Spectrum:
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
         # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
-        # print(self.get_fitted_gaussian_parameters())
+        print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        fig.text(0.1, 0.96, self.peaks)
+        fig.text(0.05, 0.96, self.peaks, fontsize=10)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -71,24 +71,36 @@ class Spectrum:
             self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
     @models.custom_model
-    def gauss_function(x, a=1., x0=1., sigma=2., h=0.):
+    def gauss_function(x, a=1., x0=1., sigma=1., h=0.):
         return a*np.exp(-(x-x0)**2/(2*sigma**2))+h
 
     def fit_NII(self):
+        params = self.get_initial_guesses()
+        print(params)
         # Initialize the Gaussians
-        g_init_OH1 = self.gauss_function(a=10, x0=0)
-        g_init_OH2 = self.gauss_function(a=3, x0=19, bounds={"x0": (18, 21)})
-        g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (36, 39)})
-        g_init_OH4 = self.gauss_function(a=8, x0=47)
-        g_init_NII = self.gauss_function(a=10, x0=14, bounds={"x0": (13, 15)})
-        g_init_Ha  = self.gauss_function(a=20, x0=43, bounds={"x0": (42, 44)})
+        g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"], bounds={"h": (0,0), "a": (0,100)})
+        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], sigma=2.1, bounds={"h": (0,0), "a": (0,100), "x0": (18,21)})
+        g_init_OH3 = self.gauss_function(a=params["OH3"]["a"], x0=params["OH3"]["x0"], bounds={"h": (0,0), "a": (0,100), "x0": (36,39)})
+        g_init_OH4 = self.gauss_function(a=params["OH4"]["a"], x0=params["OH4"]["x0"], bounds={"h": (0,0), "a": (0,100)})
+        g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"], bounds={"h": (0,0), "a": (0,100), "x0": (13,15)})
+        g_init_Ha  = self.gauss_function(a=params["Ha"]["a"],  x0=params["Ha"]["x0"],  bounds={"h": (0,0), "a": (0,100), "x0": (42,44)})
         g_init_OH1.x0.max = 4
         g_init_OH4.x0.min = 47
+
+
+        # g_init_OH1 = self.gauss_function(a=10, x0=0)
+        # g_init_OH2 = self.gauss_function(a=3, x0=19, bounds={"x0": (18, 21)})
+        # g_init_OH3 = self.gauss_function(a=4, x0=38, bounds={"x0": (36, 39)})
+        # g_init_OH4 = self.gauss_function(a=8, x0=47)
+        # g_init_NII = self.gauss_function(a=10, x0=14, bounds={"x0": (13, 15)})
+        # g_init_Ha  = self.gauss_function(a=20, x0=43, bounds={"x0": (42, 44)})
+        # g_init_OH1.x0.max = 4
+        # g_init_OH4.x0.min = 47
 
         gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
         self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
         self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
-        self.get_initial_guesses()
+        
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
@@ -117,12 +129,8 @@ class Spectrum:
                     x_list_deriv = x - 2
                     x_list = x - 1
                     if ray == "OH3":
-                        print(derivatives_diff[x_list_deriv])
-                    
-                    if ray == "OH3":
                         if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
                             x_peak = x
-                            print(x_peak)
                             break
 
                     else:
@@ -148,7 +156,6 @@ class Spectrum:
         # x_peak_OH4 = 48
         # x_peak_NII = list(self.y_values[12:15]).index(max(self.y_values[12:15])) + 1 + 12
         # x_peak_Ha  = list(self.y_values[41:44]).index(max(self.y_values[41:44])) + 1 + 41
-        
 
 
     def get_fitted_gaussian_parameters(self):
@@ -160,54 +167,6 @@ class Spectrum:
     
     def get_stddev(self, array):
         return np.std(array)
-
-    def get_peak_bounds(self):
-        # Determines the ratio of derivatives that identify a peak's boundaries
-        sensitivity = 7
-
-        # We do not consider the first seven channels for peaks
-        derivatives = np.zeros(shape=(47,2))
-        for i in range(0, len(self.x_values)-1):
-            derivatives[i,0] = i + 1
-            derivatives[i,1] = self.y_values[i+1] - self.y_values[i]
-        
-        lower_bound = 1
-        higher_bound = 25
-
-
-        for i in range(1, self.max_tuple[2]-1):
-            if derivatives[i,1] / derivatives[i-1,1] > sensitivity or (derivatives[i,1] > 0 and derivatives[i-1,1] < 0):
-                lower_bound = i + 1
-
-        for i in range(self.max_tuple[2]+2, int(max(self.x_values))-1):
-            if derivatives[i,1] / derivatives[i-1,1] < 1/sensitivity or (derivatives[i,1] > 0 and derivatives[i-1,1] < 0):
-                higher_bound = i + 1
-                break
-        
-        # The coordinates comprised in the bounds are [bounds[0]-1:bounds[1]
-        self.bounds = lower_bound, higher_bound
-        return lower_bound, higher_bound
-
-
-    def get_peak_bound(self):
-        # We'll look for the right peak in the region after channel 25
-        derivatives = np.zeros(shape=(22,2))
-        for i in range(25, len(self.x_values)-1):
-            derivatives[i-25,0] = i + 1
-            derivatives[i-25,1] = self.y_values[i+1] - self.y_values[i]
-
-        lower_bound = 26
-
-        # The closest permitted bound
-        peak_closeness = 4
-        
-        for i in range(26, self.right_peak_max_tuple[2]-peak_closeness):
-            if (derivatives[i-26,1] > 0 and derivatives[i-27,1] < 0):
-                lower_bound = i
-
-        self.lower_bound = lower_bound
-
-        return lower_bound
         
     def get_subtracted_fit(self):
         subtracted_y = self.y_values - self.fitted_gaussian(self.x_values)
