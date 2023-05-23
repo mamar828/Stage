@@ -5,6 +5,7 @@ import numpy as np
 
 from astropy.modeling import models, fitting
 from astropy.io import fits
+
 from scipy.optimize import fsolve
 
 from astropy import units as u
@@ -48,17 +49,17 @@ class Spectrum:
                     plt.plot(value[:,0], value[:,1], "og", label=name)
             
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
-        plt.title("Specutils")
+        fig.text(0.5, 0.93, "Specutils")
         axs[0].legend(loc="upper left", fontsize="7")
         axs[1].legend(loc="upper left", fontsize="7")
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
-        # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
-        print(self.get_fitted_gaussian_parameters())
+        print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
+        # print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        print(self.get_FWHM(self.fitted_gaussian[4]))
-        fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
+        # print(self.get_FWHM(self.fitted_gaussian[4]))
+        fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
@@ -80,25 +81,28 @@ class Spectrum:
         else:
             self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    @models.custom_model
-    def gauss_function(x, a=1., x0=1., sigma=1., h=0.):
-        return a*np.exp(-(x-x0)**2/(2*sigma**2))+h
-
     def fit_NII(self):
         params = self.get_initial_guesses()
         # Initialize the Gaussians
-        g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  mean=params["Ha"]["x0"]*u.um,  bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy,
+                                       mean=params["OH1"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, 
+                                       mean=params["OH2"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, 
+                                       mean=params["OH3"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, 
+                                       mean=params["OH4"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, 
+                                       mean=params["NII"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+        g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  
+                                       mean=params["Ha"]["x0"]*u.um,  bounds={"amplitude": (0,100)*u.Jy})
         g_init_OH1.mean.max = 4
         g_init_OH4.mean.min = 47
+        print(params)
 
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
-        g_123456_init = g_init_OH1+g_init_OH2+g_init_OH3+g_init_OH4+g_init_NII+g_init_Ha
-        self.fitted_gaussian = fit_lines(spectrum, g_123456_init)
+        self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
+                                         fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
@@ -120,15 +124,21 @@ class Spectrum:
         x_peaks = {"OH1": list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1}
         for ray, bounds in [("OH2", (18,22)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
             x_peak = 0
+            x_peak_OH3 = 0
+            stop_OH3 = False
             
             if ray != "OH4":
                 for x in range(bounds[0], bounds[1]):
                     x_list_deriv = x - 2
                     x_list = x - 1
                     if ray == "OH3":
-                        if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
+                        if derivatives_diff[x_list_deriv] < diff_threshold and (
+                            self.y_values[x_list] > self.y_values[x_peak_OH3-1] or x_peak_OH3 == 0):
+                            x_peak_OH3 = x
+
+                        if derivatives_diff[x_list_deriv] > diff_threshold_OH3 and not stop_OH3:
                             x_peak = x
-                            break
+                            stop_OH3 = True
 
                     else:
                         if derivatives_diff[x_list_deriv] < diff_threshold and (
@@ -138,6 +148,9 @@ class Spectrum:
             if x_peak == 0:
                 x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
             
+            if x_peak_OH3 != 0:
+                x_peak = x_peak_OH3
+
             x_peaks[ray] = x_peak
         
         for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
@@ -150,7 +163,7 @@ class Spectrum:
         return self.fitted_gaussian
     
     def get_uncertainties(self):
-        cov_matrix = self.fit_g.fit_info["param_cov"]
+        cov_matrix = self.fitted_gaussian.meta["fit_info"]["param_cov"]
         return np.sqrt(np.diag(cov_matrix))
     
     def get_stddev(self, array):
@@ -179,13 +192,13 @@ def extract_data(file_name=str):
     return np.array(np.split(raw_data, len(raw_data)/2))
 
 def loop_di_loop():
-    y = 150
-    for x in range(200, 300):
+    y = 200
+    for x in range(218, 300):
         data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
 
 loop_di_loop()
 

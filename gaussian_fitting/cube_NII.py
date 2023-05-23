@@ -43,7 +43,7 @@ class Spectrum:
                     plt.plot(value[:,0], value[:,1], "og", label=name)
             
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
-        plt.title("Astropy")
+        fig.text(0.5, 0.95, "Astropy")
         axs[0].legend(loc="upper left", fontsize="7")
         axs[1].legend(loc="upper left", fontsize="7")
         plt.xlabel("channels")
@@ -53,8 +53,8 @@ class Spectrum:
         print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         print(self.get_FWHM(self.fitted_gaussian[4]))
-        fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
+        fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
+        # fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
