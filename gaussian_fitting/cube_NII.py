@@ -81,12 +81,18 @@ class Spectrum:
     def fit_NII(self):
         params = self.get_initial_guesses()
         # Initialize the Gaussians
-        g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"], bounds={"h": (0,20), "a": (0,100)})
-        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (18,21)})
-        g_init_OH3 = self.gauss_function(a=params["OH3"]["a"], x0=params["OH3"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (36,39)})
-        g_init_OH4 = self.gauss_function(a=params["OH4"]["a"], x0=params["OH4"]["x0"], bounds={"h": (0,20), "a": (0,100)})
-        g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"], bounds={"h": (0,20), "a": (0,100), "x0": (13,15)})
-        g_init_Ha  = self.gauss_function(a=params["Ha"]["a"],  x0=params["Ha"]["x0"],  bounds={"h": (0,20), "a": (0,100), "x0": (42,44)})
+        g_init_OH1 = self.gauss_function(a=params["OH1"]["a"], x0=params["OH1"]["x0"],
+                                          bounds={"h": (0,20), "a": (0,100)})
+        g_init_OH2 = self.gauss_function(a=params["OH2"]["a"], x0=params["OH2"]["x0"],
+                                          bounds={"h": (0,20), "a": (0,100), "x0": (18,21)})
+        g_init_OH3 = self.gauss_function(a=params["OH3"]["a"], x0=params["OH3"]["x0"],
+                                          bounds={"h": (0,20), "a": (0,100), "x0": (36,39)})
+        g_init_OH4 = self.gauss_function(a=params["OH4"]["a"], x0=params["OH4"]["x0"],
+                                          bounds={"h": (0,20), "a": (0,100)})
+        g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"],
+                                          bounds={"h": (0,20), "a": (0,100), "x0": (13,15)})
+        g_init_Ha  = self.gauss_function(a=params["Ha"]["a"],  x0=params["Ha"]["x0"],
+                                           bounds={"h": (0,20), "a": (0,100), "x0": (42,44)})
         g_init_OH1.x0.max = 4
         g_init_OH4.x0.min = 47
 

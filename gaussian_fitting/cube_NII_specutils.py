@@ -33,7 +33,7 @@ class Spectrum:
                 # For neat gaussian function
                 x_plot = np.arange(1,49,0.05)
                 if name == "fit":
-                    axs[0].plot(x_plot, value(x_plot), "r-", label=name)
+                    axs[0].plot(x_plot*u.Jy, value(x_plot*u.um), "r-", label=name)
                 else:
                     axs[0].plot(x_plot, value(x_plot), "y-", label=name, linewidth="1")
             except Exception:
@@ -56,7 +56,7 @@ class Spectrum:
         # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        print(self.get_FWHM(self.fitted_gaussian[4]))
+        # print(self.get_FWHM(self.fitted_gaussian[4]))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
@@ -67,12 +67,12 @@ class Spectrum:
     def plot_fit(self, coord, fullscreen=False, plot_all=False):
         if plot_all:
             g = self.fitted_gaussian
-            oh1 = self.gauss_function(a=g.a_0.value, x0=g.x0_0.value, h=g.h_0.value, sigma=g.sigma_0.value)
-            oh2 = self.gauss_function(a=g.a_1.value, x0=g.x0_1.value, h=g.h_1.value, sigma=g.sigma_1.value)
-            oh3 = self.gauss_function(a=g.a_2.value, x0=g.x0_2.value, h=g.h_2.value, sigma=g.sigma_2.value)
-            oh4 = self.gauss_function(a=g.a_3.value, x0=g.x0_3.value, h=g.h_3.value, sigma=g.sigma_3.value)
-            nii = self.gauss_function(a=g.a_4.value, x0=g.x0_4.value, h=g.h_4.value, sigma=g.sigma_4.value)
-            ha  = self.gauss_function(a=g.a_5.value, x0=g.x0_5.value, h=g.h_5.value, sigma=g.sigma_5.value)
+            oh1 = models.Gaussian1D(amplitude=g.amplitude_0.value, mean=g.mean_0.value, stddev=g.stddev_0.value)
+            oh2 = models.Gaussian1D(amplitude=g.amplitude_1.value, mean=g.mean_1.value, stddev=g.stddev_1.value)
+            oh3 = models.Gaussian1D(amplitude=g.amplitude_2.value, mean=g.mean_2.value, stddev=g.stddev_2.value)
+            oh4 = models.Gaussian1D(amplitude=g.amplitude_3.value, mean=g.mean_3.value, stddev=g.stddev_3.value)
+            nii = models.Gaussian1D(amplitude=g.amplitude_4.value, mean=g.mean_4.value, stddev=g.stddev_4.value)
+            ha  = models.Gaussian1D(amplitude=g.amplitude_5.value, mean=g.mean_5.value, stddev=g.stddev_5.value)
             self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
                       OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
         
@@ -111,33 +111,27 @@ class Spectrum:
         
         # self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
         # self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
-        # Create a simple spectrum with a Gaussian.
-        g_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"], mean=params["OH1"]["x0"], bounds={"amplitude": (0,100)})
-        g_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"], mean=params["OH2"]["x0"], bounds={"amplitude": (0,100)})        
-        g_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"], mean=params["OH3"]["x0"], bounds={"amplitude": (0,100)})        
-        g_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"], mean=params["OH4"]["x0"], bounds={"amplitude": (0,100)})        
-        g_NII = models.Gaussian1D(amplitude=params["NII"]["a"], mean=params["NII"]["x0"], bounds={"amplitude": (0,100)})        
-        g_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"],  mean=params["Ha"]["x0"],  bounds={"amplitude": (0,100)})        
         
+        
+        # Create a simple spectrum with a Gaussian.
         # g1 = models.Gaussian1D(1, 4.6, 0.2)
         # g2 = models.Gaussian1D(2.5, 5.5, 0.1)
-        x = np.arange(1, 49, 0.05)
-        y = g_OH1(x) + g_OH2(x) + g_OH3(x) + g_OH4(x) + g_NII(x) + g_Ha(x)
 
         # Create the spectrum to fit
-        spectrum = Spectrum1D(flux=y*u.Jy, spectral_axis=x*u.um)
-
+        spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
+        g_123456_init = g_init_OH1+g_init_OH2+g_init_OH3+g_init_OH4+g_init_NII+g_init_Ha
+        # print(estimate_line_parameters(spectrum, g_model))
         # Fit the spectrum
         # g1_init = models.Gaussian1D(amplitude=2.3*u.Jy, mean=5.6*u.um, stddev=0.1*u.um)
         # g2_init = models.Gaussian1D(amplitude=1.*u.Jy, mean=4.4*u.um, stddev=0.1*u.um)
-        g12_fit = fit_lines(spectrum, g_init_OH1+g_init_OH2+g_init_OH3+g_init_OH4+g_init_NII+g_init_Ha)
-        y_fit = g12_fit(x*u.um)
+        self.fitted_gaussian = fit_lines(spectrum, g_123456_init)
+        # y_fit = g12_fit(x*u.um)
 
-        plt.plot(self.x_values, self.y_values)
-        plt.plot(x, y_fit)
-        plt.title('6 Peak Fit')
-        plt.grid(True)
-        plt.show()
+        # plt.plot(self.x_values, self.y_values)
+        # plt.plot(x, y_fit)
+        # plt.title('6 Peak Fit')
+        # plt.grid(True)
+        # plt.show()
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
@@ -196,22 +190,22 @@ class Spectrum:
         return np.std(array)
         
     def get_subtracted_fit(self):
-        subtracted_y = self.y_values - self.fitted_gaussian(self.x_values)
+        subtracted_y = self.y_values*u.Jy - self.fitted_gaussian(self.x_values*u.um)
         return subtracted_y
     
     def get_FWHM(self, function):
         x = np.arange(1,49,0.01)
-        mid_height = (max(function(x)) - function.h.value)/2 + function.h.value
+        mid_height = max(function(x*u.um))/2
 
         def gauss_function_intersection(xy):
             x, y = xy
-            z = np.array([y - (function.a.value*np.exp(
-                -(x-function.x0.value)**2/(2*function.sigma.value**2))
-                +function.h.value), y - mid_height])
+            z = np.array([y - (function.amplitude.value*np.exp(
+                -(x*u.um-function.mean.value)**2/(2*function.stddev.value**2))
+                )/u.Jy, y - mid_height/u.Jy])
             return z
         
-        root1 = fsolve(gauss_function_intersection, [function.x0.value-1, function.x0.value+1])[0]
-        return (function.x0.value - root1) * 2
+        root1 = fsolve(gauss_function_intersection, [function.mean.value-1*u.um, function.mean.value+1*u.um])[0]
+        return (function.mean.value - root1) * 2
 
 def extract_data(file_name=str):
     raw_data = np.fromfile(os.path.abspath(file_name), sep=" ")
