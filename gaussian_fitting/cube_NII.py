@@ -43,8 +43,9 @@ class Spectrum:
                     plt.plot(value[:,0], value[:,1], "og", label=name)
             
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
-        axs[0].legend(loc="upper left", fontsize="8")
-        axs[1].legend(loc="upper left", fontsize="8")
+        plt.title("Astropy")
+        axs[0].legend(loc="upper left", fontsize="7")
+        axs[1].legend(loc="upper left", fontsize="7")
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
@@ -185,7 +186,7 @@ def loop_di_loop():
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
 
 loop_di_loop()
 

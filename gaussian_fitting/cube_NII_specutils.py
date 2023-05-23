@@ -48,15 +48,16 @@ class Spectrum:
                     plt.plot(value[:,0], value[:,1], "og", label=name)
             
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
-        axs[0].legend(loc="upper left", fontsize="8")
-        axs[1].legend(loc="upper left", fontsize="8")
+        plt.title("Specutils")
+        axs[0].legend(loc="upper left", fontsize="7")
+        axs[1].legend(loc="upper left", fontsize="7")
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
         # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        # print(self.get_FWHM(self.fitted_gaussian[4]))
+        print(self.get_FWHM(self.fitted_gaussian[4]))
         fig.text(0.4, 0.92, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
@@ -92,46 +93,12 @@ class Spectrum:
         g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
         g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
         g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  mean=params["Ha"]["x0"]*u.um,  bounds={"amplitude": (0,100)*u.Jy})
-                
         g_init_OH1.mean.max = 4
         g_init_OH4.mean.min = 47
 
-        # gaussian_addition_init = g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha
-        # y_values_fitted = gaussian_addition_init(np.arange(1,49,0.05))
-
-        # gaussian_spectrum = Spectrum1D(flux=y_values_fitted*u.Jy, spectral_axis=np.arange(1,49,0.05)*u.um)
-        # fit_g = fit_lines(gaussian_spectrum, gaussian_addition_init)
-        # y_fit = fit_g(x*u.um)
-
-        # plt.plot(np.arange(1,49,0.05), self.y_values)
-        # plt.plot(np.arange(1,49,0.05), y_fit)
-        # plt.title('Double Peak Fit')
-        # plt.grid(True)
-
-        
-        # self.fit_g = fitting.LMLSQFitter(calc_uncertainties=True)
-        # self.fitted_gaussian = self.fit_g(gaussian_addition_init, self.x_values, self.y_values)
-        
-        
-        # Create a simple spectrum with a Gaussian.
-        # g1 = models.Gaussian1D(1, 4.6, 0.2)
-        # g2 = models.Gaussian1D(2.5, 5.5, 0.1)
-
-        # Create the spectrum to fit
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         g_123456_init = g_init_OH1+g_init_OH2+g_init_OH3+g_init_OH4+g_init_NII+g_init_Ha
-        # print(estimate_line_parameters(spectrum, g_model))
-        # Fit the spectrum
-        # g1_init = models.Gaussian1D(amplitude=2.3*u.Jy, mean=5.6*u.um, stddev=0.1*u.um)
-        # g2_init = models.Gaussian1D(amplitude=1.*u.Jy, mean=4.4*u.um, stddev=0.1*u.um)
         self.fitted_gaussian = fit_lines(spectrum, g_123456_init)
-        # y_fit = g12_fit(x*u.um)
-
-        # plt.plot(self.x_values, self.y_values)
-        # plt.plot(x, y_fit)
-        # plt.title('6 Peak Fit')
-        # plt.grid(True)
-        # plt.show()
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
@@ -200,11 +167,11 @@ class Spectrum:
         def gauss_function_intersection(xy):
             x, y = xy
             z = np.array([y - (function.amplitude.value*np.exp(
-                -(x*u.um-function.mean.value)**2/(2*function.stddev.value**2))
-                )/u.Jy, y - mid_height/u.Jy])
+                -(x-function.mean.value)**2/(2*function.stddev.value**2))
+                ), y - mid_height/u.Jy])
             return z
         
-        root1 = fsolve(gauss_function_intersection, [function.mean.value-1*u.um, function.mean.value+1*u.um])[0]
+        root1 = fsolve(gauss_function_intersection, [function.mean.value-1, function.mean.value+1])[0]
         return (function.mean.value - root1) * 2
 
 def extract_data(file_name=str):
@@ -218,7 +185,7 @@ def loop_di_loop():
         spectrum = Spectrum(data[:,x,y])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
 
 loop_di_loop()
 
