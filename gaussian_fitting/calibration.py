@@ -104,8 +104,8 @@ class Spectrum:
                 +self.fitted_gaussian.h.value), y - mid_height])
             return z
         
-        root1 = fsolve(function, [self.max_tuple[2]-1, self.max_tuple[2]+1])[0]
-        return (self.fitted_gaussian.x0.value - root1) * 2
+        root1_x = fsolve(function, [self.max_tuple[2]-1, mid_height])[0]
+        return (self.fitted_gaussian.x0.value - root1_x) * 2
 
 
 def extract_data(file_name=str):

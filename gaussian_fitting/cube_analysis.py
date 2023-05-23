@@ -12,41 +12,53 @@ from specutils.fitting import fit_lines
 
 class Spectrum:
 
-    def __init__(self, data=np.ndarray, desired_peak_position=35):
+    def __init__(self, data=np.ndarray, calibration=False, desired_peak_position=35):
+        """
+        Calibration boolean must be set to True to force the analysis of a single peak.
+        """
         self.data = data
+        self.x_values, self.y_values = np.arange(48) + 1, data
+        self.calibration = calibration
+        
+        if calibration:
+            desired_peak_position = 35
+            temporary_max_x = list(self.y_values).index(max(self.y_values))
+            peak_position_translation = desired_peak_position - temporary_max_x
+            new_y_values = np.zeros(shape=48)
 
-        try:
-            self.x_values, self.y_values = np.split(data, 2, axis=1)
-        except Exception:
-            self.x_values, self.y_values = np.arange(48) + 1, data
-        
-        mean = np.sum(self.y_values[24:34]) / 10
-        self.y_values -= mean
-        
+            for i, value in enumerate(self.y_values):
+                if (peak_position_translation + i) >= 48:
+                    new_y_values[i+peak_position_translation-48] = value
+                else:
+                    new_y_values[i+peak_position_translation] = value
+
+            self.old_y_values = self.y_values
+            self.y_values = new_y_values
+            max_intensity_x = list(self.y_values).index(max(self.y_values))
+            mean = np.sum(self.y_values[0:25]) / 25
+            self.y_values -= mean
+            self.max_tuple = (int(self.x_values[max_intensity_x]), float(self.y_values[max_intensity_x]))
+
+        else:
+            mean = np.sum(self.y_values[24:34]) / 10
+            self.y_values -= mean
         
     def plot(self, coords, fullscreen=False, **other_values):
         fig, axs = plt.subplots(2)
         for name, value in other_values.items():
-            try:
-                # For neat gaussian function
-                x_plot = np.arange(1,49,0.05)
-                if name == "fit":
-                    axs[0].plot(x_plot*u.Jy, value(x_plot*u.um), "r-", label=name)
-                else:
-                    axs[0].plot(x_plot, value(x_plot), "y-", label=name, linewidth="1")
-            except Exception:
-                try:
-                    # For function evaluated at the same x_values
-                    if name == "subtracted_fit":
-                        axs[1].plot(self.x_values, value, label=name)
-                    else:
-                        plt.plot(self.x_values, value, label=name)
-                except Exception:
-                    # For few points
-                    plt.plot(value[:,0], value[:,1], "og", label=name)
-
+            # For neat gaussian functions
+            x_plot_gaussian = np.arange(1,48.05,0.05)
+            if name == "fit":
+                # Fitted entire function
+                axs[0].plot(x_plot_gaussian*u.Jy, value(x_plot_gaussian*u.um), "r-", label=name)
+            elif name == "subtracted_fit":
+                # Residual distribution
+                axs[1].plot(self.x_values, value, label=name)
+            else:
+                # Fitted individual gaussians
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=name, linewidth="1")
+        
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
-        fig.text(0.5, 0.93, "Specutils")
         axs[0].legend(loc="upper left", fontsize="7")
         axs[1].legend(loc="upper left", fontsize="7")
         plt.xlabel("channels")
@@ -55,16 +67,16 @@ class Spectrum:
         # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         # print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        print(self.get_FWHM(self.fitted_gaussian[4]))
+        print(self.get_FWHM(self.fitted_gaussian))
         fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
+        # fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
         plt.show()
 
     def plot_fit(self, coord, fullscreen=False, plot_all=False):
-        if plot_all:
+        if plot_all and not self.calibration:
             g = self.fitted_gaussian
             oh1 = models.Gaussian1D(amplitude=g.amplitude_0.value, mean=g.mean_0.value, stddev=g.stddev_0.value)
             oh2 = models.Gaussian1D(amplitude=g.amplitude_1.value, mean=g.mean_1.value, stddev=g.stddev_1.value)
@@ -78,27 +90,34 @@ class Spectrum:
         else:
             self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit_NII(self):
-        params = self.get_initial_guesses()
-        # Initialize the Gaussians
-        g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy,
-                                       mean=params["OH1"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, 
-                                       mean=params["OH2"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, 
-                                       mean=params["OH3"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, 
-                                       mean=params["OH4"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, 
-                                       mean=params["NII"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-        g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  
-                                       mean=params["Ha"]["x0"]*u.um,  bounds={"amplitude": (0,100)*u.Jy})
-        g_init_OH1.mean.max = 4
-        g_init_OH4.mean.min = 47
-
+    def fit(self):
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
-        self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
-                                         fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
+        if self.calibration:
+            g_init = models.Gaussian1D(amplitude=self.max_tuple[1]*u.Jy, mean=self.max_tuple[0]*u.um)
+
+            self.fitted_gaussian = fit_lines(spectrum, g_init,
+                                                fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
+
+        else:
+            params = self.get_initial_guesses()
+            # Initialize the Gaussians
+            g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy,
+                                            mean=params["OH1"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+            g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, 
+                                            mean=params["OH2"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+            g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, 
+                                            mean=params["OH3"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+            g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, 
+                                            mean=params["OH4"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+            g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, 
+                                            mean=params["NII"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
+            g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  
+                                            mean=params["Ha"]["x0"]*u.um,  bounds={"amplitude": (0,100)*u.Jy})
+            g_init_OH1.mean.max = 4
+            g_init_OH4.mean.min = 47
+
+            self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
+                                                fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
@@ -181,18 +200,24 @@ class Spectrum:
             return z
 
         root1_x = fsolve(gauss_function_intersection, [function.mean.value-1, mid_height/u.Jy])[0]
+        print(2*np.sqrt(2*np.log(2))*function.stddev.value)
         return (function.mean.value - root1_x) * 2
 
-def loop_di_loop():
-    x = 95
-    for y in range(191, 300):
-        data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
-        spectrum = Spectrum(data[:,y-1,x-1])
+def loop_di_loop(filename):
+    calib = False
+    if filename == "calibration.fits":
+        calib = True
+    x = 100
+    for y in range(100, 300):
         print(f"\n----------------\ncoords: {x,y}")
-        spectrum.fit_NII()
+        data = fits.open(filename)[0].data
+        spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
+        spectrum.fit()
         spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
 
-loop_di_loop()
+# loop_di_loop("cube_NII_Sh158_with_header.fits")
+loop_di_loop("calibration.fits")
+
 
 # data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
 # spectrum = Spectrum(data[:,153,150])
