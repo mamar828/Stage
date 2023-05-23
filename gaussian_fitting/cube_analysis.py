@@ -64,10 +64,6 @@ class Spectrum:
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
-        # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
-        # print(self.get_fitted_gaussian_parameters())
-        # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        print(self.get_FWHM(self.fitted_gaussian))
         fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         # fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
@@ -188,20 +184,11 @@ class Spectrum:
         subtracted_y = self.y_values*u.Jy - self.fitted_gaussian(self.x_values*u.um)
         return subtracted_y
     
-    def get_FWHM(self, function):
-        x = np.arange(1,49,0.01)
-        mid_height = max(function(x*u.um))/2
+    def get_FWHM(self, function, function_uncertainties):
+        fwhm = 2*np.sqrt(2*np.log(2))*function.stddev.value 
+        fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*function_uncertainties[2]
+        return [fwhm, fwhm_uncertainty]
 
-        def gauss_function_intersection(xy):
-            x, y = xy
-            z = np.array([y - (function.amplitude.value*np.exp(
-                -(x-function.mean.value)**2/(2*function.stddev.value**2))
-                ), y - mid_height/u.Jy])
-            return z
-
-        root1_x = fsolve(gauss_function_intersection, [function.mean.value-1, mid_height/u.Jy])[0]
-        print(2*np.sqrt(2*np.log(2))*function.stddev.value)
-        return (function.mean.value - root1_x) * 2
 
 def loop_di_loop(filename):
     calib = False
@@ -217,11 +204,3 @@ def loop_di_loop(filename):
 
 # loop_di_loop("cube_NII_Sh158_with_header.fits")
 loop_di_loop("calibration.fits")
-
-
-# data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
-# spectrum = Spectrum(data[:,153,150])
-
-# spectrum = Spectrum(extract_data(file_name="ds9.dat"))
-# spectrum.fit_NII()
-# spectrum.plot_fit()
