@@ -47,7 +47,7 @@ class Spectrum:
                 except Exception:
                     # For few points
                     plt.plot(value[:,0], value[:,1], "og", label=name)
-            
+
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
         fig.text(0.5, 0.93, "Specutils")
         axs[0].legend(loc="upper left", fontsize="7")
@@ -55,7 +55,7 @@ class Spectrum:
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
-        print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
+        # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         # print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         # print(self.get_FWHM(self.fitted_gaussian[4]))
@@ -183,22 +183,22 @@ class Spectrum:
                 -(x-function.mean.value)**2/(2*function.stddev.value**2))
                 ), y - mid_height/u.Jy])
             return z
-        
-        root1 = fsolve(gauss_function_intersection, [function.mean.value-1, function.mean.value+1])[0]
-        return (function.mean.value - root1) * 2
+
+        root1_x = fsolve(gauss_function_intersection, [function.mean.value-1, function.mean.value+1])[0]
+        return (function.mean.value - root1_x) * 2
 
 def extract_data(file_name=str):
     raw_data = np.fromfile(os.path.abspath(file_name), sep=" ")
     return np.array(np.split(raw_data, len(raw_data)/2))
 
 def loop_di_loop():
-    y = 200
-    for x in range(218, 300):
-        data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
-        spectrum = Spectrum(data[:,x,y])
+    x = 95
+    for y in range(191, 300):
+        data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+        spectrum = Spectrum(data[:,y-1,x-1])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
-        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
 
 loop_di_loop()
 

@@ -6,4 +6,10 @@ OH  : --4
     : 18-20
     : 37-41
     : 47--
-   
+
+
+Translation DS9 --> Python
+
+ DS9  : Python
+(1,1)   (0,0)
+Inverted axes

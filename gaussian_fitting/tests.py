@@ -156,6 +156,15 @@ plt.show()
 
 # -----------------------------------------
 
-a = int()
+# a = int()
 
-print(a == 0)
+# print(a == 0)
+
+
+
+# ---------------------------------------------
+
+fits_data = (fits.open('cube_NII_Sh158_with_header.fits'))[0].data
+
+plt.plot(fits_data[:,0,0])
+plt.show()

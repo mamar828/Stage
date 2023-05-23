@@ -121,15 +121,21 @@ class Spectrum:
         x_peaks = {"OH1": list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1}
         for ray, bounds in [("OH2", (18,22)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
             x_peak = 0
+            x_peak_OH3 = 0
+            stop_OH3 = False
             
             if ray != "OH4":
                 for x in range(bounds[0], bounds[1]):
                     x_list_deriv = x - 2
                     x_list = x - 1
                     if ray == "OH3":
-                        if derivatives_diff[x_list_deriv] > diff_threshold_OH3:
+                        if derivatives_diff[x_list_deriv] < diff_threshold and (
+                            self.y_values[x_list] > self.y_values[x_peak_OH3-1] or x_peak_OH3 == 0):
+                            x_peak_OH3 = x
+
+                        if derivatives_diff[x_list_deriv] > diff_threshold_OH3 and not stop_OH3:
                             x_peak = x
-                            break
+                            stop_OH3 = True
 
                     else:
                         if derivatives_diff[x_list_deriv] < diff_threshold and (
@@ -139,6 +145,9 @@ class Spectrum:
             if x_peak == 0:
                 x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
             
+            if x_peak_OH3 != 0:
+                x_peak = x_peak_OH3
+
             x_peaks[ray] = x_peak
         
         for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
@@ -180,10 +189,10 @@ def extract_data(file_name=str):
     return np.array(np.split(raw_data, len(raw_data)/2))
 
 def loop_di_loop():
-    y = 150
-    for x in range(200, 300):
-        data = (fits.open(os.path.abspath("cube_NII_Sh158_with_header.fits"))[0].data)
-        spectrum = Spectrum(data[:,x,y])
+    x = 95
+    for y in range(191, 300):
+        data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+        spectrum = Spectrum(data[:,y-1,x-1])
         print(f"\n----------------\ncoords: {x,y}")
         spectrum.fit_NII()
         spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
