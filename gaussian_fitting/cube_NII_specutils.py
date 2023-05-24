@@ -184,8 +184,8 @@ class Spectrum:
         return (function.mean.value - root1_x) * 2
 
 def loop_di_loop():
-    x = 95
-    for y in range(191, 300):
+    x = 100
+    for y in range(182, 300):
         data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
         spectrum = Spectrum(data[:,y-1,x-1])
         print(f"\n----------------\ncoords: {x,y}")

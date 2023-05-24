@@ -54,6 +54,8 @@ class Spectrum:
             elif name == "subtracted_fit":
                 # Residual distribution
                 axs[1].plot(self.x_values, value, label=name)
+            elif name == "NII":
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=name, linewidth="1")
             else:
                 # Fitted individual gaussians
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=name, linewidth="1")
@@ -64,8 +66,10 @@ class Spectrum:
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
+        """-----------------------------------------"""
         fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        # fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
+        fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
+        """-----------------------------------------"""
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -97,18 +101,18 @@ class Spectrum:
         else:
             params = self.get_initial_guesses()
             # Initialize the Gaussians
-            g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy,
-                                            mean=params["OH1"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-            g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, 
-                                            mean=params["OH2"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-            g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, 
-                                            mean=params["OH3"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-            g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, 
-                                            mean=params["OH4"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-            g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, 
-                                            mean=params["NII"]["x0"]*u.um, bounds={"amplitude": (0,100)*u.Jy})
-            g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  
-                                            mean=params["Ha"]["x0"]*u.um,  bounds={"amplitude": (0,100)*u.Jy})
+            g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
+                                           bounds={"amplitude": (0,100)*u.Jy})
+            g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um, 
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (17,21)})
+            g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (36,42)})
+            g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
+                                           bounds={"amplitude": (0,100)*u.Jy})
+            g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (12,16)})
+            g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  mean=params["Ha"]["x0"]*u.um,
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)})
             g_init_OH1.mean.max = 4
             g_init_OH4.mean.min = 47
 
@@ -133,7 +137,7 @@ class Spectrum:
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
         
         x_peaks = {"OH1": list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1}
-        for ray, bounds in [("OH2", (18,22)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
+        for ray, bounds in [("OH2", (18,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
             x_peak = 0
             x_peak_OH3 = 0
             stop_OH3 = False
@@ -175,7 +179,14 @@ class Spectrum:
     
     def get_uncertainties(self):
         cov_matrix = self.fitted_gaussian.meta["fit_info"]["param_cov"]
-        return np.sqrt(np.diag(cov_matrix))
+        uncertainty_matrix = np.sqrt(np.diag(cov_matrix))
+        # The uncertainty matrix is stored as a_0, x0_0, sigma_0, a_1, x0_1, sigma_1, ...
+        ordered_uncertainties = {}
+        for i in range(int(len(uncertainty_matrix)/3)):
+            ordered_uncertainties[f"g{i}"] = {
+                "amplitude": uncertainty_matrix[3*i], "mean": uncertainty_matrix[3*i+1], "stddev": uncertainty_matrix[3*i+2]
+            }
+        return ordered_uncertainties 
     
     def get_stddev(self, array):
         return np.std(array)
@@ -184,9 +195,9 @@ class Spectrum:
         subtracted_y = self.y_values*u.Jy - self.fitted_gaussian(self.x_values*u.um)
         return subtracted_y
     
-    def get_FWHM(self, function, function_uncertainties):
+    def get_FWHM(self, function, stddev_uncertainty):
         fwhm = 2*np.sqrt(2*np.log(2))*function.stddev.value 
-        fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*function_uncertainties[2]
+        fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*stddev_uncertainty
         return [fwhm, fwhm_uncertainty]
 
 
@@ -194,13 +205,14 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 100
-    for y in range(100, 300):
+    x = 140
+    for y in range(150, 300):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
         spectrum.fit()
-        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
+        print(spectrum.get_FWHM(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
 
-# loop_di_loop("cube_NII_Sh158_with_header.fits")
-loop_di_loop("calibration.fits")
+loop_di_loop("cube_NII_Sh158_with_header.fits")
+# loop_di_loop("calibration.fits")

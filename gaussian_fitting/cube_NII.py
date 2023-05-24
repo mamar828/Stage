@@ -54,7 +54,7 @@ class Spectrum:
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
         print(self.get_FWHM(self.fitted_gaussian[4]))
         fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        # fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
+        fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -189,8 +189,8 @@ def extract_data(file_name=str):
     return np.array(np.split(raw_data, len(raw_data)/2))
 
 def loop_di_loop():
-    x = 95
-    for y in range(191, 300):
+    x = 100
+    for y in range(182, 300):
         data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
         spectrum = Spectrum(data[:,y-1,x-1])
         print(f"\n----------------\ncoords: {x,y}")

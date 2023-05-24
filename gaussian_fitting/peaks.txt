@@ -13,3 +13,7 @@ Translation DS9 --> Python
  DS9  : Python
 (1,1)   (0,0)
 Inverted axes
+
+
+WEIRD
+(100,182)
