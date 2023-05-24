@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 
 from astropy.modeling import models, fitting
 from astropy.io import fits
@@ -9,7 +10,6 @@ from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
 
 import time
-
 class Spectrum:
 
     def __init__(self, data=np.ndarray, calibration=False, desired_peak_position=35):
@@ -228,11 +228,19 @@ class Spectrum:
         subtracted_y = self.y_values*u.Jy - self.fitted_gaussian(self.x_values*u.um)
         return subtracted_y
     
-    def get_FWHM(self, function, stddev_uncertainty):
+    def get_FWHM_channels(self, function, stddev_uncertainty):
         fwhm = 2*np.sqrt(2*np.log(2))*function.stddev.value 
         fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*stddev_uncertainty
-        return [fwhm, fwhm_uncertainty]
+        return np.array((fwhm, fwhm_uncertainty))
 
+    def get_FWHM_speed(self, function, stddev_uncertainty):
+        spectral_length = 8.60626405229
+        wavelength_channel_1 = 6579.48886797
+        channels_FWHM = self.get_FWHM_channels(function, stddev_uncertainty)
+        angstroms_FWHM = channels_FWHM * spectral_length / 48
+        angstroms_center = function.mean.value * spectral_length / 48 + wavelength_channel_1
+        speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center
+        return speed_FWHM
 
 def loop_di_loop(filename):
     calib = False
@@ -249,9 +257,9 @@ def loop_di_loop(filename):
         stop = time.time()
         print("time:", stop-start)
         # print(spectrum.get_fitted_gaussian_parameters())
-        print("FWHM:", spectrum.get_FWHM(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
         print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
-        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
 
 loop_di_loop("cube_NII_Sh158_with_header.fits")
 # loop_di_loop("calibration.fits")
