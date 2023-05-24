@@ -21,7 +21,9 @@ class Spectrum:
         self.calibration = calibration
         
         if calibration:
+            # Application of a translation in the case of the calibration cube
             desired_peak_position = 35
+            # We store the x value of the peak before the translation
             temporary_max_x = list(self.y_values).index(max(self.y_values))
             peak_position_translation = desired_peak_position - temporary_max_x
             new_y_values = np.zeros(shape=48)
@@ -116,7 +118,6 @@ class Spectrum:
             g_init_OH1.mean.max = 3*u.um
             g_init_OH4.mean.min = 47*u.um
             
-            # g_init_OH1.stddev.min = 1.9*u.um
             if stddev_mins:
                 for ray, min_guess in stddev_mins.items():
                     exec(f"g_init_{ray}.stddev.min = {min_guess}*u.um")
@@ -131,11 +132,11 @@ class Spectrum:
         """
         stddev_mins = {}
         initial_guesses = self.get_initial_guesses()
-        v = ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]
+
         for ray in ["OH1", "OH2", "OH3", "OH4"]:
             min_guess = 10 ** (-10)
             stddevs = []
-            # By changing the standard deviation minimum of a single gaussian function, the residual's standard deviation sometimes
+            # By varying the standard deviation minimum of a single gaussian function, the residual's standard deviation sometimes
             # has a peak before diminishing and then climbing again. The function detects when there has been two "bumps", meaning
             # when the standard deviation of the residual has risen twice.
             stddev_bump_count = 0
@@ -148,13 +149,7 @@ class Spectrum:
                         stddev_bump_count += 1
                 except:
                     continue
-                # print(float(self.get_stddev(self.get_subtracted_fit()/u.Jy)))
             stddev_mins[ray] = (stddevs.index(min(stddevs)))*stddev_increments + 10 ** (-10)
-            # print(stddevs)
-            # print(stddev_mins)
-            # b = self.fit(initial_guesses, stddev_mins)
-            # print(self.get_stddev(self.get_subtracted_fit()))
-            # raise ArithmeticError
         self.fit(initial_guesses, stddev_mins)
 
     def get_initial_guesses(self):
