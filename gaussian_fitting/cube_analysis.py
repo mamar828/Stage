@@ -8,6 +8,8 @@ from astropy import units as u
 from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
 
+import time
+
 class Spectrum:
 
     def __init__(self, data=np.ndarray, calibration=False, desired_peak_position=35):
@@ -104,7 +106,7 @@ class Spectrum:
             g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
                                            bounds={"amplitude": (0,100)*u.Jy, "mean": (17,21)*u.um})
             g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (36,42)*u.um})
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (36,40)*u.um})
             g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
                                            bounds={"amplitude": (0,100)*u.Jy})
             g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
@@ -130,12 +132,12 @@ class Spectrum:
         stddev_mins = {}
         initial_guesses = self.get_initial_guesses()
         v = ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]
-        for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
-            min_guess = 0
+        for ray in ["OH1", "OH2", "OH3", "OH4"]:
+            min_guess = 10 ** (-10)
             stddevs = []
             # By changing the standard deviation minimum of a single gaussian function, the residual's standard deviation sometimes
-            # has a peak before diminishing and then climbing again. We must remember when there has a "bump" to know when to stop
-            # iterating (after two "bumps")
+            # has a peak before diminishing and then climbing again. The function detects when there has been two "bumps", meaning
+            # when the standard deviation of the residual has risen twice.
             stddev_bump_count = 0
             while stddev_bump_count < 2:
                 new_gaussian = self.fit(params=initial_guesses, stddev_mins={ray: min_guess})
@@ -146,10 +148,13 @@ class Spectrum:
                         stddev_bump_count += 1
                 except:
                     continue
-            stddev_mins[ray] = (stddevs.index(min(stddevs))-1)*stddev_increments
-            print(stddevs)
-            print(stddev_mins)
-            raise ArithmeticError
+                # print(float(self.get_stddev(self.get_subtracted_fit()/u.Jy)))
+            stddev_mins[ray] = (stddevs.index(min(stddevs)))*stddev_increments + 10 ** (-10)
+            # print(stddevs)
+            # print(stddev_mins)
+            # b = self.fit(initial_guesses, stddev_mins)
+            # print(self.get_stddev(self.get_subtracted_fit()))
+            # raise ArithmeticError
         self.fit(initial_guesses, stddev_mins)
 
     def get_initial_guesses(self):
@@ -244,9 +249,13 @@ def loop_di_loop(filename):
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
         # spectrum.fit(spectrum.get_initial_guesses())
+        start = time.time()
+        spectrum.fit_iteratively(0.2)
+        stop = time.time()
+        print("time:", stop-start)
         # print(spectrum.get_fitted_gaussian_parameters())
-        spectrum.fit_iteratively(0.05)
-        # print(spectrum.get_FWHM(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        print("FWHM:", spectrum.get_FWHM(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
         spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
 
 loop_di_loop("cube_NII_Sh158_with_header.fits")
