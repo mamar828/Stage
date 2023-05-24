@@ -164,7 +164,14 @@ plt.show()
 
 # ---------------------------------------------
 
-fits_data = (fits.open('cube_NII_Sh158_with_header.fits'))[0].data
+# fits_data = (fits.open('cube_NII_Sh158_with_header.fits'))[0].data
 
-plt.plot(fits_data[:,0,0])
-plt.show()
+# plt.plot(fits_data[:,0,0])
+# plt.show()
+
+# ------------------------------------------------------
+
+binou = None
+binou = 3
+if binou:
+    print(binou)

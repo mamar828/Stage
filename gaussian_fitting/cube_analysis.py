@@ -89,7 +89,7 @@ class Spectrum:
         else:
             self.plot(coord, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit(self):
+    def fit(self, params=dict, stddev_mins=None):
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         if self.calibration:
             g_init = models.Gaussian1D(amplitude=self.max_tuple[1]*u.Jy, mean=self.max_tuple[0]*u.um)
@@ -98,7 +98,6 @@ class Spectrum:
                                                 fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
 
         else:
-            params = self.get_initial_guesses()
             # Initialize the Gaussians
             g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
                                            bounds={"amplitude": (0,100)*u.Jy})
@@ -114,10 +113,44 @@ class Spectrum:
                                            bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um})
             g_init_OH1.mean.max = 3*u.um
             g_init_OH4.mean.min = 47*u.um
-            # g_init_OH2.stddev.min = 1.4*u.um
+            
+            # g_init_OH1.stddev.min = 1.9*u.um
+            if stddev_mins:
+                for ray, min_guess in stddev_mins.items():
+                    exec(f"g_init_{ray}.stddev.min = {min_guess}*u.um")
 
             self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
                                                 fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
+            return self.fitted_gaussian
+
+    def fit_iteratively(self, stddev_increments):
+        """
+        Use the fit method and iterations to constitute the best possible fit by changing the stddev of OH2.
+        """
+        stddev_mins = {}
+        initial_guesses = self.get_initial_guesses()
+        v = ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]
+        for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
+            min_guess = 0
+            stddevs = []
+            # By changing the standard deviation minimum of a single gaussian function, the residual's standard deviation sometimes
+            # has a peak before diminishing and then climbing again. We must remember when there has a "bump" to know when to stop
+            # iterating (after two "bumps")
+            stddev_bump_count = 0
+            while stddev_bump_count < 2:
+                new_gaussian = self.fit(params=initial_guesses, stddev_mins={ray: min_guess})
+                stddevs.append(float(self.get_stddev(self.get_subtracted_fit()/u.Jy)))
+                min_guess += stddev_increments
+                try:
+                    if stddevs[-1] > stddevs[-2]:
+                        stddev_bump_count += 1
+                except:
+                    continue
+            stddev_mins[ray] = (stddevs.index(min(stddevs))-1)*stddev_increments
+            print(stddevs)
+            print(stddev_mins)
+            raise ArithmeticError
+        self.fit(initial_guesses, stddev_mins)
 
     def get_initial_guesses(self):
         # Outputs a dict of every peak and the a and x0 initial guesses
@@ -206,14 +239,15 @@ def loop_di_loop(filename):
     if filename == "calibration.fits":
         calib = True
     x = 100
-    for y in range(178, 300):
+    for y in range(182, 300):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        spectrum.fit()
+        # spectrum.fit(spectrum.get_initial_guesses())
         # print(spectrum.get_fitted_gaussian_parameters())
-        print(spectrum.get_FWHM(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
-        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
+        spectrum.fit_iteratively(0.05)
+        # print(spectrum.get_FWHM(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
 
 loop_di_loop("cube_NII_Sh158_with_header.fits")
 # loop_di_loop("calibration.fits")
