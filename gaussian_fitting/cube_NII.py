@@ -43,7 +43,7 @@ class Spectrum:
                     plt.plot(value[:,0], value[:,1], "og", label=name)
             
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
-        fig.text(0.5, 0.95, "Astropy")
+        fig.text(0.5, 0.925, "Astropy")
         axs[0].legend(loc="upper left", fontsize="7")
         axs[1].legend(loc="upper left", fontsize="7")
         plt.xlabel("channels")
@@ -52,7 +52,7 @@ class Spectrum:
         # print("----------------------- uncertainties -----------------------\n",self.get_uncertainties())
         print(self.get_fitted_gaussian_parameters())
         # print("stddev:", self.get_stddev(self.get_subtracted_fit()))
-        print(self.get_FWHM(self.fitted_gaussian[4]))
+        # print(self.get_FWHM(self.fitted_gaussian[4]))
         fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
         if fullscreen:    
@@ -93,7 +93,7 @@ class Spectrum:
         g_init_NII = self.gauss_function(a=params["NII"]["a"], x0=params["NII"]["x0"],
                                           bounds={"h": (0,20), "a": (0,100), "x0": (13,15)})
         g_init_Ha  = self.gauss_function(a=params["Ha"]["a"],  x0=params["Ha"]["x0"],
-                                           bounds={"h": (0,20), "a": (0,100), "x0": (42,44)})
+                                          bounds={"h": (0,20), "a": (0,100), "x0": (42,44)})
         g_init_OH1.x0.max = 4
         g_init_OH4.x0.min = 47
 
@@ -119,7 +119,7 @@ class Spectrum:
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
         
         x_peaks = {"OH1": list(self.y_values[0:4]).index(max(self.y_values[0:4])) + 1}
-        for ray, bounds in [("OH2", (18,22)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
+        for ray, bounds in [("OH2", (18,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
             x_peak = 0
             x_peak_OH3 = 0
             stop_OH3 = False
@@ -190,7 +190,7 @@ def extract_data(file_name=str):
 
 def loop_di_loop():
     x = 100
-    for y in range(182, 300):
+    for y in range(178, 300):
         data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
         spectrum = Spectrum(data[:,y-1,x-1])
         print(f"\n----------------\ncoords: {x,y}")

@@ -5,8 +5,6 @@ from astropy.modeling import models, fitting
 from astropy.io import fits
 from astropy import units as u
 
-from scipy.optimize import fsolve
-
 from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
 
@@ -69,6 +67,7 @@ class Spectrum:
         """-----------------------------------------"""
         fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
         fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
+        fig.text(0.4, 0.925, "cube_analysis", fontsize=9.8)
         """-----------------------------------------"""
         if fullscreen:    
             manager = plt.get_current_fig_manager()
@@ -103,18 +102,19 @@ class Spectrum:
             # Initialize the Gaussians
             g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
                                            bounds={"amplitude": (0,100)*u.Jy})
-            g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um, 
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (17,21)})
+            g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (17,21)*u.um})
             g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (36,42)})
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (36,42)*u.um})
             g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
                                            bounds={"amplitude": (0,100)*u.Jy})
             g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (12,16)})
-            g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"]*u.Jy,  mean=params["Ha"]["x0"]*u.um,
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)})
-            g_init_OH1.mean.max = 4
-            g_init_OH4.mean.min = 47
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um})
+            g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"] *u.Jy, mean=params["Ha"]["x0"] *u.um,
+                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um})
+            g_init_OH1.mean.max = 3*u.um
+            g_init_OH4.mean.min = 47*u.um
+            # g_init_OH2.stddev.min = 1.4*u.um
 
             self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
                                                 fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
@@ -205,14 +205,15 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 140
-    for y in range(150, 300):
+    x = 100
+    for y in range(178, 300):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
         spectrum.fit()
+        # print(spectrum.get_fitted_gaussian_parameters())
         print(spectrum.get_FWHM(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
-        spectrum.plot_fit(fullscreen=True, coord=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=False, coord=(x,y), plot_all=True)
 
 loop_di_loop("cube_NII_Sh158_with_header.fits")
 # loop_di_loop("calibration.fits")
