@@ -1,0 +1,60 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+from astropy.io import fits
+from scipy.interpolate import RegularGridInterpolator
+
+
+
+def plot_spectrum():
+    x, y = 181, 133
+
+    data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+    y_values = data[:,y-1,x-1]
+    x_values = np.arange(1,49)
+
+    plt.plot(x_values, y_values)
+    plt.show()
+
+
+def plot_map(values=None):
+    data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+    if values.shape == None:
+        values = data[41,:,:]
+    print(values)
+    plt.imshow(values, cmap="gist_earth")
+    plt.show()
+
+
+def bin_map(data, nb_pix_bin):
+    try:
+        bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, int(data.shape[1]/nb_pix_bin), nb_pix_bin)
+    except ValueError:
+        raise IndexError("the array provided is not divisible by the nb_pix_bin specified")
+    new_values = bin_array.sum(axis=(1,3))
+    plot_map(new_values)
+
+
+def regrid(data, out_x, out_y):
+    m = max(data.shape[0], data.shape[1])
+    y = np.linspace(0, 1.0/m, data.shape[0])
+    x = np.linspace(0, 1.0/m, data.shape[1])
+    interpolating_function = RegularGridInterpolator((y, x), data)
+
+    yv, xv = np.meshgrid(np.linspace(0, 1.0/m, out_y), np.linspace(0, 1.0/m, out_x))
+
+    return interpolating_function((xv, yv))
+
+
+
+ds9_data = np.flip(fits.open("cube_NII_Sh158_with_header.fits")[0].data, axis=1)
+
+test_data = np.array([
+    [1,2,3,4,5,6],
+    [2,3,4,5,6,7],
+    [3,4,5,6,7,8],
+    [4,5,6,7,8,9]
+])
+
+bin_map(ds9_data[13,35:,:300], 4)
+

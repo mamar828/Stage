@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+import time
 
 from astropy.modeling import models, fitting
 from astropy.io import fits
@@ -9,7 +10,7 @@ from astropy import units as u
 from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
 
-import time
+
 class Spectrum:
 
     def __init__(self, data=np.ndarray, calibration=False, desired_peak_position=35):
@@ -24,7 +25,6 @@ class Spectrum:
         desired_peak_position: int that specifies the location of the single peak for the calibration cube. All values will be
         shifted accordingly.
         """
-        self.data = data
         self.x_values, self.y_values = np.arange(48) + 1, data
         self.calibration = calibration
         
@@ -390,20 +390,19 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 100
-    for y in range(182, 300):
+    x = 216
+    for y in range(134, 300):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        spectrum.fit(spectrum.get_initial_guesses())
+        # spectrum.fit(spectrum.get_initial_guesses())
         start = time.time()
-        # spectrum.fit_iteratively(0.2)
+        spectrum.fit_iteratively(0.2)
         stop = time.time()
         print("time:", stop-start)
-        # print(spectrum.get_fitted_gaussian_parameters())
         print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
         print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
-        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=False)
+        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 
 loop_di_loop("cube_NII_Sh158_with_header.fits")
 # loop_di_loop("calibration.fits")
