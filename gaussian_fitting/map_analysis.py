@@ -18,10 +18,9 @@ def plot_spectrum():
 
 
 def plot_map(values=None):
-    data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
     if values.shape == None:
+        data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
         values = data[41,:,:]
-    print(values)
     plt.imshow(values, cmap="gist_earth")
     plt.show()
 
@@ -30,7 +29,7 @@ def bin_map(data, nb_pix_bin):
     try:
         bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, int(data.shape[1]/nb_pix_bin), nb_pix_bin)
     except ValueError:
-        raise IndexError("the array provided is not divisible by the nb_pix_bin specified")
+        raise IndexError("the array provided can not be divided by the nb_pix_bin specified")
     new_values = bin_array.sum(axis=(1,3))
     plot_map(new_values)
 
@@ -56,5 +55,5 @@ test_data = np.array([
     [4,5,6,7,8,9]
 ])
 
-bin_map(ds9_data[13,35:,:300], 4)
+bin_map(ds9_data[13,35:,:300], 2)
 

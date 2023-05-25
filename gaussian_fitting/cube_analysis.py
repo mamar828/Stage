@@ -30,26 +30,14 @@ class Spectrum:
         
         if calibration:
             # Application of a translation in the case of the calibration cube
-            # The x value of the peak before the translation is stored
-            temporary_max_x = list(self.y_values).index(max(self.y_values))
-            peak_position_translation = desired_peak_position - temporary_max_x
-            new_y_values = np.zeros(shape=48)
-
-            # Iteration over every element to translate them by the right amount
-            for i, value in enumerate(self.y_values):
-                if (peak_position_translation + i) >= 48:
-                    new_y_values[i+peak_position_translation-48] = value
-                else:
-                    new_y_values[i+peak_position_translation] = value
-
-            self.y_values = new_y_values
-            # The new peak's position is stored
-            max_intensity_x = list(self.y_values).index(max(self.y_values))
+            # The distance between the desired peak and the current peak is calculated
+            peak_position_translation = desired_peak_position - (list(self.y_values).index(max(self.y_values)) + 1)
+            self.y_values = np.roll(self.y_values, peak_position_translation)
             # All y values are shifted downwards by the mean calculated in the 25 first channels
             mean = np.sum(self.y_values[0:25]) / 25
             self.y_values -= mean
             # A tuple containing the peak's x and y is stored
-            self.max_tuple = (int(self.x_values[max_intensity_x]), float(self.y_values[max_intensity_x]))
+            self.max_tuple = (int(self.x_values[desired_peak_position - 1]), float(self.y_values[desired_peak_position - 1]))
 
         else:
             # All y values are shifted downwards by the mean calculated in the channels 25 to 35
@@ -391,18 +379,18 @@ def loop_di_loop(filename):
     if filename == "calibration.fits":
         calib = True
     x = 216
-    for y in range(134, 300):
+    for y in range(158, 300):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        # spectrum.fit(spectrum.get_initial_guesses())
+        spectrum.fit(spectrum.get_initial_guesses())
         start = time.time()
-        spectrum.fit_iteratively(0.2)
+        # spectrum.fit_iteratively(0.2)
         stop = time.time()
         print("time:", stop-start)
-        print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        # print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
         print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 
-loop_di_loop("cube_NII_Sh158_with_header.fits")
-# loop_di_loop("calibration.fits")
+# loop_di_loop("cube_NII_Sh158_with_header.fits")
+loop_di_loop("calibration.fits")
