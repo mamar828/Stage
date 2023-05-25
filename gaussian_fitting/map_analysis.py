@@ -34,18 +34,6 @@ def bin_map(data, nb_pix_bin):
     plot_map(new_values)
 
 
-def regrid(data, out_x, out_y):
-    m = max(data.shape[0], data.shape[1])
-    y = np.linspace(0, 1.0/m, data.shape[0])
-    x = np.linspace(0, 1.0/m, data.shape[1])
-    interpolating_function = RegularGridInterpolator((y, x), data)
-
-    yv, xv = np.meshgrid(np.linspace(0, 1.0/m, out_y), np.linspace(0, 1.0/m, out_x))
-
-    return interpolating_function((xv, yv))
-
-
-
 ds9_data = np.flip(fits.open("cube_NII_Sh158_with_header.fits")[0].data, axis=1)
 
 test_data = np.array([

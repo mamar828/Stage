@@ -122,7 +122,7 @@ class Spectrum:
         Arguments
         ---------
         params: dict containing the initial guesses for the amplitude and mean of each gaussian component. In the case
-        of the calibration cube, the initial guesses are defined within the function and an empty dict may be sent.
+        of the calibration cube, the initial guesses are defined within the function and an empty dict may be provided.
         stddev_mins: optional dict that specifies the standard deviation's minimum value of every gaussian component.
         This is used in the fit_iteratively method to increase the fit's accuracy.
 
@@ -207,7 +207,7 @@ class Spectrum:
 
     def get_initial_guesses(self):
         """
-        Find the most plausible initial guess for the amplitude and mean value of every gaussian function with the NII cube data.
+        Find the most plausible initial guess for the amplitude and mean value of every gaussian function with the NII data cube.
 
         Returns
         -------
