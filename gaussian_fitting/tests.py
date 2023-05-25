@@ -171,7 +171,15 @@ plt.show()
 
 # ------------------------------------------------------
 
-binou = None
-binou = 3
-if binou:
-    print(binou)
+# binou = None
+# binou = 3
+# if binou:
+#     print(binou)
+
+# ----------------------------------------------------------
+
+# file = open("writer.txt", "a")
+# file.write("SCHLOUBABOOBAfasddsfa\n")
+
+# file = open("writer.txt", "r")
+# print(file.read())

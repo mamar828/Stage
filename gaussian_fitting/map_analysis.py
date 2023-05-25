@@ -36,12 +36,5 @@ def bin_map(data, nb_pix_bin):
 
 ds9_data = np.flip(fits.open("cube_NII_Sh158_with_header.fits")[0].data, axis=1)
 
-test_data = np.array([
-    [1,2,3,4,5,6],
-    [2,3,4,5,6,7],
-    [3,4,5,6,7,8],
-    [4,5,6,7,8,9]
-])
-
-bin_map(ds9_data[13,35:,:300], 2)
+bin_map(ds9_data[13,35:,:300], 75)
 

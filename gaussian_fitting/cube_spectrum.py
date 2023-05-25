@@ -1,3 +1,4 @@
+
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -12,6 +13,9 @@ from specutils.fitting import fit_lines
 
 
 class Spectrum:
+    """
+    Encapsulate all the data and methods of a cube's spectrum.
+    """
 
     def __init__(self, data=np.ndarray, calibration=False, desired_peak_position=35):
         """
@@ -374,6 +378,7 @@ class Spectrum:
         speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
 
+"""
 def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
@@ -383,14 +388,15 @@ def loop_di_loop(filename):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        spectrum.fit(spectrum.get_initial_guesses())
+        # spectrum.fit(spectrum.get_initial_guesses())
         start = time.time()
-        # spectrum.fit_iteratively(0.2)
+        spectrum.fit_iteratively(0.2)
         stop = time.time()
         print("time:", stop-start)
         # print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
         print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 
-# loop_di_loop("cube_NII_Sh158_with_header.fits")
-loop_di_loop("calibration.fits")
+loop_di_loop("cube_NII_Sh158_with_header.fits")
+# loop_di_loop("calibration.fits")
+"""
