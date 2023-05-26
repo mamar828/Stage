@@ -49,13 +49,13 @@ class Spectrum:
             mean = np.sum(self.y_values[24:34]) / 10
             self.y_values -= mean
         
-    def plot(self, coords, fullscreen=False, **other_values):
+    def plot(self, coords=None, fullscreen=False, **other_values):
         """
         Plot the data and the fits.
         
         Arguments
         ---------
-        coords: tuple of the x and y coordinates of the evaluated point. Serves as a landmark in the cube and will
+        coords: optional tuple of the x and y coordinates of the evaluated point. Serves as a landmark in the cube and will
         appear on screen.
         fullscreen: boolean that specifies if the graph must be opened in fullscreen.
         other_values: optional argument that may take any distribution to be plotted. This argument is used to plot all
@@ -84,12 +84,14 @@ class Spectrum:
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
+        if coords:
+            fig.text(0.4, 0.89, f"coords: {coords}")
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
         plt.show()
 
-    def plot_fit(self, coords, fullscreen=False, plot_all=False):
+    def plot_fit(self, coords=None, fullscreen=False, plot_all=False):
         """
         Send all the functions to be plotted to the plot method depending on the data cube used.
 

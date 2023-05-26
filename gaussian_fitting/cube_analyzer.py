@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy.io import fits
+from scipy.signal import argrelextrema
 
 from cube_spectrum import Spectrum
 
@@ -17,7 +18,48 @@ test = data_cube[30,:,:]
 class Calibration_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
-        self.data_cube = np.flip(fits.open(data_cube_file_name)[0].data, axis=1)
+        self.data_cube = (fits.open(data_cube_file_name)[0]).data
+
+    def find_center_point(self):
+        center_guess = 511, 511
+        distances = {"x": {}, "y": {}}
+        for channel in range(48):
+            print("channel:", channel)
+            channel_pos = {}
+            intensity_x_list = self.data_cube[channel, center_guess[1], :]
+            intensity_y_list = self.data_cube[channel, :, center_guess[0]]
+            for axes in range(2):
+                last_intensity = 0
+                axes_pos = []
+                for coord in range(1,1024):
+                    if intensity_x_list[coord-1] < intensity_x_list[coord] > intensity_x_list[coord+1] and intensity_x_list[coord] > 500:
+                        axes_pos.append(coord - 1)
+                    # new_intensity = intensity_x_list[coord]
+                    # if new_intensity > 500 and new_intensity < last_intensity:
+                    #     axes_pos.append(coord - 1)
+                    # last_intensity = new_intensity
+                print(axes_pos)
+                raise ArithmeticError
+
+
+
+
+        # channel = 0 
+        # intensity_x_list = self.data_cube[channel, center_guess[1], :]
+        # # Research of local maxes in the [10:300]
+        # local_x_max_candidates = np.ma.masked_where(intensity_x_list < 500, intensity_x_list)
+        # local_x_max_candidates = local_x_max_candidates[local_x_max_candidates.mask == False]
+        # for element in local_x_max_candidates:
+        #     print(list(intensity_x_list).index(element))
+        # local_x_max = local_x_max_candidates[argrelextrema(local_x_max_candidates, np.greater)[0]]
+        # print(pos_local_x_max)
+        # print(local_x_max_candidates[local_x_max_candidates != --])
+        # print(local_x_max)
+        # local_x_max = argrelextrema(x_list, np.greater)[0]
+        # local_x_max_i = x_list[local_x_max]
+
+            # print(local_x_max_i)
+        raise ArithmeticError
 
     def get_FWHM_mean(self, px_radius):
         # Storage of the Fabry-Perot's center point on the image
@@ -28,7 +70,7 @@ class Calibration_cube_analyzer():
         pixel = Spectrum(self.data_cube[:,0,0], calibration=True)
         pixel.fit()
         fwhm = pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"])
-        pixel.plot()
+        pixel.plot_fit()
         print("\n", fwhm, max(pixel.data), "\n")
         
         raise ArithmeticError
@@ -49,7 +91,7 @@ class Calibration_cube_analyzer():
 
 
 analyzer = Calibration_cube_analyzer("calibration.fits")
-analyzer.get_FWHM_mean(1)
+analyzer.find_center_point()
 
 
 
