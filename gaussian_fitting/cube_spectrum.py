@@ -17,7 +17,7 @@ class Spectrum:
     Encapsulate all the data and methods of a cube's spectrum.
     """
 
-    def __init__(self, data=np.ndarray, calibration=False, desired_peak_position=35):
+    def __init__(self, data=np.ndarray, calibration=bool, desired_peak_position=35):
         """
         Initialize a Spectrum object. Calibration boolean must be set to True to force the analysis of a single peak.
         
@@ -25,7 +25,7 @@ class Spectrum:
         ---------
         data: numpy array of the flux at different channels.
         calibration: bool specifying if the fit is for the calibration cube i.e. to fit a single peak. If False, the fitter will
-        attemps a 6 components fit.
+        attempt a 6 components fit.
         desired_peak_position: int that specifies the location of the single peak for the calibration cube. All values will be
         shifted accordingly.
         """
@@ -114,14 +114,14 @@ class Spectrum:
         else:
             self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit(self, params=dict, stddev_mins=None):
+    def fit(self, params=None, stddev_mins=None):
         """
         Fit the data using specutils and initial guesses.
 
         Arguments
         ---------
-        params: dict containing the initial guesses for the amplitude and mean of each gaussian component. In the case
-        of the calibration cube, the initial guesses are defined within the function and an empty dict may be provided.
+        params: optional dict containing the initial guesses for the amplitude and mean of each gaussian component. In the
+        case of the calibration cube, the initial guesses are defined within the function and no dict is needed.
         stddev_mins: optional dict that specifies the standard deviation's minimum value of every gaussian component.
         This is used in the fit_iteratively method to increase the fit's accuracy.
 
@@ -369,6 +369,7 @@ class Spectrum:
         angstroms_center = function.mean.value * spectral_length / 48 + wavelength_channel_1
         speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
+
 
 """
 def loop_di_loop(filename):

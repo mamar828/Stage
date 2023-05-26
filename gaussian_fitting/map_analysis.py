@@ -21,7 +21,7 @@ def plot_map(values=None):
     if values.shape == None:
         data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
         values = data[41,:,:]
-    plt.imshow(values, cmap="gist_earth")
+    plt.imshow(values, cmap="gist_earth", origin="lower")
     plt.show()
 
 
@@ -34,7 +34,7 @@ def bin_map(data, nb_pix_bin):
     plot_map(new_values)
 
 
-ds9_data = np.flip(fits.open("cube_NII_Sh158_with_header.fits")[0].data, axis=1)
+ds9_data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
 
-bin_map(ds9_data[13,35:,:300], 1)
+bin_map(ds9_data[13,:300,:300], 1)
 
