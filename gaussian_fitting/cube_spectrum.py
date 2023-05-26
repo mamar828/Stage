@@ -83,11 +83,6 @@ class Spectrum:
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
-        """----------------------------------------------------------------------------------------"""
-        fig.text(0.4, 0.89, f"coords: {coords}, stddev: {self.get_stddev(self.get_subtracted_fit())}")
-        fig.text(0.02, 0.96, self.peaks, fontsize=9.8)
-        fig.text(0.4, 0.925, "cube_analysis", fontsize=9.8)
-        """----------------------------------------------------------------------------------------"""
         if fullscreen:    
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -285,9 +280,6 @@ class Spectrum:
         
         for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
             params[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
-        """---------------------------------------------------"""
-        self.peaks = params
-        """---------------------------------------------------"""
         return params
     
     def get_fitted_gaussian_parameters(self):
@@ -383,7 +375,7 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 216
+    x = 180
     for y in range(158, 300):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
