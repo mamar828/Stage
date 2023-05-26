@@ -31,6 +31,7 @@ class Spectrum:
         """
         self.x_values, self.y_values = np.arange(48) + 1, data
         self.calibration = calibration
+        self.data = data
         
         if calibration:
             # Application of a translation in the case of the calibration cube

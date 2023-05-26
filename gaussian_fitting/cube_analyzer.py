@@ -20,19 +20,31 @@ class Calibration_cube_analyzer():
         self.data_cube = np.flip(fits.open(data_cube_file_name)[0].data, axis=1)
 
     def get_FWHM_mean(self, px_radius):
-        center_x, center_y = 534, 522
-        iterables = [
+        # Storage of the Fabry-Perot's center point on the image
+        image_center_x, image_center_y = 522, 489
+        # Storage of the center point in the data array: the x and y coordinates are swapped
+        center_x, center_y = image_center_y, image_center_x
+
+        pixel = Spectrum(self.data_cube[:,0,0], calibration=True)
+        pixel.fit()
+        fwhm = pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"])
+        pixel.plot()
+        print("\n", fwhm, max(pixel.data), "\n")
+        
+        raise ArithmeticError
+
+        positions = [
             (center_x - px_radius, center_y),
             (center_x + px_radius, center_y),
             (center_x, center_y - px_radius),
             (center_x, center_y + px_radius)
         ]
 
-        for coordinates in iterables:
+        for coordinates in positions:
             pixel = Spectrum(self.data_cube[:,coordinates[0],coordinates[1]], calibration=True)
             pixel.fit()
             fwhm = pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"])
-            print(fwhm)
+            print(fwhm, max(pixel.data))
 
 
 
@@ -42,11 +54,11 @@ analyzer.get_FWHM_mean(1)
 
 
 
-masked = np.ma.masked_less(test, 610)
-print(masked[534,522])
-plt.imshow(masked, origin="lower")
-plt.plot()
-plt.show()
+# masked = np.ma.masked_less(test, 610)
+# print(masked[489,522])
+# plt.imshow(masked, origin="lower")
+# plt.plot()
+# plt.show()
 
 x, y = 500, 500
 
