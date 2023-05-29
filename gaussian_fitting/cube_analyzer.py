@@ -2,21 +2,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy.io import fits
-from scipy.signal import argrelextrema
+from scipy.interpolate import splrep, BSpline
 
 from cube_spectrum import Spectrum
 
-# data_cube = np.flip(fits.open("calibration.fits")[0].data, axis=1)
-data_cube = fits.open("calibration.fits")[0].data
 
-# MIDDLE PIXEL (522,489)
-
-# plt.imshow(data_cube[0,:,:])
 
 class Calibration_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
         self.data_cube = (fits.open(data_cube_file_name)[0]).data
+        self.fit_equation = self.fit_spline(self.get_instrumental_widths())
+
+    def fit_spline(self, array, s=150):
+        # Remove [204;215] and [402,415]
+        array_sep = np.concatenate((array[:204,:], array[216:402,:], array[414:,:]))
+        spl = splrep(array_sep[:,0], array_sep[:,1], s=s)
+
+        x = np.linspace(1,484,1000)
+        plt.plot(x, BSpline(*spl)(x), "g", linewidth=0.8)
+        # plt.show()
+        return spl
+    
+    def fit_function(self, x):
+        return BSpline(*self.fit_equation)(x)
 
     def get_center_point(self):
         center_guess = 527, 484
@@ -73,28 +82,67 @@ class Calibration_cube_analyzer():
             self.data_cube[:, center_x - px_radius, center_y] + self.data_cube[:, center_x + px_radius, center_y] +
             self.data_cube[:, center_x, center_y - px_radius] + self.data_cube[:, center_x, center_y + px_radius]
             ) / 4
-        pixel = Spectrum(mean_y_values, calibration=True)
-        pixel.fit()
-        return pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"])
+        pixel1 = Spectrum(self.data_cube[:, center_x - px_radius, center_y], calibration=True)
+        pixel2 = Spectrum(self.data_cube[:, center_x + px_radius, center_y], calibration=True)
+        pixel3 = Spectrum(self.data_cube[:, center_x, center_y - px_radius], calibration=True)
+        pixel4 = Spectrum(self.data_cube[:, center_x, center_y + px_radius], calibration=True)
+        pixel1.fit()
+        pixel2.fit()
+        pixel3.fit()
+        pixel4.fit()
+        return (pixel1.get_FWHM_speed(pixel1.fitted_gaussian, pixel1.get_uncertainties()["g0"]["stddev"]),
+                pixel2.get_FWHM_speed(pixel2.fitted_gaussian, pixel2.get_uncertainties()["g0"]["stddev"]),
+                pixel3.get_FWHM_speed(pixel3.fitted_gaussian, pixel3.get_uncertainties()["g0"]["stddev"]),
+                pixel4.get_FWHM_speed(pixel4.fitted_gaussian, pixel4.get_uncertainties()["g0"]["stddev"]))
 
-
-    def get_instrumental_width(self):
+    def get_instrumental_widths(self):
         widths = []
         for radius in range(1,485):
             widths.append(self.get_FWHM_mean(radius))
-        plt.plot(np.arange(484), np.array(widths)[:,0])
-        plt.show()
+        plt.plot(np.arange(484), np.array(widths)[:,0], "r", linewidth=0.8)
+        # plt.show()
         return np.array(list(zip(np.arange(484)+1, np.array(widths)[:,0])))
     
-    def get_corrected_width(self):
-        pass
+    def get_individual_instrumental_widths(self):
+        widths_s = []
+        for radius in range(1,485):
+            widths_s.append(self.get_FWHM_mean(radius))
+        plt.plot(np.arange(484), np.array(widths_s)[:,0], label="total", alpha=0.7)
+        widths = []
+        for radius in range(1,485):
+            widths.append(self.get_individual_FWHM_mean(radius))
+        widths = np.array(widths)
+        plt.plot(np.arange(484), np.array(widths)[:,0,0], label="y-", alpha=0.6)
+        plt.plot(np.arange(484), np.array(widths)[:,1,0], label="y+", alpha=0.6)
+        plt.plot(np.arange(484), np.array(widths)[:,2,0], label="x-", alpha=0.6)
+        plt.plot(np.arange(484), np.array(widths)[:,3,0], label="x+", alpha=0.6)
+        plt.legend(loc="upper left")
+        plt.show()
+        return np.array(list(zip(np.arange(484)+1, np.array(widths_s)[:,0])))
+
+    def get_corrected_width(self, spectrum=Spectrum):
+        raw_fwhm = spectrum.get_FWHM_speed(spectrum.fit_iteratively()[4], spectrum.get_uncertainties()["g4"]["stddev"])
+        return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1] ]
 
 
 
 analyzer = Calibration_cube_analyzer("calibration.fits")
 # analyzer.get_center_point()
-print(analyzer.get_instrumental_width())
+# print(analyzer.get_instrumental_widths())
+# print(analyzer.get_individual_instrumental_widths())
+# s = 0
+# while True:
+#     print(s)
+#     analyzer.fit_spline(analyzer.get_instrumental_widths(),s)
+#     s += 10
+# analyzer.fit_spline(analyzer.get_instrumental_widths(),150)
+data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+spectrum_object = Spectrum(data[:,100-1,100-1], calibration=False)
+print(analyzer.get_corrected_width(spectrum_object))
 
+
+# data_cube = np.flip(fits.open("calibration.fits")[0].data, axis=1)
+# data_cube = fits.open("calibration.fits")[0].data
 
 
 # test = data_cube[35,:,:]

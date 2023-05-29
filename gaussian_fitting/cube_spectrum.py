@@ -167,7 +167,7 @@ class Spectrum:
                                                 fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
             return self.fitted_gaussian
 
-    def fit_iteratively(self, stddev_increments):
+    def fit_iteratively(self, stddev_increments=0.2):
         """
         Use the fit method iteratively to find the best possible standard deviation values for the gauss functions representing
         the OH emission rays by minimizing the residual's standard deviation. After finding every best minimum standard
@@ -177,6 +177,11 @@ class Spectrum:
         ---------
         stddev_increments: float that indicates the increments that will be used to test every standard deviation value for
         every ray. A smaller value may provide better results, but will also take more time.
+
+        Returns
+        -------
+        astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 gauss functions. Also sets the astropy
+        model to the variable self.fitted_gaussian.
         """
         stddev_mins = {}
         initial_guesses = self.get_initial_guesses()
@@ -205,7 +210,7 @@ class Spectrum:
             # Store the best standard deviation value found for the corresponding ray
             stddev_mins[ray] = (stddevs.index(min(stddevs)))*stddev_increments + 10 ** (-10)
         # Fit the data with the standard deviation minimums found
-        self.fit(initial_guesses, stddev_mins)
+        return self.fit(initial_guesses, stddev_mins)
 
     def get_initial_guesses(self):
         """
@@ -302,7 +307,7 @@ class Spectrum:
         Returns
         -------
         dict: every key is a function ("g0", "g1", ...) and the value is another dict with the uncertainty values linked to the
-        keys "amplitude", "mean" and "stddev".
+        keys "amplitude", "mean" and "stddev". Note that the gaussian representing the NII peak is labeled 'g4'.
         """
         cov_matrix = self.fitted_gaussian.meta["fit_info"]["param_cov"]
         uncertainty_matrix = np.sqrt(np.diag(cov_matrix))
