@@ -62,29 +62,32 @@ class Calibration_cube_analyzer():
             (center_x, center_y - px_radius),
             (center_x, center_y + px_radius)
         ]
-        fwhms = []
-        for coordinates in positions:
-            pixel = Spectrum(self.data_cube[:,coordinates[0],coordinates[1]], calibration=True)
-            pixel.fit()
-            fwhms.append(pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"]))
-        # print(fwhms)
-        # print(np.mean(fwhms, axis=0))
-        return np.mean(fwhms, axis=0)
+
+        mean_y_values = (
+            self.data_cube[:, center_x - px_radius, center_y] + self.data_cube[:, center_x + px_radius, center_y] +
+            self.data_cube[:, center_x, center_y - px_radius] + self.data_cube[:, center_x, center_y + px_radius]
+            ) / 4
+        pixel = Spectrum(mean_y_values, calibration=True)
+        pixel.fit()
+        return pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"])
 
     def get_instrumental_width(self):
         widths = []
         for radius in range(1,485):
             widths.append(self.get_FWHM_mean(radius))
+        
+        # plt.plot(np.arange(485), widths[:,0])
+        # plt.show()
         return widths
     
-    
-            
+    def get_corrected_width(self):
+        pass
 
 
 
 analyzer = Calibration_cube_analyzer("calibration.fits")
 analyzer.get_center_point()
-analyzer.get_instrumental_width()
+print(analyzer.get_instrumental_width())
 
 
 
