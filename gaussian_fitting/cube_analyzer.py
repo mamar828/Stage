@@ -48,7 +48,8 @@ class Calibration_cube_analyzer():
                     distances[name[-1]].append(channel_dist[name])
                     success += 1
         x_mean, y_mean = np.mean(distances["x"], axis=(0,1)), np.mean(distances["y"], axis=(0,1))
-        return x_mean, y_mean
+        x_uncertainty, y_uncertainty = np.std(distances["x"], axis=(0,1)), np.std(distances["y"], axis=(0,1))
+        return [x_mean, x_uncertainty], [y_mean, y_uncertainty]
 
     def get_FWHM_mean(self, px_radius):
         # Storage of the Fabry-Perot's center point on the image plot (+1 on DS9)
@@ -75,9 +76,9 @@ class Calibration_cube_analyzer():
         widths = []
         for radius in range(1,485):
             widths.append(self.get_FWHM_mean(radius))
-        
-        # plt.plot(np.arange(485), widths[:,0])
-        # plt.show()
+        arr = np.array(widths)
+        plt.plot(np.arange(484), arr[:,0])
+        plt.show()
         return widths
     
     def get_corrected_width(self):
@@ -86,7 +87,7 @@ class Calibration_cube_analyzer():
 
 
 analyzer = Calibration_cube_analyzer("calibration.fits")
-analyzer.get_center_point()
+# analyzer.get_center_point()
 print(analyzer.get_instrumental_width())
 
 
