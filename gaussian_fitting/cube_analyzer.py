@@ -56,14 +56,6 @@ class Calibration_cube_analyzer():
         image_center_x, image_center_y = 527, 484
         # Storage of the center point in the data array: the x and y coordinates are swapped
         center_x, center_y = image_center_y, image_center_x
-
-        positions = [
-            (center_x - px_radius, center_y),
-            (center_x + px_radius, center_y),
-            (center_x, center_y - px_radius),
-            (center_x, center_y + px_radius)
-        ]
-
         mean_y_values = (
             self.data_cube[:, center_x - px_radius, center_y] + self.data_cube[:, center_x + px_radius, center_y] +
             self.data_cube[:, center_x, center_y - px_radius] + self.data_cube[:, center_x, center_y + px_radius]
@@ -72,14 +64,27 @@ class Calibration_cube_analyzer():
         pixel.fit()
         return pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"])
 
+    def get_individual_FWHM_mean(self, px_radius):
+        # Storage of the Fabry-Perot's center point on the image plot (+1 on DS9)
+        image_center_x, image_center_y = 527, 484
+        # Storage of the center point in the data array: the x and y coordinates are swapped
+        center_x, center_y = image_center_y, image_center_x
+        mean_y_values = (
+            self.data_cube[:, center_x - px_radius, center_y] + self.data_cube[:, center_x + px_radius, center_y] +
+            self.data_cube[:, center_x, center_y - px_radius] + self.data_cube[:, center_x, center_y + px_radius]
+            ) / 4
+        pixel = Spectrum(mean_y_values, calibration=True)
+        pixel.fit()
+        return pixel.get_FWHM_speed(pixel.fitted_gaussian, pixel.get_uncertainties()["g0"]["stddev"])
+
+
     def get_instrumental_width(self):
         widths = []
         for radius in range(1,485):
             widths.append(self.get_FWHM_mean(radius))
-        arr = np.array(widths)
-        plt.plot(np.arange(484), arr[:,0])
+        plt.plot(np.arange(484), np.array(widths)[:,0])
         plt.show()
-        return widths
+        return np.array(list(zip(np.arange(484)+1, np.array(widths)[:,0])))
     
     def get_corrected_width(self):
         pass

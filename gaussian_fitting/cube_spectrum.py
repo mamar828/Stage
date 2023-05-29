@@ -32,7 +32,7 @@ class Spectrum:
         self.x_values, self.y_values = np.arange(48) + 1, data
         self.calibration = calibration
         self.data = data
-        
+
         if calibration:
             # Application of a translation in the case of the calibration cube
             # The distance between the desired peak and the current peak is calculated
@@ -275,7 +275,7 @@ class Spectrum:
             if x_peak == 0:
                 x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
             
-            # If a real peak has been found for the OH3 ray, it predominates on a big rise in derivative
+            # If a real peak has been found for the OH3 ray, it predominates over a big rise in derivative
             if x_peak_OH3 != 0:
                 x_peak = x_peak_OH3
 
@@ -379,20 +379,20 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 180
-    for y in range(158, 300):
+    x = 527
+    for y in range(272, 745):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        # spectrum.fit(spectrum.get_initial_guesses())
-        start = time.time()
-        spectrum.fit_iteratively(0.2)
-        stop = time.time()
-        print("time:", stop-start)
-        # print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        spectrum.fit(spectrum.get_initial_guesses())
+        # start = time.time()
+        # spectrum.fit_iteratively(0.2)
+        # stop = time.time()
+        # print("time:", stop-start)
+        print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian, spectrum.get_uncertainties()["g0"]["stddev"]))
         print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 
-loop_di_loop("cube_NII_Sh158_with_header.fits")
-# loop_di_loop("calibration.fits")
+# loop_di_loop("cube_NII_Sh158_with_header.fits")
+loop_di_loop("calibration.fits")
 """
