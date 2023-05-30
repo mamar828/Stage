@@ -385,7 +385,7 @@ def loop_di_loop(filename):
     if filename == "calibration.fits":
         calib = True
     x = 527
-    for y in range(272, 745):
+    for y in range(784, 1000):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)

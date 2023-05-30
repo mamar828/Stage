@@ -34,7 +34,6 @@ def bin_map(data, nb_pix_bin):
     plot_map(new_values)
 
 
-ds9_data = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+ds9_data = fits.open("calibration.fits")[0].data
 
-bin_map(ds9_data[13,:300,:300], 1)
-
+bin_map(ds9_data[13,:-1,:-1], 3)
