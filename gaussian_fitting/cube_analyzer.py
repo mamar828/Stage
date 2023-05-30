@@ -1,10 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
+import warnings
 
 from astropy.io import fits
 from scipy.interpolate import splrep, BSpline
 
 from cube_spectrum import Spectrum
+
+from datetime import datetime
+
+
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
 
 
 
@@ -12,7 +20,7 @@ class Data_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
         self.data_cube = (fits.open(data_cube_file_name)[0]).data
-        # self.data_cube = self.data_cube[:,:5,:4]
+        # self.data_cube = self.data_cube[:,:12,:12]
         # self.fit_equation = self.fit_spline(self.get_instrumental_widths())
 
     def fit_spline(self, array, s=150):
@@ -33,24 +41,49 @@ class Data_cube_analyzer():
     
     def fit_map(self):
         self.fit_fwhm_map = np.zeros([self.data_cube.shape[1], self.data_cube.shape[2], 2])
-        for x in range(self.data_cube.shape[2]):
-            print(x)
+        for x in range(0, self.data_cube.shape[2]):
+            if x%10 == 0:
+                print("\n", x, end=" ")
+            else:
+                print(".", end="")
             for y in range(self.data_cube.shape[1]):
-                spectrum_object = Spectrum(self.data_cube[:,y,x])
-                spectrum_object.fit()
-                self.fit_fwhm_map[y,x,:] = (spectrum_object.get_FWHM_speed(
-                    spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
+                # print(y)
+                try:
+                    spectrum_object = Spectrum(self.data_cube[:,y,x])
+                    spectrum_object.fit()
+                    self.fit_fwhm_map[y,x,:] = (spectrum_object.get_FWHM_speed(
+                        spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
+                except:
+                    self.fit_fwhm_map[y,x,:] = [0, 0]
         
         # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
         # Every element in a group is a x coordinate
         # Every sub-element is the fwhm and its uncertainty
-        file = open("gaussian_fitting/fwhm_map.txt", "a")
-        file.write((str(self.fit_fwhm_map) + "\n\n\n\n" + "".join(list("-" for _ in range(133))) + "\n\n\n\n"))
+        # file = open("gaussian_fitting/fwhm_map.txt", "a")
+        # file.write((str(datetime.now()) + "\n" + str(self.fit_fwhm_map) + "\n\n\n\n" + "".join(list("-" for _ in range(133))) + "\n\n\n\n"))
+        self.save_as_fits_file("gaussian_fitting/instr_func.fits", self.fit_fwhm_map[:,:,0])
+        self.save_as_fits_file("gaussian_fitting/instr_func_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
     
-    def plot_map(self):
-        plt.imshow(self.fit_fwhm_map())
+    def save_as_fits_file(self, filename, array):
+        hdu = fits.PrimaryHDU(array)
+        hdu.writeto(filename, overwrite=True)
+    
+    def plot_map(self, map):
+        plt.imshow(map, cmap="flag", origin="lower")
         plt.plot()
+        plt.show()
+
+    def bin_map(self, map):
+        nb_pix_bin = 2
+        for i in range(nb_pix_bin):
+            try:
+                bin_array = map.reshape(int(map.shape[0]/nb_pix_bin), nb_pix_bin, int(map.shape[1]/nb_pix_bin), nb_pix_bin)
+                break
+            except ValueError:
+                map = np.resize(map, (map.shape[0]-1, map.shape[1]-1))
+        new_values = bin_array.mean(axis=(1,3))
+        self.plot_map(new_values)
 
     def get_center_point(self):
         center_guess = 527, 484
@@ -150,9 +183,36 @@ class Data_cube_analyzer():
         # return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1] + self.estimate_uncertainty()]
 
 
+# analyzer = Data_cube_analyzer("calibration.fits")
+# analyzer.fit_map()
+# analyzer.plot_map(analyzer.fit_fwhm_map[:,:,0])
 
-analyzer = Data_cube_analyzer("calibration.fits")
-analyzer.fit_map()
+# fit_file = fits.open("gaussian_fitting/instr_func.fits")[0].data
+# plt.imshow(fit_file, origin="lower", cmap="flag")
+# plt.show()
+
+# sh = Data_cube_analyzer("gaussian_fitting/instr_func.fits")
+# sh.bin_map(sh.data_cube)
+
+nuit_3 = fits.open("lambda_3.fits")[0].data
+nuit_4 = fits.open("lambda_4.fits")[0].data
+header = fits.open("lambda_3.fits")[0].header
+
+nuit_34 = np.flip(np.sum((nuit_3, nuit_4), axis=0), axis=(1,2))
+plt.imshow(nuit_34[15,:,:])
+plt.show()
+fits.writeto("night_34.fits", nuit_34, header, overwrite=True)
+print("d")
+
+# hdu = fits.PrimaryHDU(nuit_34)
+# hdu.writeto("night_34.fits", header, overwrite=True)
+
+
+# plt.imshow(nuit_34[15,:,:])
+# plt.show()
+
+
+# analyzer.bin_map(analyzer.fit_fwhm_map[:,:,0])
 # analyzer.get_center_point()
 # print(analyzer.get_instrumental_widths())
 # print(analyzer.get_individual_instrumental_widths())

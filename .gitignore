@@ -169,3 +169,8 @@ ds9-2.dat
 ds9-calibration.dat
 ds9-calibration2.dat
 ds9.dat
+gaussian_fitting/instr_func.fits
+gaussian_fitting/instr_func_unc.fits
+lambda_3.fits
+lambda_4.fits
+night_34.fits

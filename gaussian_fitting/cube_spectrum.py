@@ -137,7 +137,6 @@ class Spectrum:
         if self.calibration:
             # Initialize the single gaussian using the max peak's position
             g_init = models.Gaussian1D(amplitude=self.max_tuple[1]*u.Jy, mean=self.max_tuple[0]*u.um)
-
             self.fitted_gaussian = fit_lines(spectrum, g_init,
                                                 fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
 
@@ -384,11 +383,12 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 1
-    for y in range(1, 5):
+    x = 5
+    for y in range(1012, 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
+        spectrum.plot()
         spectrum.fit(spectrum.get_initial_guesses())
         # start = time.time()
         # spectrum.fit_iteratively(0.2)
@@ -396,7 +396,7 @@ def loop_di_loop(filename):
         # print("time:", stop-start)
         print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian, spectrum.get_uncertainties()["g0"]["stddev"]))
         # print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
-        # spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 
 # loop_di_loop("cube_NII_Sh158_with_header.fits")
 loop_di_loop("calibration.fits")

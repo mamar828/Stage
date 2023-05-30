@@ -187,7 +187,12 @@ plt.show()
 
 # --------------------------------------------------------------------
 
-a = 3
-b = a
-b = 2
-print(a)
+nuit_3 = fits.open("lambda_3.fits")[0].data
+nuit_4 = fits.open("lambda_4.fits")[0].data
+header = fits.open("lambda_3.fits")[0].header
+
+nuit_34 = np.flip(np.sum((nuit_3, nuit_4), axis=0), axis=(1,2))
+plt.imshow(nuit_34[15,:,:])
+plt.show()
+fits.writeto("night_34.fits", nuit_34, header, overwrite=True)
+print("d")
