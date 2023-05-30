@@ -384,8 +384,8 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 527
-    for y in range(784, 1000):
+    x = 1
+    for y in range(1, 5):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
@@ -395,8 +395,8 @@ def loop_di_loop(filename):
         # stop = time.time()
         # print("time:", stop-start)
         print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian, spectrum.get_uncertainties()["g0"]["stddev"]))
-        print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
-        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        # print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
+        # spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 
 # loop_di_loop("cube_NII_Sh158_with_header.fits")
 loop_di_loop("calibration.fits")

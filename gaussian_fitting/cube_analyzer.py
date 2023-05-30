@@ -12,7 +12,7 @@ class Data_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
         self.data_cube = (fits.open(data_cube_file_name)[0]).data
-        self.data_cube = self.data_cube[:,:5,:4]
+        # self.data_cube = self.data_cube[:,:5,:4]
         # self.fit_equation = self.fit_spline(self.get_instrumental_widths())
 
     def fit_spline(self, array, s=150):
@@ -32,21 +32,25 @@ class Data_cube_analyzer():
         return BSpline(*self.fit_equation)(x)
     
     def fit_map(self):
-        # self.fit_fwhm_map = np.zeros_like(self.data_cube[0,:,:])
-        self.fit_fwhm_map = np.empty([self.data_cube.shape[1], self.data_cube.shape[2]])
-        print(self.fit_fwhm_map)
+        self.fit_fwhm_map = np.zeros([self.data_cube.shape[1], self.data_cube.shape[2], 2])
         for x in range(self.data_cube.shape[2]):
             print(x)
             for y in range(self.data_cube.shape[1]):
                 spectrum_object = Spectrum(self.data_cube[:,y,x])
                 spectrum_object.fit()
-                self.fit_fwhm_map[y,x] = np.ndarray(spectrum_object.get_FWHM_speed(spectrum_object.get_fitted_gaussian_parameters(),
-                                                                        spectrum_object.get_uncertainties()["g0"]["stddev"]))
-                
-        file = open("fwhm_map.txt", "a")
-        file.write(self.fit_fwhm_map)
-        print(self.fit_fwhm_map)
+                self.fit_fwhm_map[y,x,:] = (spectrum_object.get_FWHM_speed(
+                    spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
+        
+        # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
+        # Every element in a group is a x coordinate
+        # Every sub-element is the fwhm and its uncertainty
+        file = open("gaussian_fitting/fwhm_map.txt", "a")
+        file.write((str(self.fit_fwhm_map) + "\n\n\n\n" + "".join(list("-" for _ in range(133))) + "\n\n\n\n"))
         return self.fit_fwhm_map
+    
+    def plot_map(self):
+        plt.imshow(self.fit_fwhm_map())
+        plt.plot()
 
     def get_center_point(self):
         center_guess = 527, 484
@@ -147,7 +151,7 @@ class Data_cube_analyzer():
 
 
 
-analyzer = Data_cube_analyzer("cube_NII_Sh158_with_header.fits")
+analyzer = Data_cube_analyzer("calibration.fits")
 analyzer.fit_map()
 # analyzer.get_center_point()
 # print(analyzer.get_instrumental_widths())
