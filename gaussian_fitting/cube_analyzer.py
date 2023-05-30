@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import sys
 import warnings
@@ -54,15 +55,15 @@ class Data_cube_analyzer():
                     self.fit_fwhm_map[y,x,:] = (spectrum_object.get_FWHM_speed(
                         spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
                 except:
-                    self.fit_fwhm_map[y,x,:] = [0, 0]
+                    self.fit_fwhm_map[y,x,:] = [np.NAN, np.NAN]
         
         # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
         # Every element in a group is a x coordinate
         # Every sub-element is the fwhm and its uncertainty
         # file = open("gaussian_fitting/fwhm_map.txt", "a")
         # file.write((str(datetime.now()) + "\n" + str(self.fit_fwhm_map) + "\n\n\n\n" + "".join(list("-" for _ in range(133))) + "\n\n\n\n"))
-        self.save_as_fits_file("gaussian_fitting/instr_func.fits", self.fit_fwhm_map[:,:,0])
-        self.save_as_fits_file("gaussian_fitting/instr_func_unc.fits", self.fit_fwhm_map[:,:,1])
+        self.save_as_fits_file("gaussian_fitting/instr_func1.fits", self.fit_fwhm_map[:,:,0])
+        self.save_as_fits_file("gaussian_fitting/instr_func1_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
     
     def save_as_fits_file(self, filename, array):
@@ -70,8 +71,7 @@ class Data_cube_analyzer():
         hdu.writeto(filename, overwrite=True)
     
     def plot_map(self, map):
-        plt.imshow(map, cmap="flag", origin="lower")
-        plt.plot()
+        plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=15, vmax=50))
         plt.show()
 
     def bin_map(self, map):
@@ -183,26 +183,38 @@ class Data_cube_analyzer():
         # return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1] + self.estimate_uncertainty()]
 
 
+"""
+file = fits.open("gaussian_fitting/instr_func_unc.fits")[0].data
+header = fits.open("gaussian_fitting/instr_func_ucn.fits")[0].header
+
+for x in range(0, file.shape[1]):
+    for y in range(file.shape[0]):
+        if file[x,y] < 10**(-10):
+            file[x,y] = np.NAN
+
+fits.writeto("gaussian_fitting/instr_func.fits", file, header, overwrite=True)
+"""
+
 # analyzer = Data_cube_analyzer("calibration.fits")
 # analyzer.fit_map()
 # analyzer.plot_map(analyzer.fit_fwhm_map[:,:,0])
 
 # fit_file = fits.open("gaussian_fitting/instr_func.fits")[0].data
-# plt.imshow(fit_file, origin="lower", cmap="flag")
+# plt.colorbar(plt.imshow(fit_file, origin="lower", cmap="viridis", vmin=15, vmax=50))
 # plt.show()
 
 # sh = Data_cube_analyzer("gaussian_fitting/instr_func.fits")
 # sh.bin_map(sh.data_cube)
 
-nuit_3 = fits.open("lambda_3.fits")[0].data
-nuit_4 = fits.open("lambda_4.fits")[0].data
-header = fits.open("lambda_3.fits")[0].header
+# nuit_3 = fits.open("lambda_3.fits")[0].data
+# nuit_4 = fits.open("lambda_4.fits")[0].data
+# header = fits.open("lambda_3.fits")[0].header
 
-nuit_34 = np.flip(np.sum((nuit_3, nuit_4), axis=0), axis=(1,2))
-plt.imshow(nuit_34[15,:,:])
-plt.show()
-fits.writeto("night_34.fits", nuit_34, header, overwrite=True)
-print("d")
+# nuit_34 = np.flip(np.sum((nuit_3, nuit_4), axis=0), axis=(1,2))
+# plt.imshow(nuit_34[15,:,:])
+# plt.show()
+# fits.writeto("night_34.fits", nuit_34, header, overwrite=True)
+# print("d")
 
 # hdu = fits.PrimaryHDU(nuit_34)
 # hdu.writeto("night_34.fits", header, overwrite=True)
