@@ -65,7 +65,7 @@ class Data_cube_analyzer():
         return self.fit_fwhm_map
     
     def save_as_fits_file(self, filename, array, header=None):
-        fits.writeto("filename", array, header, overwrite=True)
+        fits.writeto(filename, array, header, overwrite=True)
     
     def plot_map(self, map):
         plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=15, vmax=50))
@@ -86,7 +86,7 @@ class Data_cube_analyzer():
         # Finds first the radiuses where a change of diffraction order can be seen
         center = round(center[0]), round(center[1])
         bin_factor = center[0] / 527
-        smoothing_max_thresholds = [0.7, 2]
+        smoothing_max_thresholds = [0.4, 1.8]
         bounds = [
             np.array((255,355)) * bin_factor,
             np.array((70,170)) * bin_factor
@@ -111,32 +111,7 @@ class Data_cube_analyzer():
                     else:
                         mean_array[mean_array < np.max(mean_array)-smoothing_max_thresholds[1]] = np.NAN
                     smooth_array[y,x] = np.nanmean(mean_array)
-        self.plot_map(smooth_array)
-
-
-        
-        
-        """
-        fwhm_differences = np.zeros(array.shape[1]-1)
-        order_change_threshold = 3
-        radius_points = []
-        plt.plot(np.linspace(0,1023,1024), array[484,:])
-        plt.show()
-        
-        for i in range(array.shape[1]-1):
-            fwhm_differences[i] = array[484, i+1] - array[484, i]
-            if np.abs(array[484, i+1] - array[484, i]) > order_change_threshold:
-                print("look -->:", array[484, i+1], array[484, i])
-                radius_points.append(i)
-        print(radius_points)
-        """
-        # for x in range(array.shape[1]):
-        #     for y in range()
-
-                
-        
-
-
+        return smooth_array
 
     def get_center_point(self):
         center_guess = 527, 484
@@ -243,11 +218,15 @@ class Data_cube_analyzer():
 
 
 analyzer = Data_cube_analyzer("calibration.fits")
+# analyzer.smooth_order_change(file, (527,484))
 # analyzer.fit_map()
 # analyzer.plot_map(analyzer.fit_fwhm_map[:,:,0])
 
-fit_file = fits.open("gaussian_fitting/instr_func.fits")[0].data
-analyzer.smooth_order_change(fit_file, (527, 484))
+fit_file = fits.open("maps/smoothed_instr_func.fits")[0].data
+analyzer.plot_map(fit_file)
+
+# analyzer.save_as_fits_file("maps/smoothed_instr_func.fits", analyzer.smooth_order_change(file, (527,484)))
+
 # analyzer.plot_map(fit_file)
 # analyzer.plot_map(analyzer.bin_map(fit_file))
 # plt.colorbar(plt.imshow(fit_file, origin="lower", cmap="viridis", vmin=15, vmax=50))
