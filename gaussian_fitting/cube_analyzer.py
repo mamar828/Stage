@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
 import sys
 import warnings
@@ -12,20 +11,20 @@ from cube_spectrum import Spectrum
 from datetime import datetime
 
 
+
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
-
 
 
 class Data_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
         self.data_cube = (fits.open(data_cube_file_name)[0]).data
-        # self.data_cube = self.data_cube[:,:12,:12]
+        # self.data_cube = self.data_cube[:,:12,:6]
         # self.fit_equation = self.fit_spline(self.get_instrumental_widths())
 
     def fit_spline(self, array, s=150):
-        # Remove [204;215] and [402,415]
+        # Remove [204f;215] and [402,415]
         array_sep = np.concatenate((array[:204,:], array[216:402,:], array[414:,:]))
         spl = splrep(array_sep[:,0], array_sep[:,1], s=s)
 
@@ -66,9 +65,8 @@ class Data_cube_analyzer():
         self.save_as_fits_file("gaussian_fitting/instr_func1_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
     
-    def save_as_fits_file(self, filename, array):
-        hdu = fits.PrimaryHDU(array)
-        hdu.writeto(filename, overwrite=True)
+    def save_as_fits_file(self, filename, array, header=None):
+        fits.writeto("filename", array, header, overwrite=True)
     
     def plot_map(self, map):
         plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=15, vmax=50))
@@ -83,7 +81,80 @@ class Data_cube_analyzer():
             except ValueError:
                 map = np.resize(map, (map.shape[0]-1, map.shape[1]-1))
         new_values = bin_array.mean(axis=(1,3))
-        self.plot_map(new_values)
+        return new_values
+
+    def smooth_order_change(self, array, center=tuple):
+        # Finds first the radiuses where a change of diffraction order can be seen
+        center = round(center[0]), round(center[1])
+        bin_factor = center[0] / 527
+        bounds = [
+            np.array((255,355)) * bin_factor,
+            np.array((70,170)) * bin_factor
+        ]
+        regions = [
+            list(array[center[1], int(bounds[0][0]):int(bounds[0][1])]),
+            list(array[center[1], int(bounds[1][0]):int(bounds[1][1])])
+        ]
+        radiuses = [
+            center[0] - (regions[0].index(min(regions[0])) + 255),
+            center[0] - (regions[1].index(min(regions[1])) + 70)
+        ]
+        print(radiuses)
+        smooth_array = np.copy(array)
+        closeness_mask = [
+            [True, True, True, True, True, True, True],
+            [True, True, True, True, True, True, True],
+            [True, True, False, False, False, True, True],
+            [True, True, False, False, False, True, True],
+            [True, True, False, False, False, True, True],
+            [True, True, True, True, True, True, True],
+            [True, True, True, True, True, True, True]
+        ]
+        for x in range(array.shape[1]):
+            for y in range(array.shape[0]):
+                current_radius = np.sqrt((x-center[0])**2 + (y-center[1])**2)
+                if (radiuses[0] - 3*bin_factor <= current_radius <= radiuses[0] + 3*bin_factor or
+                    radiuses[1] - 3*bin_factor <= current_radius <= radiuses[1] + 3*bin_factor):
+                    mean_array = array[y-6:y+7, x-6:x+7]
+                    mean_array[mean_array < np.max(mean_array)-1] = np.NAN
+                    # print(mean_array)
+                    # print(np.nanmean(mean_array))
+                    # raise ArithmeticError
+                    smooth_array[y,x] = np.nanmean(mean_array)
+                    if not np.nanmean(mean_array) > 10:
+                        print(mean_array)
+                        print(x,y)
+                        raise ArithmeticError
+                    # print(x,y)
+                    # print("mean:", np.mean(array[y-2:y+3, x-2:x+3]))
+                    # raise ArithmeticError
+        # array = np.copy(smooth_array)
+        self.plot_map(smooth_array)
+
+
+        
+        
+        """
+        fwhm_differences = np.zeros(array.shape[1]-1)
+        order_change_threshold = 3
+        radius_points = []
+        plt.plot(np.linspace(0,1023,1024), array[484,:])
+        plt.show()
+        
+        for i in range(array.shape[1]-1):
+            fwhm_differences[i] = array[484, i+1] - array[484, i]
+            if np.abs(array[484, i+1] - array[484, i]) > order_change_threshold:
+                print("look -->:", array[484, i+1], array[484, i])
+                radius_points.append(i)
+        print(radius_points)
+        """
+        # for x in range(array.shape[1]):
+        #     for y in range()
+
+                
+        
+
+
 
     def get_center_point(self):
         center_guess = 527, 484
@@ -183,23 +254,20 @@ class Data_cube_analyzer():
         # return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1] + self.estimate_uncertainty()]
 
 
-"""
-file = fits.open("gaussian_fitting/instr_func_unc.fits")[0].data
-header = fits.open("gaussian_fitting/instr_func_ucn.fits")[0].header
 
-for x in range(0, file.shape[1]):
-    for y in range(file.shape[0]):
-        if file[x,y] < 10**(-10):
-            file[x,y] = np.NAN
+# file = fits.open("gaussian_fitting/instr_func.fits")[0].data
+# header = fits.open("gaussian_fitting/instr_func.fits")[0].header
 
-fits.writeto("gaussian_fitting/instr_func.fits", file, header, overwrite=True)
-"""
 
-# analyzer = Data_cube_analyzer("calibration.fits")
+
+analyzer = Data_cube_analyzer("calibration.fits")
 # analyzer.fit_map()
 # analyzer.plot_map(analyzer.fit_fwhm_map[:,:,0])
 
-# fit_file = fits.open("gaussian_fitting/instr_func.fits")[0].data
+fit_file = fits.open("gaussian_fitting/instr_func.fits")[0].data
+analyzer.smooth_order_change(fit_file, (527, 484))
+# analyzer.plot_map(fit_file)
+# analyzer.plot_map(analyzer.bin_map(fit_file))
 # plt.colorbar(plt.imshow(fit_file, origin="lower", cmap="viridis", vmin=15, vmax=50))
 # plt.show()
 
