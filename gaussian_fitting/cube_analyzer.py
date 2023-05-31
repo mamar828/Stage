@@ -11,7 +11,6 @@ from cube_spectrum import Spectrum
 from datetime import datetime
 
 
-
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
@@ -87,6 +86,7 @@ class Data_cube_analyzer():
         # Finds first the radiuses where a change of diffraction order can be seen
         center = round(center[0]), round(center[1])
         bin_factor = center[0] / 527
+        smoothing_max_thresholds = [0.7, 2]
         bounds = [
             np.array((255,355)) * bin_factor,
             np.array((70,170)) * bin_factor
@@ -99,36 +99,18 @@ class Data_cube_analyzer():
             center[0] - (regions[0].index(min(regions[0])) + 255),
             center[0] - (regions[1].index(min(regions[1])) + 70)
         ]
-        print(radiuses)
         smooth_array = np.copy(array)
-        closeness_mask = [
-            [True, True, True, True, True, True, True],
-            [True, True, True, True, True, True, True],
-            [True, True, False, False, False, True, True],
-            [True, True, False, False, False, True, True],
-            [True, True, False, False, False, True, True],
-            [True, True, True, True, True, True, True],
-            [True, True, True, True, True, True, True]
-        ]
         for x in range(array.shape[1]):
             for y in range(array.shape[0]):
                 current_radius = np.sqrt((x-center[0])**2 + (y-center[1])**2)
-                if (radiuses[0] - 3*bin_factor <= current_radius <= radiuses[0] + 3*bin_factor or
-                    radiuses[1] - 3*bin_factor <= current_radius <= radiuses[1] + 3*bin_factor):
-                    mean_array = array[y-6:y+7, x-6:x+7]
-                    mean_array[mean_array < np.max(mean_array)-1] = np.NAN
-                    # print(mean_array)
-                    # print(np.nanmean(mean_array))
-                    # raise ArithmeticError
+                if (radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor or
+                    radiuses[1] - 4*bin_factor <= current_radius <= radiuses[1] + 4*bin_factor):
+                    mean_array = np.copy(array[y-3:y+4, x-3:x+4])
+                    if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
+                        mean_array[mean_array < np.max(mean_array)-smoothing_max_thresholds[0]] = np.NAN
+                    else:
+                        mean_array[mean_array < np.max(mean_array)-smoothing_max_thresholds[1]] = np.NAN
                     smooth_array[y,x] = np.nanmean(mean_array)
-                    if not np.nanmean(mean_array) > 10:
-                        print(mean_array)
-                        print(x,y)
-                        raise ArithmeticError
-                    # print(x,y)
-                    # print("mean:", np.mean(array[y-2:y+3, x-2:x+3]))
-                    # raise ArithmeticError
-        # array = np.copy(smooth_array)
         self.plot_map(smooth_array)
 
 
