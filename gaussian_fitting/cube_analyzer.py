@@ -46,7 +46,6 @@ class Data_cube_analyzer():
             else:
                 print(".", end="")
             for y in range(self.data_cube.shape[1]):
-                # print(y)
                 try:
                     spectrum_object = Spectrum(self.data_cube[:,y,x])
                     spectrum_object.fit()
@@ -68,7 +67,8 @@ class Data_cube_analyzer():
         fits.writeto(filename, array, header, overwrite=True)
     
     def plot_map(self, map):
-        plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=15, vmax=50))
+        plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=map[round(map.shape[0]/2), round(map.shape[1]/2)]*3/5,
+                                                                     vmax=map[round(map.shape[0]/10), round(map.shape[1]/10)]*2))
         plt.show()
 
     def bin_map(self, map):
@@ -82,8 +82,8 @@ class Data_cube_analyzer():
         new_values = bin_array.mean(axis=(1,3))
         return new_values
 
-    def smooth_order_change(self, array, center=tuple):
-        # Finds first the radiuses where a change of diffraction order can be seen
+    def smooth_order_change(self, data_array, uncertainty_array, center=tuple):
+        # Find first the radiuses where a change of diffraction order can be seen
         center = round(center[0]), round(center[1])
         bin_factor = center[0] / 527
         smoothing_max_thresholds = [0.4, 1.8]
@@ -91,27 +91,30 @@ class Data_cube_analyzer():
             np.array((255,355)) * bin_factor,
             np.array((70,170)) * bin_factor
         ]
-        regions = [
-            list(array[center[1], int(bounds[0][0]):int(bounds[0][1])]),
-            list(array[center[1], int(bounds[1][0]):int(bounds[1][1])])
+        peak_regions = [
+            list(data_array[center[1], int(bounds[0][0]):int(bounds[0][1])]),
+            list(data_array[center[1], int(bounds[1][0]):int(bounds[1][1])])
         ]
         radiuses = [
-            center[0] - (regions[0].index(min(regions[0])) + 255),
-            center[0] - (regions[1].index(min(regions[1])) + 70)
+            center[0] - (peak_regions[0].index(min(peak_regions[0])) + 255),
+            center[0] - (peak_regions[1].index(min(peak_regions[1])) + 70)
         ]
-        smooth_array = np.copy(array)
-        for x in range(array.shape[1]):
-            for y in range(array.shape[0]):
+        smooth_data = np.copy(data_array)
+        smooth_uncertainties = np.copy(uncertainty_array)
+        for x in range(data_array.shape[1]):
+            for y in range(data_array.shape[0]):
                 current_radius = np.sqrt((x-center[0])**2 + (y-center[1])**2)
                 if (radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor or
                     radiuses[1] - 4*bin_factor <= current_radius <= radiuses[1] + 4*bin_factor):
-                    mean_array = np.copy(array[y-3:y+4, x-3:x+4])
+                    near_pixels = np.copy(data_array[y-3:y+4, x-3:x+4])
+                    near_pixels_uncertainty = np.copy(uncertainty_array[y-3:y+4, x-3:x+4])
                     if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
-                        mean_array[mean_array < np.max(mean_array)-smoothing_max_thresholds[0]] = np.NAN
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
                     else:
-                        mean_array[mean_array < np.max(mean_array)-smoothing_max_thresholds[1]] = np.NAN
-                    smooth_array[y,x] = np.nanmean(mean_array)
-        return smooth_array
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
+                    smooth_data[y,x] = np.nanmean(near_pixels)
+                    smooth_uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
+        return smooth_data, smooth_uncertainties
 
     def get_center_point(self):
         center_guess = 527, 484
@@ -212,20 +215,27 @@ class Data_cube_analyzer():
 
 
 
-# file = fits.open("gaussian_fitting/instr_func.fits")[0].data
+file = fits.open("gaussian_fitting/instr_func.fits")[0].data
+file_u = fits.open("gaussian_fitting/instr_func_unc.fits")[0].data
 # header = fits.open("gaussian_fitting/instr_func.fits")[0].header
 
 
 
 analyzer = Data_cube_analyzer("calibration.fits")
-# analyzer.smooth_order_change(file, (527,484))
+# analyzer.plot_map(analyzer.smooth_order_change(file, file_u, (527,484))[1])
+analyzer.plot_map(file_u)
 # analyzer.fit_map()
 # analyzer.plot_map(analyzer.fit_fwhm_map[:,:,0])
 
 fit_file = fits.open("maps/smoothed_instr_func.fits")[0].data
-analyzer.plot_map(fit_file)
+fit_file_u = fits.open("gaussian_fitting/instr_func_unc.fits")[0].data
+analyzer.plot_map(file_u)
+# plt.imshow(fit_file_u)
+# plt.show()
+# analyzer.plot_map(fit_file_u)
 
-# analyzer.save_as_fits_file("maps/smoothed_instr_func.fits", analyzer.smooth_order_change(file, (527,484)))
+# analyzer.save_as_fits_file("maps/smoothed_instr_f.fits", analyzer.smooth_order_change(file, file_u, (527,484))[0])
+# analyzer.save_as_fits_file("maps/smoothed_instr_f_unc.fits", analyzer.smooth_order_change(file, file_u, (527,484))[1])
 
 # analyzer.plot_map(fit_file)
 # analyzer.plot_map(analyzer.bin_map(fit_file))
