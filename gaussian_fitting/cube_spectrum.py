@@ -184,7 +184,6 @@ class Spectrum:
         """
         stddev_mins = {}
         initial_guesses = self.get_initial_guesses()
-
         for ray in ["OH1", "OH2", "OH3", "OH4"]:
             # Value of the first standard deviation guess
             # Is not set to zero to avoid division by zero
@@ -196,7 +195,7 @@ class Spectrum:
             # two "bumps", meaning when the stddev of the residual has risen from its previous value twice, indicating a
             # true minimum.
             stddev_bump_count = 0
-            while stddev_bump_count < 2:
+            while stddev_bump_count < 2 and len(stddevs) < 40:
                 # Set the self.fitted_gaussian variable to allow the calculation of the subtracted fit
                 new_gaussian = self.fit(params=initial_guesses, stddev_mins={ray: min_guess})
                 stddevs.append(float(self.get_stddev(self.get_subtracted_fit()/u.Jy)))
@@ -248,7 +247,6 @@ class Spectrum:
             x_peak_OH3 = 0
             # Specify when a big difference in derivatives has been detected and allows to keep the x_value
             stop_OH3 = False
-            
             # For the OH1 and OH4 rays, the maximum intensity is used as the initial guess
             if ray != "OH1" and ray != "OH4":
                 for x in range(bounds[0], bounds[1]):
@@ -378,26 +376,25 @@ class Spectrum:
         return speed_FWHM
 
 
-"""
+
 def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 5
-    for y in range(1012, 1013):
+    x = 501
+    for y in range(541, 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        spectrum.plot()
         spectrum.fit(spectrum.get_initial_guesses())
         # start = time.time()
         # spectrum.fit_iteratively(0.2)
         # stop = time.time()
         # print("time:", stop-start)
-        print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian, spectrum.get_uncertainties()["g0"]["stddev"]))
-        # print("stddev:", spectrum.get_stddev(spectrum.get_subtracted_fit()))
-        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        # print("FWHM:", spectrum.get_FWHM_speed(spectrum.fitted_gaussian[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        print("".join(list("-" for _ in range(50))), spectrum.get_stddev(spectrum.get_subtracted_fit()))
+        # spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        raise ArithmeticError
+loop_di_loop("night_34.fits")
+# loop_di_loop("calibration.fits")
 
-# loop_di_loop("cube_NII_Sh158_with_header.fits")
-loop_di_loop("calibration.fits")
-"""
