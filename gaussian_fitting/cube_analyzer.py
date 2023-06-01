@@ -19,6 +19,7 @@ class Data_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
         self.data_cube = (fits.open(data_cube_file_name)[0]).data
+        self.data_cube = self.data_cube[:,:3,:3]
 
     def fit_calibration(self):
         self.fit_fwhm_map = np.zeros([self.data_cube.shape[1], self.data_cube.shape[2], 2])
@@ -60,7 +61,6 @@ class Data_cube_analyzer():
                 except:
                     print(f"Exception encountered at ({x},{y})")
                     self.fit_fwhm_map[y,x,:] = [np.NAN, np.NAN]
-                print(self.fit_fwhm_map[y,x,:])
         # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
         # Every element in a group is a x coordinate
         # Every sub-element is the fwhm and its uncertainty
@@ -71,8 +71,11 @@ class Data_cube_analyzer():
     def save_as_fits_file(self, filename, array, header=None):
         fits.writeto(filename, array, header, overwrite=True)
     
-    def plot_map(self, map):
-        plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=map[round(map.shape[0]/2), round(map.shape[1]/2)]*3/5,
+    def plot_map(self, map, autoscale=True):
+        if autoscale:
+            plt.imshow(map, origin="lower", cmap="viridis")
+        else:
+            plt.colorbar(plt.imshow(map, origin="lower",cmap="viridis", vmin=map[round(map.shape[0]/2), round(map.shape[1]/2)]*3/5,
                                                                      vmax=map[round(map.shape[0]/10), round(map.shape[1]/10)]*2))
         plt.show()
 
@@ -159,9 +162,10 @@ class Data_cube_analyzer():
                 fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
 
 
-file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
-fwhms = fits.open("maps/fwhm_NII.fits")[0].data
+# file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+# fwhms = fits.open("maps/fwhm_NII.fits")[0].data
+# fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
 
 analyzer = Data_cube_analyzer("night_34.fits")
 analyzer.fit_NII_cube()
-# analyzer.plot_map(fwhms)
+# analyzer.plot_map(fwhms_unc)
