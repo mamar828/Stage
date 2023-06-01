@@ -38,7 +38,7 @@ class Data_cube_analyzer():
     def fit_function(self, x):
         return BSpline(*self.fit_equation)(x)
     
-    def fit_map(self):
+    def fit_calibration(self):
         self.fit_fwhm_map = np.zeros([self.data_cube.shape[1], self.data_cube.shape[2], 2])
         for x in range(0, self.data_cube.shape[2]):
             if x%10 == 0:
@@ -63,6 +63,29 @@ class Data_cube_analyzer():
         self.save_as_fits_file("gaussian_fitting/instr_func1_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
     
+    def fit_NII_cube(self):
+        self.fit_fwhm_map = np.zeros([self.data_cube.shape[1], self.data_cube.shape[2], 2])
+        for x in range(0, self.data_cube.shape[2]):
+            if x%10 == 0:
+                print(f"\n{x}", end=" ")
+            else:
+                print(".", end="")
+            for y in range(self.data_cube.shape[1]):
+                try:
+                    spectrum_object = Spectrum(self.data_cube[:,y,x])
+                    spectrum_object.fit_iteratively()
+                    self.fit_fwhm_map[y,x,:] = (spectrum_object.get_FWHM_speed(
+                        spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
+                except:
+                    self.fit_fwhm_map[y,x,:] = [np.NAN, np.NAN]
+        
+        # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
+        # Every element in a group is a x coordinate
+        # Every sub-element is the fwhm and its uncertainty
+        self.save_as_fits_file("maps/fwhm_NII.fits", self.fit_fwhm_map[:,:,0])
+        self.save_as_fits_file("gaussian_fitting/fwhm_NII_unc.fits", self.fit_fwhm_map[:,:,1])
+        return self.fit_fwhm_map
+
     def save_as_fits_file(self, filename, array, header=None):
         fits.writeto(filename, array, header, overwrite=True)
     
@@ -207,16 +230,10 @@ class Data_cube_analyzer():
         plt.legend(loc="upper left")
         plt.show()
 
-    def get_corrected_width(self, spectrum=Spectrum):
-        
-
-
-
-
-        raw_fwhm = spectrum.get_FWHM_speed(spectrum.fit_iteratively()[4], spectrum.get_uncertainties()["g4"]["stddev"])
-        return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1]]
-        # return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1] + self.estimate_uncertainty()]
-
+    def get_corrected_width(self, fwhm_NII, fwhm_NII_uncertainty,
+                            instrumental_function_width, instrumental_function_width_uncertainty):
+        return [fwhm_NII - instrumental_function_width,
+                fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
 
 
 file = fits.open("gaussian_fitting/instr_func.fits")[0].data
