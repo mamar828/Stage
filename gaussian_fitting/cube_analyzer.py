@@ -71,15 +71,14 @@ class Data_cube_analyzer():
                                                                      vmax=map[round(map.shape[0]/10), round(map.shape[1]/10)]*2))
         plt.show()
 
-    def bin_map(self, map):
-        nb_pix_bin = 2
+    def bin_map(self, map, nb_pix_bin=2):
         for i in range(nb_pix_bin):
             try:
                 bin_array = map.reshape(int(map.shape[0]/nb_pix_bin), nb_pix_bin, int(map.shape[1]/nb_pix_bin), nb_pix_bin)
                 break
             except ValueError:
-                map = np.resize(map, (map.shape[0]-1, map.shape[1]-1))
-        new_values = bin_array.mean(axis=(1,3))
+                map = map[:-1,:-1]
+        new_values = np.nanmean(bin_array, axis=(1,3))
         return new_values
 
     def smooth_order_change(self, data_array, uncertainty_array, center=tuple):
@@ -209,6 +208,11 @@ class Data_cube_analyzer():
         plt.show()
 
     def get_corrected_width(self, spectrum=Spectrum):
+        
+
+
+
+
         raw_fwhm = spectrum.get_FWHM_speed(spectrum.fit_iteratively()[4], spectrum.get_uncertainties()["g4"]["stddev"])
         return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1]]
         # return [raw_fwhm[0] - self.fit_function(200), raw_fwhm[1] + self.estimate_uncertainty()]
@@ -217,19 +221,21 @@ class Data_cube_analyzer():
 
 file = fits.open("gaussian_fitting/instr_func.fits")[0].data
 file_u = fits.open("gaussian_fitting/instr_func_unc.fits")[0].data
+sm_file = fits.open("maps/smoothed_instr_f.fits")[0].data
+sm_file_u = fits.open("maps/smoothed_instr_f_unc.fits")[0].data
 # header = fits.open("gaussian_fitting/instr_func.fits")[0].header
 
 
 
 analyzer = Data_cube_analyzer("calibration.fits")
+
+# analyzer.fit_map()
 # analyzer.plot_map(analyzer.smooth_order_change(file, file_u, (527,484))[1])
-analyzer.plot_map(file_u)
+# analyzer.plot_map(file_u)
 # analyzer.fit_map()
 # analyzer.plot_map(analyzer.fit_fwhm_map[:,:,0])
 
-fit_file = fits.open("maps/smoothed_instr_func.fits")[0].data
-fit_file_u = fits.open("gaussian_fitting/instr_func_unc.fits")[0].data
-analyzer.plot_map(file_u)
+# analyzer.plot_map(file_u)
 # plt.imshow(fit_file_u)
 # plt.show()
 # analyzer.plot_map(fit_file_u)
