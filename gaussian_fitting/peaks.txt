@@ -17,3 +17,8 @@ Inverted axes
 
 WEIRD
 (100,182)
+
+
+With 2x2 bin :
+   DS9      Python
+(602,602)  (300,300)

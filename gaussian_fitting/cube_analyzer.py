@@ -4,11 +4,8 @@ import sys
 import warnings
 
 from astropy.io import fits
-from scipy.interpolate import splrep, BSpline
 
 from cube_spectrum import Spectrum
-
-from datetime import datetime
 
 
 if not sys.warnoptions:
@@ -18,19 +15,18 @@ if not sys.warnoptions:
 class Data_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
-        self.data_cube = (fits.open(data_cube_file_name)[0]).data
-        self.data_cube = self.data_cube[:,:3,:3]
+        self.data_cube = fits.open(data_cube_file_name)[0].data
 
-    def fit_calibration(self):
-        self.fit_fwhm_map = np.zeros([self.data_cube.shape[1], self.data_cube.shape[2], 2])
-        for x in range(0, self.data_cube.shape[2]):
+    def fit_calibration(self, data):
+        self.fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
+        for x in range(0, data.shape[2]):
             if x%10 == 0:
                 print("\n", x, end=" ")
             else:
                 print(".", end="")
-            for y in range(self.data_cube.shape[1]):
+            for y in range(data.shape[1]):
                 try:
-                    spectrum_object = Spectrum(self.data_cube[:,y,x], calibration=True)
+                    spectrum_object = Spectrum(data[:,y,x], calibration=True)
                     spectrum_object.fit()
                     self.fit_fwhm_map[y,x,:] = (spectrum_object.get_FWHM_speed(
                         spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
@@ -45,15 +41,15 @@ class Data_cube_analyzer():
         self.save_as_fits_file("gaussian_fitting/instr_func1_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
     
-    def fit_NII_cube(self):
-        self.fit_fwhm_map = np.zeros([self.data_cube.shape[1], self.data_cube.shape[2], 2])
-        for x in range(self.data_cube.shape[2]):
+    def fit_NII_cube(self, data):
+        self.fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
+        for x in range(data.shape[2]):
             if x%10 == 0:
                 print(f"\n{x}", end=" ")
             else:
                 print(".", end="")
-            for y in range(self.data_cube.shape[1]):
-                spectrum_object = Spectrum(self.data_cube[:,y,x], calibration=False)
+            for y in range(data.shape[1]):
+                spectrum_object = Spectrum(data[:,y,x], calibration=False)
                 spectrum_object.fit_iteratively()
                 try:
                     self.fit_fwhm_map[y,x,:] = spectrum_object.get_FWHM_speed(
@@ -61,6 +57,7 @@ class Data_cube_analyzer():
                 except:
                     print(f"Exception encountered at ({x},{y})")
                     self.fit_fwhm_map[y,x,:] = [np.NAN, np.NAN]
+        
         # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
         # Every element in a group is a x coordinate
         # Every sub-element is the fwhm and its uncertainty
@@ -75,7 +72,7 @@ class Data_cube_analyzer():
         if autoscale:
             plt.imshow(map, origin="lower", cmap="viridis")
         else:
-            plt.colorbar(plt.imshow(map, origin="lower",cmap="viridis", vmin=map[round(map.shape[0]/2), round(map.shape[1]/2)]*3/5,
+            plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=map[round(map.shape[0]/2), round(map.shape[1]/2)]*3/5,
                                                                      vmax=map[round(map.shape[0]/10), round(map.shape[1]/10)]*2))
         plt.show()
 
@@ -86,8 +83,18 @@ class Data_cube_analyzer():
                 break
             except ValueError:
                 map = map[:-1,:-1]
-        new_values = np.nanmean(bin_array, axis=(1,3))
-        return new_values
+        return np.nanmean(bin_array, axis=(1,3))
+    
+    def bin_cube(self, cube, nb_pix_bin=2):
+        for i in range(nb_pix_bin):
+            try:
+                bin_array = cube.reshape(cube.shape[0], int(cube.shape[1]/nb_pix_bin), nb_pix_bin,
+                                                        int(cube.shape[2]/nb_pix_bin), nb_pix_bin)
+                break
+            except ValueError:
+                print(f"Cube to bin will be cut by {i+1} pixel(s).")
+                cube = cube[:,:-1,:-1]
+        return np.nanmean(bin_array, axis=(2,4))
 
     def smooth_order_change(self, data_array, uncertainty_array, center=tuple):
         # Find first the radiuses where a change of diffraction order can be seen
@@ -165,7 +172,15 @@ class Data_cube_analyzer():
 # file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
 # fwhms = fits.open("maps/fwhm_NII.fits")[0].data
 # fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
+# calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
 
 analyzer = Data_cube_analyzer("night_34.fits")
-analyzer.fit_NII_cube()
-# analyzer.plot_map(fwhms_unc)
+analyzer.fit_NII_cube(analyzer.bin_cube(analyzer.data_cube, 2))
+# analyzer.plot_map(fwhms)
+# analyzer.bin_map(calibs[:4,:4])
+# analyzer.plot_map(calibs[:4,:4])
+
+# analyzer.bin_cube(analyzer.data_cube)
+# sp = Spectrum(analyzer.bin_cube(analyzer.data_cube, 2)[:,300,300], calibration=False)
+# sp.plot()
+

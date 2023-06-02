@@ -2,7 +2,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-import time
 
 from astropy.modeling import models, fitting
 from astropy.io import fits
@@ -386,13 +385,27 @@ def loop_di_loop(filename):
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
         # spectrum.fit(spectrum.get_initial_guesses())
-        # start = time.time()
         spectrum.fit_iteratively()
-        # stop = time.time()
-        # print("time:", stop-start)
         print("FWHM:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
         # print("".join(list("-" for _ in range(50))), spectrum.get_stddev(spectrum.get_subtracted_fit()))
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 loop_di_loop("night_34.fits")
 # loop_di_loop("calibration.fits")
 """
+# data = fits.open("night_34.fits")[0].data
+# print(data[:2,0,0])
+# print(data[:2,0,1])
+# print(data[:2,0,2])
+# print(data[:2,0,3])
+# print(data[:2,1,0])
+# print(data[:2,1,1])
+# print(data[:2,1,2])
+# print(data[:2,1,3])
+# print(data[:2,2,0])
+# print(data[:2,2,1])
+# print(data[:2,2,2])
+# print(data[:2,2,3])
+# print(data[:2,3,0])
+# print(data[:2,3,1])
+# print(data[:2,3,2])
+# print(data[:2,3,3])
