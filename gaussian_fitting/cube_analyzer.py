@@ -44,13 +44,12 @@ class Data_cube_analyzer():
     def fit_NII_cube(self, data):
         self.fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
         for x in range(data.shape[2]):
-            if x%10 == 0:
-                print(f"\n{x}", end=" ")
-            else:
-                print(".", end="")
+            print(f"\n{x}", end=" ")
             for y in range(data.shape[1]):
+                if y%10 == 0:
+                    print(".", end="")
                 spectrum_object = Spectrum(data[:,y,x], calibration=False)
-                spectrum_object.fit_iteratively()
+                spectrum_object.fit(spectrum_object.get_initial_guesses())
                 try:
                     self.fit_fwhm_map[y,x,:] = spectrum_object.get_FWHM_speed(
                         spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"])
@@ -173,6 +172,9 @@ class Data_cube_analyzer():
 # fwhms = fits.open("maps/fwhm_NII.fits")[0].data
 # fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
 # calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
+
+# header = fits.open("night_34.fits")[0].header
+# print(header)
 
 analyzer = Data_cube_analyzer("night_34.fits")
 analyzer.fit_NII_cube(analyzer.bin_cube(analyzer.data_cube, 2))
