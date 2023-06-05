@@ -7,10 +7,19 @@ from astropy.io import fits
 
 from cube_spectrum import Spectrum
 
+from multiprocessing import Pool
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
+
+def worker_fit(args):
+    x, y, data = args
+    print(".", end="")
+    spectrum_object = Spectrum(data[:,y,x], calibration=False)
+    spectrum_object.fit(spectrum_object.get_initial_guesses())
+    return spectrum_object.get_FWHM_speed(
+                spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"])
 
 class Data_cube_analyzer():
 
@@ -64,6 +73,20 @@ class Data_cube_analyzer():
         self.save_as_fits_file("maps/fwhm_NII_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
 
+    def fit_NII_cube_multiprocessively(self, data):
+        fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
+        pool = Pool(processes=2)
+        for x in range(data.shape[2]):
+            print(f"\n{x}", end=" ")
+            pool.map(worker_fit, list((x, i) for i in range(data.shape[1])))
+        # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
+        # Every element in a group is a x coordinate
+        # Every sub-element is the fwhm and its uncertainty
+        self.save_as_fits_file("maps/fwhm_NII.fits", self.fit_fwhm_map[:,:,0])
+        self.save_as_fits_file("maps/fwhm_NII_unc.fits", self.fit_fwhm_map[:,:,1])
+        return self.fit_fwhm_map
+    
+
     def save_as_fits_file(self, filename, array, header=None):
         fits.writeto(filename, array, header, overwrite=True)
     
@@ -81,6 +104,7 @@ class Data_cube_analyzer():
                 bin_array = map.reshape(int(map.shape[0]/nb_pix_bin), nb_pix_bin, int(map.shape[1]/nb_pix_bin), nb_pix_bin)
                 break
             except ValueError:
+                print(f"Map to bin will be cut by {i+1} pixel(s).")
                 map = map[:-1,:-1]
         return np.nanmean(bin_array, axis=(1,3))
     
@@ -168,6 +192,21 @@ class Data_cube_analyzer():
                 fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
 
 
+if __name__ == "__main__":
+    analyzer = Data_cube_analyzer("night_34.fits")
+    data = analyzer.bin_cube(analyzer.data_cube, 2)
+    fit_fwhm_list = []
+    pool = Pool(processes=2)
+    for y in range(data.shape[1]):
+        print(f"\n{y}", end=" ")
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((i, y, data) for i in range(data.shape[2])))))
+    fitted_array = np.array(fit_fwhm_list)
+    analyzer.save_as_fits_file("maps/fwhm_NII.fits", fitted_array[:,:,0])
+    analyzer.save_as_fits_file("maps/fwhm_NII_unc.fits", fitted_array[:,:,1])
+
+
+
+
 # file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
 # fwhms = fits.open("maps/fwhm_NII.fits")[0].data
 # fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
@@ -176,8 +215,8 @@ class Data_cube_analyzer():
 # header = fits.open("night_34.fits")[0].header
 # print(header)
 
-analyzer = Data_cube_analyzer("night_34.fits")
-analyzer.fit_NII_cube(analyzer.bin_cube(analyzer.data_cube, 2))
+# analyzer = Data_cube_analyzer("night_34.fits")
+# analyzer.fit_NII_cube(analyzer.bin_cube(analyzer.data_cube[:,:4,:4], 2))
 # analyzer.plot_map(fwhms)
 # analyzer.bin_map(calibs[:4,:4])
 # analyzer.plot_map(calibs[:4,:4])

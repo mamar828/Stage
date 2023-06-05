@@ -374,7 +374,7 @@ class Spectrum:
         speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
 
-
+"""
 def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
@@ -391,3 +391,4 @@ def loop_di_loop(filename):
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 loop_di_loop("night_34.fits")
 # loop_di_loop("calibration.fits")
+"""
