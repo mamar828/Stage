@@ -189,33 +189,21 @@ class Data_cube_analyzer():
                 fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
     
 
-fit_state = np.array(list(list(0 for _ in range(51)) for _ in range(51)))
-np.set_printoptions(threshold=sys.maxsize)
-
-def update_fit_state():
-    print(np.array_str(fit_state))
-
 def worker_fit(args):
     y, data = args
     line = []
     for x in range(data.shape[1]):
-        if y%10 == 0 and x%10 == 0:
-            fit_state[y,x] = 1
-            update_fit_state()
         spectrum_object = Spectrum(data[:,y,x], calibration=False)
         spectrum_object.fit(spectrum_object.get_initial_guesses())
         line.append(spectrum_object.get_FWHM_speed(
                     spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
-        if y%10 == 0 and x%10 == 0:
-            fit_state[y,x] = 2
-            update_fit_state()
     return line
 
+"""
 if __name__ == "__main__":
     analyzer = Data_cube_analyzer("night_34.fits")
     data = analyzer.bin_cube(analyzer.data_cube, 2)
     fit_fwhm_list = []
-    update_fit_state()
     pool = multiprocessing.Pool()
     start = time.time()
     fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data) for y in range(data.shape[1])))))
@@ -223,10 +211,9 @@ if __name__ == "__main__":
     print(stop-start, "s")
     pool.close()
     fitted_array = np.squeeze(np.array(fit_fwhm_list), axis=0)
-    # print(fitted_array)
     # analyzer.save_as_fits_file("maps/fwhm_NII.fits", fitted_array[:,:,0])
     # analyzer.save_as_fits_file("maps/fwhm_NII_unc.fits", fitted_array[:,:,1])
-
+"""
 
 
 
@@ -241,9 +228,10 @@ corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 # header = fits.open("night_34.fits")[0].header
 # print(header)
 
-analyzer = Data_cube_analyzer("night_34.fits")
-# analyzer.fit_NII_cube(analyzer.bin_cube(analyzer.data_cube[:,:4,:4], 2))
-# analyzer.plot_map(corrected_fwhm_unc, autoscale=False, bounds=(0,60))
+# analyzer = Data_cube_analyzer("night_34.fits")
+# analyzer.plot_map(corrected_fwhm, autoscale=False, bounds=(0,50))
+
+
 
 # analyzer.plot_map(corrected_fwhm_unc, autoscale=False, bounds=(0,60))
 
