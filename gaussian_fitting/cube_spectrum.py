@@ -161,8 +161,10 @@ class Spectrum:
                 for ray, min_guess in stddev_mins.items():
                     exec(f"g_init_{ray}.stddev.min = {min_guess}*u.um")
 
+            # The maxiter integer can be modified to reach greater accuracy, although it has been tested and it does not affect
+            # considerably the fwhm
             self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
-                                                fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
+                                                fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
             return self.fitted_gaussian
 
     def fit_iteratively(self, stddev_increments=0.2):
@@ -374,21 +376,21 @@ class Spectrum:
         speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
 
-"""
+
 def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 650
-    for y in range(425, 1013):
+    x = 600
+    for y in range(459, 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
         spectrum.fit(spectrum.get_initial_guesses())
         # spectrum.fit_iteratively()
         print("FWHM:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
-        # print("".join(list("-" for _ in range(50))), spectrum.get_stddev(spectrum.get_subtracted_fit()))
+        print("".join(list("-" for _ in range(50))), spectrum.get_stddev(spectrum.get_subtracted_fit()))
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        # raise ArithmeticError
 loop_di_loop("night_34.fits")
 # loop_di_loop("calibration.fits")
-"""

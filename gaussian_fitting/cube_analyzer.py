@@ -7,19 +7,12 @@ from astropy.io import fits
 
 from cube_spectrum import Spectrum
 
-from multiprocessing import Pool
+import multiprocessing
+import time
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-
-def worker_fit(args):
-    x, y, data = args
-    print(".", end="")
-    spectrum_object = Spectrum(data[:,y,x], calibration=False)
-    spectrum_object.fit(spectrum_object.get_initial_guesses())
-    return spectrum_object.get_FWHM_speed(
-                spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"])
 
 class Data_cube_analyzer():
 
@@ -59,6 +52,8 @@ class Data_cube_analyzer():
                     print(".", end="")
                 spectrum_object = Spectrum(data[:,y,x], calibration=False)
                 spectrum_object.fit(spectrum_object.get_initial_guesses())
+                print(spectrum_object.get_FWHM_speed(
+                        spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
                 try:
                     self.fit_fwhm_map[y,x,:] = spectrum_object.get_FWHM_speed(
                         spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"])
@@ -192,32 +187,49 @@ class Data_cube_analyzer():
                 fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
 
 
+def worker_fit(args):
+    print("new dude for y =", args[0])
+    y, data = args
+    line = []
+    for x in range(data.shape[1]):
+        if (args[0] == 0 or args[0] == 1) and x%10 == 0:
+            print(x)
+        spectrum_object = Spectrum(data[:,y,x], calibration=False)
+        spectrum_object.fit(spectrum_object.get_initial_guesses())
+        line.append(spectrum_object.get_FWHM_speed(
+                    spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
+    return line
+
+"""
 if __name__ == "__main__":
     analyzer = Data_cube_analyzer("night_34.fits")
     data = analyzer.bin_cube(analyzer.data_cube, 2)
     fit_fwhm_list = []
-    pool = Pool(processes=2)
-    for y in range(data.shape[1]):
-        print(f"\n{y}", end=" ")
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((i, y, data) for i in range(data.shape[2])))))
-    fitted_array = np.array(fit_fwhm_list)
+    pool = multiprocessing.Pool()
+    start = time.time()
+    fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data) for y in range(data.shape[1])))))
+    stop = time.time()
+    print(stop-start, "s")
+    pool.close()
+    fitted_array = np.squeeze(np.array(fit_fwhm_list), axis=0)
     analyzer.save_as_fits_file("maps/fwhm_NII.fits", fitted_array[:,:,0])
     analyzer.save_as_fits_file("maps/fwhm_NII_unc.fits", fitted_array[:,:,1])
-
+"""
 
 
 
 # file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
-# fwhms = fits.open("maps/fwhm_NII.fits")[0].data
-# fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
+fwhms = fits.open("maps/fwhm_NII.fits")[0].data
+fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
 # calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
 
 # header = fits.open("night_34.fits")[0].header
 # print(header)
 
-# analyzer = Data_cube_analyzer("night_34.fits")
+analyzer = Data_cube_analyzer("night_34.fits")
 # analyzer.fit_NII_cube(analyzer.bin_cube(analyzer.data_cube[:,:4,:4], 2))
-# analyzer.plot_map(fwhms)
+analyzer.plot_map(fwhms)
+analyzer.plot_map(fwhms_unc)
 # analyzer.bin_map(calibs[:4,:4])
 # analyzer.plot_map(calibs[:4,:4])
 

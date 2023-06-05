@@ -199,5 +199,11 @@ plt.show()
 
 # ------------------------------------------------------------------------------------------------------------------------------
 
+import time, sys
 
+lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
+for x in lorem:
+    print(x, end="")
+    time.sleep(0.03)
+    sys.stdout.flush()
