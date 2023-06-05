@@ -18,6 +18,7 @@ class Data_cube_analyzer():
 
     def __init__(self, data_cube_file_name=str):
         self.data_cube = fits.open(data_cube_file_name)[0].data
+        self.data_cube = self.data_cube[:,:10,:10]
 
     def fit_calibration(self, data):
         self.fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
@@ -80,14 +81,15 @@ class Data_cube_analyzer():
         self.save_as_fits_file("maps/fwhm_NII.fits", self.fit_fwhm_map[:,:,0])
         self.save_as_fits_file("maps/fwhm_NII_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
-    
 
     def save_as_fits_file(self, filename, array, header=None):
         fits.writeto(filename, array, header, overwrite=True)
     
-    def plot_map(self, map, autoscale=True):
+    def plot_map(self, map, autoscale=True, bounds=None):
         if autoscale:
-            plt.imshow(map, origin="lower", cmap="viridis")
+            plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis"))
+        elif bounds:
+            plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
         else:
             plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=map[round(map.shape[0]/2), round(map.shape[1]/2)]*3/5,
                                                                      vmax=map[round(map.shape[0]/10), round(map.shape[1]/10)]*2))
@@ -185,26 +187,35 @@ class Data_cube_analyzer():
                             instrumental_function_width, instrumental_function_width_uncertainty):
         return [fwhm_NII - instrumental_function_width,
                 fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
+    
 
+fit_state = np.array(list(list(0 for _ in range(51)) for _ in range(51)))
+np.set_printoptions(threshold=sys.maxsize)
+
+def update_fit_state():
+    print(np.array_str(fit_state))
 
 def worker_fit(args):
-    print("new dude for y =", args[0])
     y, data = args
     line = []
     for x in range(data.shape[1]):
-        if (args[0] == 0 or args[0] == 1) and x%10 == 0:
-            print(x)
+        if y%10 == 0 and x%10 == 0:
+            fit_state[y,x] = 1
+            update_fit_state()
         spectrum_object = Spectrum(data[:,y,x], calibration=False)
         spectrum_object.fit(spectrum_object.get_initial_guesses())
         line.append(spectrum_object.get_FWHM_speed(
                     spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
+        if y%10 == 0 and x%10 == 0:
+            fit_state[y,x] = 2
+            update_fit_state()
     return line
 
-"""
 if __name__ == "__main__":
     analyzer = Data_cube_analyzer("night_34.fits")
     data = analyzer.bin_cube(analyzer.data_cube, 2)
     fit_fwhm_list = []
+    update_fit_state()
     pool = multiprocessing.Pool()
     start = time.time()
     fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data) for y in range(data.shape[1])))))
@@ -212,28 +223,40 @@ if __name__ == "__main__":
     print(stop-start, "s")
     pool.close()
     fitted_array = np.squeeze(np.array(fit_fwhm_list), axis=0)
-    analyzer.save_as_fits_file("maps/fwhm_NII.fits", fitted_array[:,:,0])
-    analyzer.save_as_fits_file("maps/fwhm_NII_unc.fits", fitted_array[:,:,1])
-"""
+    # print(fitted_array)
+    # analyzer.save_as_fits_file("maps/fwhm_NII.fits", fitted_array[:,:,0])
+    # analyzer.save_as_fits_file("maps/fwhm_NII_unc.fits", fitted_array[:,:,1])
+
 
 
 
 # file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
 fwhms = fits.open("maps/fwhm_NII.fits")[0].data
 fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
-# calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
+calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
+calibs_unc = fits.open("maps/smoothed_instr_f_unc.fits")[0].data
+corrected_fwhm = fits.open("maps/corrected_fwhm.fits")[0].data
+corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 
 # header = fits.open("night_34.fits")[0].header
 # print(header)
 
 analyzer = Data_cube_analyzer("night_34.fits")
 # analyzer.fit_NII_cube(analyzer.bin_cube(analyzer.data_cube[:,:4,:4], 2))
-analyzer.plot_map(fwhms)
-analyzer.plot_map(fwhms_unc)
-# analyzer.bin_map(calibs[:4,:4])
-# analyzer.plot_map(calibs[:4,:4])
+# analyzer.plot_map(corrected_fwhm_unc, autoscale=False, bounds=(0,60))
 
-# analyzer.bin_cube(analyzer.data_cube)
-# sp = Spectrum(analyzer.bin_cube(analyzer.data_cube, 2)[:,300,300], calibration=False)
-# sp.plot()
+# analyzer.plot_map(corrected_fwhm_unc, autoscale=False, bounds=(0,60))
+
+
+
+# sp = Spectrum(analyzer.bin_cube(analyzer.data_cube)[:,223,309], calibration=False)
+# sp.fit(sp.get_initial_guesses())
+# sp.plot_fit()
+
+
+
+
+# corrected_map = analyzer.get_corrected_width(fwhms, fwhms_unc, analyzer.bin_map(calibs), analyzer.bin_map(calibs_unc))
+# analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
+# analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
 
