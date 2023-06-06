@@ -164,7 +164,3 @@ cython_debug/
 # FILES TO IGNORE
 
 *.fits
-ds9-2.dat
-ds9-calibration.dat
-ds9-calibration2.dat
-ds9.dat

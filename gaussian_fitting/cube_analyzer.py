@@ -239,48 +239,10 @@ corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 # analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
 # analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
 
-# calib_header = fits.open("maps/instr_func.fits")[0].header
-# print(calib_header)
-# wcs = WCS(calib_header)
-# wcs_binned = wcs.slice((np.s_[::2], np.s_[::2]))
-# calib_header.update(wcs_binned.to_header())
-# print(calib_header)
-
-def pc2cd(hdr, key=' '):
-    """
-    Convert a PC matrix to a CD matrix.
-
-    WCSLIB (and PyWCS) recognizes CD keywords as input
-    but converts them and works internally with the PC matrix.
-    to_header() returns the PC matrix even if the input was a
-    CD matrix. To keep input and output consistent we check
-    for has_cd and convert the PC back to CD.
-
-    Parameters
-    ----------
-    hdr: `astropy.io.fits.Header`
-
-    """
-    key = key.strip()
-    cdelt1 = hdr.pop(f'CDELT1{key:.1s}', 1)
-    cdelt2 = hdr.pop(f'CDELT2{key:.1s}', 1)
-    hdr[f'CD1_1{key:.1s}'] = (cdelt1 * hdr.pop(f'PC1_1{key:.1s}', 1),
-                              'partial of first axis coordinate w.r.t. x')
-    hdr[f'CD1_2{key:.1s}'] = (cdelt1 * hdr.pop(f'PC1_2{key:.1s}', 0),
-                              'partial of first axis coordinate w.r.t. y')
-    hdr[f'CD2_1{key:.1s}'] = (cdelt2 * hdr.pop(f'PC2_1{key:.1s}', 0),
-                              'partial of second axis coordinate w.r.t. x')
-    hdr[f'CD2_2{key:.1s}'] = (cdelt2 * hdr.pop(f'PC2_2{key:.1s}', 1),
-                              'partial of second axis coordinate w.r.t. y')
-    return hdr
-
-
 
 hawc = fits.open("night_34.fits")
 wcs = WCS(hawc[0].header, hawc)
 a = Data_cube_analyzer("night_34.fits")
-# print(wcs.slice((2, 2)))
-# print(wcs.all_world2pix)
 
 header_0 = (hawc[0].header).copy()
 header_0["CDELT1"] = header_0["CDELT1"] * 2
@@ -290,38 +252,3 @@ header_0["CRPIX2"] = header_0["CRPIX2"] / 2
 # header_0.update(NAXIS1=512, NAXIS2=512)
 print(header_0)
 # a.save_as_fits_file("maps/ba_corrected_fwhm.fits", corrected_fwhm, header_0)
-
-
-"""
-from astropy.wcs import WCS
-import numpy as np
-from astropy.io.fits import Header
-
-hawc = fits.open("night_34.fits")
-header_0 = hawc[0].header
-
-wcs = WCS(hawc[0].header, hawc)
-wcs_rebinned = wcs.slice((np.s_[::2], np.s_[::2]))
-wcs_hdr = wcs_rebinned.to_header()
-print(header_0)
-header_0.set(pc2cd(wcs_hdr))  # but watch out for CD->PC conversion
-print(header_0)
-"""
-
-# print(header_0)
-
-# wcs_rebinned = wcs.slice((np.s_[2::2], np.s_[2::2]))
-# wcs_hdr = wcs_rebinned.to_header()
-# print(header_0)
-# header_0.update(wcs_hdr)  # but watch out for CD->PC conversion
-# print(header_0)
-# print(pc2cd(wcs_hdr))
-
-
-# new_header = fits.Header()
-# header_0.update(wcs_hdr)  # but watch out for CD->PC conversion
-# print(header_0)
-# a = Data_cube_analyzer("maps/corrected_fwhm.fits")
-# a.plot_map(a.bin_map(hawc[0].data))
-
-# a.save_as_fits_file("maps/b_corrected_fwhm.fits", a.data_cube, header_0)
