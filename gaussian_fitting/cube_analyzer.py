@@ -275,17 +275,51 @@ def pc2cd(hdr, key=' '):
     return hdr
 
 
+
 hawc = fits.open("night_34.fits")
 wcs = WCS(hawc[0].header, hawc)
-header_0 = hawc[0].header.copy()
+a = Data_cube_analyzer("night_34.fits")
+# print(wcs.slice((2, 2)))
+# print(wcs.all_world2pix)
 
+header_0 = (hawc[0].header).copy()
+header_0["CDELT1"] = header_0["CDELT1"] * 2
+header_0["CDELT2"] = header_0["CDELT2"] * 2
+header_0["CRPIX1"] = header_0["CRPIX1"] / 2
+header_0["CRPIX2"] = header_0["CRPIX2"] / 2
+# header_0.update(NAXIS1=512, NAXIS2=512)
+print(header_0)
+# a.save_as_fits_file("maps/ba_corrected_fwhm.fits", corrected_fwhm, header_0)
+
+
+"""
+from astropy.wcs import WCS
+import numpy as np
+from astropy.io.fits import Header
+
+hawc = fits.open("night_34.fits")
+header_0 = hawc[0].header
+
+wcs = WCS(hawc[0].header, hawc)
 wcs_rebinned = wcs.slice((np.s_[::2], np.s_[::2]))
 wcs_hdr = wcs_rebinned.to_header()
-print(wcs_hdr)
+print(header_0)
+header_0.set(pc2cd(wcs_hdr))  # but watch out for CD->PC conversion
+print(header_0)
+"""
+
+# print(header_0)
+
+# wcs_rebinned = wcs.slice((np.s_[2::2], np.s_[2::2]))
+# wcs_hdr = wcs_rebinned.to_header()
+# print(header_0)
+# header_0.update(wcs_hdr)  # but watch out for CD->PC conversion
+# print(header_0)
+# print(pc2cd(wcs_hdr))
 
 
 # new_header = fits.Header()
-header_0.update(wcs_hdr)  # but watch out for CD->PC conversion
+# header_0.update(wcs_hdr)  # but watch out for CD->PC conversion
 # print(header_0)
 # a = Data_cube_analyzer("maps/corrected_fwhm.fits")
 # a.plot_map(a.bin_map(hawc[0].data))
