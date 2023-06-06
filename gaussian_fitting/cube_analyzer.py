@@ -182,8 +182,9 @@ class Data_cube_analyzer():
         numpy array: map of the FWHM at every point and its associated uncertainty.
         """
         center = round(center[0]), round(center[1])
-        
+        # The bin_factor corrects the distances in the case of a binned array
         bin_factor = center[0] / 527
+        # The smoothing_max_thresholds is defined by trial and error is 
         smoothing_max_thresholds = [0.4, 1.8]
         bounds = [
             np.array((255,355)) * bin_factor,
@@ -197,19 +198,24 @@ class Data_cube_analyzer():
             center[0] - (peak_regions[0].index(min(peak_regions[0])) + 255),
             center[0] - (peak_regions[1].index(min(peak_regions[1])) + 70)
         ]
+
         smooth_data = np.copy(data_array)
         smooth_uncertainties = np.copy(uncertainty_array)
+
         for x in range(data_array.shape[1]):
             for y in range(data_array.shape[0]):
                 current_radius = np.sqrt((x-center[0])**2 + (y-center[1])**2)
+
                 if (radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor or
                     radiuses[1] - 4*bin_factor <= current_radius <= radiuses[1] + 4*bin_factor):
                     near_pixels = np.copy(data_array[y-3:y+4, x-3:x+4])
                     near_pixels_uncertainty = np.copy(uncertainty_array[y-3:y+4, x-3:x+4])
+
                     if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
                     else:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
+                    
                     smooth_data[y,x] = np.nanmean(near_pixels)
                     smooth_uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
         return np.stack((smooth_data, smooth_uncertainties), axis=2)
