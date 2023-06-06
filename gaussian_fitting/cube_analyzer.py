@@ -16,77 +16,86 @@ if not sys.warnoptions:
 
 
 class Data_cube_analyzer():
+    """
+    Encapsulate all the useful methods for the analysis of a data cube.
+    """
 
     def __init__(self, data_cube_file_name=str):
+        """
+        Initialize an analyzer object. The datacube's file name must be given.
+
+        Arguments
+        ---------
+        data_cube_file_name: str. Specifies the path of the file inside the current folder.
+        """
         self.data_cube = fits.open(data_cube_file_name)[0].data
 
-    def fit_calibration(self, data):
-        self.fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
-        for x in range(0, data.shape[2]):
+    def fit_calibration(self, data_cube=None):
+        """
+        Fit the whole data cube as if it was a calibration cube and extract the FWHM and its uncertainty at every point.
+        Set the global numpy array self.fit_fwhm_map the value of the fit's FWHM at every point. The first element of the
+        array along the third axis is the FWHM value and the second value is its uncertainty. Print the x value of the
+        pixel row whose x is divisible by 10 and print a point for every other row. Every print is a row being fitted.
+        Note that this process utilizes only a single CPU and therefore could be accelerated.
+
+        Arguments
+        ---------
+        data: numpy array, optional. Specifies the data cube to be fitted. If None, the data cube of the analyzer will be
+        fitted directly.
+
+        Returns
+        -------
+        numpy array: map of the fit's FWHM and its uncertainty at every point.
+        """
+        if data_cube is None:
+            data_cube = self.data_cube
+        
+        self.fit_fwhm_map = np.zeros([data_cube.shape[1], data_cube.shape[2], 2])
+        for x in range(0, data_cube.shape[2]):
+            # Optional prints
             if x%10 == 0:
                 print("\n", x, end=" ")
             else:
                 print(".", end="")
-            for y in range(data.shape[1]):
+            for y in range(data_cube.shape[1]):
                 try:
-                    spectrum_object = Spectrum(data[:,y,x], calibration=True)
+                    spectrum_object = Spectrum(data_cube[:,y,x], calibration=True)
                     spectrum_object.fit()
-                    self.fit_fwhm_map[y,x,:] = (spectrum_object.get_FWHM_speed(
-                        spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
-                except:
-                    print(f"Exception encountered at ({x},{y})")
-                    self.fit_fwhm_map[y,x,:] = [np.NAN, np.NAN]
-        
-        # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
-        # Every element in a group is a x coordinate
-        # Every sub-element is the fwhm and its uncertainty
-        self.save_as_fits_file("gaussian_fitting/instr_func1.fits", self.fit_fwhm_map[:,:,0])
-        self.save_as_fits_file("gaussian_fitting/instr_func1_unc.fits", self.fit_fwhm_map[:,:,1])
-        return self.fit_fwhm_map
-    
-    def fit_NII_cube(self, data):
-        self.fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
-        for x in range(data.shape[2]):
-            print(f"\n{x}", end=" ")
-            for y in range(data.shape[1]):
-                if y%10 == 0:
-                    print(".", end="")
-                spectrum_object = Spectrum(data[:,y,x], calibration=False)
-                spectrum_object.fit(spectrum_object.get_initial_guesses())
-                print(spectrum_object.get_FWHM_speed(
-                        spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
-                try:
                     self.fit_fwhm_map[y,x,:] = spectrum_object.get_FWHM_speed(
-                        spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"])
+                        spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"])
                 except:
-                    print(f"Exception encountered at ({x},{y})")
                     self.fit_fwhm_map[y,x,:] = [np.NAN, np.NAN]
         
-        # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
+        # In the numpy array, every vertical group is a y coordinate, starting from (1,1) at the top
         # Every element in a group is a x coordinate
         # Every sub-element is the fwhm and its uncertainty
-        self.save_as_fits_file("maps/fwhm_NII.fits", self.fit_fwhm_map[:,:,0])
-        self.save_as_fits_file("maps/fwhm_NII_unc.fits", self.fit_fwhm_map[:,:,1])
         return self.fit_fwhm_map
 
-    def fit_NII_cube_multiprocessively(self, data):
-        fit_fwhm_map = np.zeros([data.shape[1], data.shape[2], 2])
-        pool = Pool(processes=2)
-        for x in range(data.shape[2]):
-            print(f"\n{x}", end=" ")
-            pool.map(worker_fit, list((x, i) for i in range(data.shape[1])))
-        # In the matrix, every vertical group is a y coordinate, starting from (1,1) at the top
-        # Every element in a group is a x coordinate
-        # Every sub-element is the fwhm and its uncertainty
-        self.save_as_fits_file("maps/fwhm_NII.fits", self.fit_fwhm_map[:,:,0])
-        self.save_as_fits_file("maps/fwhm_NII_unc.fits", self.fit_fwhm_map[:,:,1])
-        return self.fit_fwhm_map
+    def save_as_fits_file(self, filename=str, array=np.ndarray, header=None):
+        """
+        Write an array as a fits file of the specified name with or without a header.
 
-    def save_as_fits_file(self, filename, array, header=None):
+        Arguments
+        ---------
+        filename: str. Indicates the path and name of the created file. If the file already exists, it is overwritten.
+        array: numpy array. Feeds the array to be saved as a fits file.
+        header: astropy.io.fits.header.Header, optional. If specified, the fits file will have the given header. This is mainly
+        useful for saving maps with usable WCS.
+        """
         fits.writeto(filename, array, header, overwrite=True)
     
-    def plot_map(self, map, autoscale=True, bounds=None):
-        if autoscale:
+    def plot_map(self, map=np.ndarray, color_autoscale=True, bounds=None):
+        """
+        Plot a given map in matplotlib.pyplot.
+
+        Arguments
+        ---------
+        map: numpy array. Gives the array that needs to be plotted.
+        color_autoscale: bool. If True, the colorbar will automatically scale to have as bounds the map's minimum and maximum. If
+        False, bounds must be specified.
+        bounds: tuple. Indicates the colorbar's bounds. The tuple's first element is the minimum and the second is the maximum.
+        """
+        if color_autoscale:
             plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis"))
         elif bounds:
             plt.colorbar(plt.imshow(map, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
@@ -95,30 +104,85 @@ class Data_cube_analyzer():
                                                                      vmax=map[round(map.shape[0]/10), round(map.shape[1]/10)]*2))
         plt.show()
 
-    def bin_map(self, map, nb_pix_bin=2):
+    def bin_map(self, map=np.ndarray, nb_pix_bin=2):
+        """
+        Bin a specific map by the amount of pixels given.
+        Note that this works with every square map, even though the number of pixels to bin cannot fully divide the map's size. In
+        the case of a rectangular map, it cannot always find a suitable reshape size.
+
+        Arguments
+        ---------
+        map: numpy array. Gives the array that needs to be binned.
+        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the default value 2
+        will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
+
+        Returns
+        -------
+        numpy array: binned map.
+        """
+        # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
         for i in range(nb_pix_bin):
             try:
+                # Create a 4 dimensional array that regroups every group of pixels (2 times the nb_pix_bin) into a new grid whose
+                # size has been divided by the number of pixels to bin
                 bin_array = map.reshape(int(map.shape[0]/nb_pix_bin), nb_pix_bin, int(map.shape[1]/nb_pix_bin), nb_pix_bin)
                 break
             except ValueError:
+                # This error occurs if the nb_pix_bin integer cannot fully divide the map's size
                 print(f"Map to bin will be cut by {i+1} pixel(s).")
                 map = map[:-1,:-1]
+        # The mean value of every pixel group is calculated and the array returns to a two dimensional state
         return np.nanmean(bin_array, axis=(1,3))
     
-    def bin_cube(self, cube, nb_pix_bin=2):
+    def bin_cube(self, cube=np.ndarray, nb_pix_bin=2):
+        """
+        Bin a specific cube by the amount of pixels given for every channel.
+        Note that this works with every square cube, even though the number of pixels to bin cannot fully divide the cube's size. In
+        the case of a rectangular cube, it cannot always find a suitable reshape size.
+
+        Arguments
+        ---------
+        map: numpy array. Gives the array that needs to be binned.
+        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the default value 2
+        will give a new cube in which every pixel at a specific channel is the mean value of every 4 pixels (2x2 bin) at that same
+        channel.
+
+        Returns
+        -------
+        numpy array: binned cube.
+        """
+        # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
         for i in range(nb_pix_bin):
             try:
+                # Create a 5 dimensional array that regroups, for every channel, every group of pixels (2 times the nb_pix_bin)
+                # into a new grid whose size has been divided by the number of pixels to bin
                 bin_array = cube.reshape(cube.shape[0], int(cube.shape[1]/nb_pix_bin), nb_pix_bin,
                                                         int(cube.shape[2]/nb_pix_bin), nb_pix_bin)
                 break
             except ValueError:
+                # This error occurs if the nb_pix_bin integer cannot fully divide the cube's size
                 print(f"Cube to bin will be cut by {i+1} pixel(s).")
                 cube = cube[:,:-1,:-1]
+        # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
         return np.nanmean(bin_array, axis=(2,4))
 
-    def smooth_order_change(self, data_array, uncertainty_array, center=tuple):
-        # Find first the radiuses where a change of diffraction order can be seen
+    def smooth_order_change(self, data_array=np.ndarray, uncertainty_array=np.ndarray, center=tuple):
+        """
+        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM is
+        reduced at points where the calibration peak changes of interference order.
+
+        Arguments
+        ---------
+        data_array: numpy array. Gives the FWHM of the fitted peak at every point.
+        uncertainty_array: numpy array. Gives the FWHM's uncertainty of the fitted peak at every point.
+        center: tuple. Specifies the coordinates of the interference pattern's center pixel.
+
+        Returns
+        -------
+        numpy array: map of the FWHM at every point and its associated uncertainty.
+        """
         center = round(center[0]), round(center[1])
+        
         bin_factor = center[0] / 527
         smoothing_max_thresholds = [0.4, 1.8]
         bounds = [
@@ -148,7 +212,7 @@ class Data_cube_analyzer():
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
                     smooth_data[y,x] = np.nanmean(near_pixels)
                     smooth_uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
-        return smooth_data, smooth_uncertainties
+        return np.stack((smooth_data, smooth_uncertainties), axis=2)
 
     def get_center_point(self):
         center_guess = 527, 484
@@ -229,7 +293,7 @@ corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 # print(header)
 
 # analyzer = Data_cube_analyzer("night_34.fits")
-# analyzer.plot_map(corrected_fwhm, autoscale=False, bounds=(0,50))
+# analyzer.plot_map(corrected_fwhm, color_autoscale=False, bounds=(0,50))
 
 # sp = Spectrum(analyzer.bin_cube(analyzer.data_cube)[:,223,309], calibration=False)
 # sp.fit(sp.get_initial_guesses())
@@ -241,7 +305,6 @@ corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 
 
 hawc = fits.open("night_34.fits")
-wcs = WCS(hawc[0].header, hawc)
 a = Data_cube_analyzer("night_34.fits")
 
 header_0 = (hawc[0].header).copy()
@@ -250,5 +313,5 @@ header_0["CDELT2"] = header_0["CDELT2"] * 2
 header_0["CRPIX1"] = header_0["CRPIX1"] / 2
 header_0["CRPIX2"] = header_0["CRPIX2"] / 2
 # header_0.update(NAXIS1=512, NAXIS2=512)
-print(header_0)
+print(type(header_0))
 # a.save_as_fits_file("maps/ba_corrected_fwhm.fits", corrected_fwhm, header_0)

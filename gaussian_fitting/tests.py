@@ -199,11 +199,17 @@ plt.show()
 
 # ------------------------------------------------------------------------------------------------------------------------------
 
-import time, sys
+# import time, sys
 
-lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+# lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
-for x in lorem:
-    print(x, end="")
-    time.sleep(0.03)
-    sys.stdout.flush()
+# for x in lorem:
+#     print(x, end="")
+#     time.sleep(0.03)
+#     sys.stdout.flush()
+
+# ------------------------------------------------------------------------------------
+
+a = np.array([[1,2], [3,4]])
+b = np.array([[5,6], [7,8]])
+print(np.stack((a,b), axis=2))
