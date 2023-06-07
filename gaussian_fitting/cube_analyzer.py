@@ -169,7 +169,8 @@ class Data_cube_analyzer():
     def smooth_order_change(self, data_array=np.ndarray, uncertainty_array=np.ndarray, center=tuple):
         """
         Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM is
-        reduced at points where the calibration peak changes of interference order.
+        reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an order
+        change to the mean value of certain pixels in a 7x7 area around the pixel.
 
         Arguments
         ---------
@@ -184,19 +185,23 @@ class Data_cube_analyzer():
         center = round(center[0]), round(center[1])
         # The bin_factor corrects the distances in the case of a binned array
         bin_factor = center[0] / 527
-        # The smoothing_max_thresholds is defined by trial and error is 
+        # The smoothing_max_thresholds list of ints is defined by trial and error and tunes the pixels to calculate the mean
+        # The first element is used for the first interference order change and the second element is for the second change
         smoothing_max_thresholds = [0.4, 1.8]
+        # The bounds list define the area in which the FWHM minimum will be searched, corresponding to an order change
         bounds = [
             np.array((255,355)) * bin_factor,
             np.array((70,170)) * bin_factor
         ]
+        # The peak_regions list gives the data_array's values within the bounds for the two regions
         peak_regions = [
             list(data_array[center[1], int(bounds[0][0]):int(bounds[0][1])]),
             list(data_array[center[1], int(bounds[1][0]):int(bounds[1][1])])
         ]
+        # The radiuses list gives the position of the minimum fwhms relative to the center of the image
         radiuses = [
-            center[0] - (peak_regions[0].index(min(peak_regions[0])) + 255),
-            center[0] - (peak_regions[1].index(min(peak_regions[1])) + 70)
+            center[0] - (peak_regions[0].index(min(peak_regions[0])) + bounds[0][0]),
+            center[0] - (peak_regions[1].index(min(peak_regions[1])) + bounds[1][0])
         ]
 
         smooth_data = np.copy(data_array)
@@ -206,29 +211,47 @@ class Data_cube_analyzer():
             for y in range(data_array.shape[0]):
                 current_radius = np.sqrt((x-center[0])**2 + (y-center[1])**2)
 
+                # The 5 and 4 ints have been observed to offer better results considering the rings' width
                 if (radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor or
                     radiuses[1] - 4*bin_factor <= current_radius <= radiuses[1] + 4*bin_factor):
                     near_pixels = np.copy(data_array[y-3:y+4, x-3:x+4])
                     near_pixels_uncertainty = np.copy(uncertainty_array[y-3:y+4, x-3:x+4])
 
-                    if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
+                    # if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
+                    if radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
                     else:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
                     
                     smooth_data[y,x] = np.nanmean(near_pixels)
                     smooth_uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
+                    # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
         return np.stack((smooth_data, smooth_uncertainties), axis=2)
 
-    def get_center_point(self):
-        center_guess = 527, 484
+    def get_center_point(self, center_guess=(527, 484)):
+        """
+        Get the center coordinates of the calibration cube. This method works with a center guess that allows for greater accuracy.
+
+        Arguments
+        ---------
+        center_guess: tuple, optional. Defines the point from which intensity maxima will be searched. Any guess close to the center
+        may be provided first, but better results will be obtained by re-feeding the function with its own output a few times. The
+        arguments' default value is the center coordinates already obtained.
+
+        Returns
+        -------
+        tuple: the calculated center coordinates. This is an approximation based on the center_guess provided.
+        """
+
         distances = {"x": [], "y": []}
+        # The success int will be used to measure how many distances will be used to calculate the average center
         success = 0
         for channel in range(1,49):
             channel_dist = {}
+            # The intensity_max dict isolates the x and y axis that pass through the center_guess
             intensity_max = {
-                "intensity_max_x": self.data_cube[channel-1, center_guess[1], :],
-                "intensity_max_y": self.data_cube[channel-1, :, center_guess[0]]
+                "intensity_x": self.data_cube[channel-1, center_guess[1], :],
+                "intensity_y": self.data_cube[channel-1, :, center_guess[0]]
             }
             for name, axe_list in intensity_max.items():
                 axes_pos = []
@@ -295,6 +318,34 @@ calibs_unc = fits.open("maps/smoothed_instr_f_unc.fits")[0].data
 corrected_fwhm = fits.open("maps/corrected_fwhm.fits")[0].data
 corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 
+
+
+hawc = fits.open("night_34.fits")
+a = Data_cube_analyzer("night_34.fits")
+
+header_0 = (hawc[0].header).copy()
+header_0["CRVAL2"] = header_0["CRVAL2"] - 7 - 56/60 - 39.333/3600
+header_0["CRVAL1"] = header_0["CRVAL1"] + 10/24*360 + 57/(24*60)*360 + 4/(24*3600)*360
+header_0["CDELT1"] = -header_0["CDELT1"]
+
+print(header_0)
+a.save_as_fits_file("night_34_tt.fits", hawc[0].data, header_0)
+# hawc_1 = fits.open("night_34_tt.fits")
+# header_1 = (hawc_1[0].header).copy()
+# print(header_1)
+
+
+"""
+header_0["CDELT1"] = header_0["CDELT1"] * 2
+header_0["CDELT2"] = header_0["CDELT2"] * 2
+header_0["CRPIX1"] = header_0["CRPIX1"] / 2
+header_0["CRPIX2"] = header_0["CRPIX2"] / 2
+# header_0.update(NAXIS1=512, NAXIS2=512)
+print(header_0)
+a.save_as_fits_file("night_34_tt.fits", hawc[0].data, header_0)
+"""
+
+
 # header = fits.open("night_34.fits")[0].header
 # print(header)
 
@@ -308,16 +359,3 @@ corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 # corrected_map = analyzer.get_corrected_width(fwhms, fwhms_unc, analyzer.bin_map(calibs), analyzer.bin_map(calibs_unc))
 # analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
 # analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
-
-
-hawc = fits.open("night_34.fits")
-a = Data_cube_analyzer("night_34.fits")
-
-header_0 = (hawc[0].header).copy()
-header_0["CDELT1"] = header_0["CDELT1"] * 2
-header_0["CDELT2"] = header_0["CDELT2"] * 2
-header_0["CRPIX1"] = header_0["CRPIX1"] / 2
-header_0["CRPIX2"] = header_0["CRPIX2"] / 2
-# header_0.update(NAXIS1=512, NAXIS2=512)
-print(type(header_0))
-# a.save_as_fits_file("maps/ba_corrected_fwhm.fits", corrected_fwhm, header_0)
