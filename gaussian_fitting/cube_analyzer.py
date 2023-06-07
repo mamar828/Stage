@@ -324,15 +324,24 @@ hawc = fits.open("night_34.fits")
 a = Data_cube_analyzer("night_34.fits")
 
 header_0 = (hawc[0].header).copy()
-header_0["CRVAL1"] = header_0["CRVAL1"] + 10/24*360 + 57/(24*60)*360 + 4/(24*3600)*360 + 0.1883/(24*3600)*360
-header_0["CRVAL2"] = header_0["CRVAL2"] - 7 - 56/60 - 39.333/3600 + 4.053/3600
-header_0["CDELT1"] = -header_0["CDELT1"]
 header_0["CRPIX1"] = 589
 header_0["CRPIX2"] = 477
+header_0["CRVAL1"] = (36.817 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
+header_0["CRVAL2"] = 61 + (30 * 60 + 40.10)/3600
+
+"""
+header_0["CDELT1"] = -0.1348916666 / 263 / 2
+header_0["CDELT2"] = 0.06587500001 / 284
+"""
+header_0["CDELT1"] = -0.0005168263088 / 2.14
+header_0["CDELT2"] = 0.0002395454546 / 1.01
+
+
+
 
 
 print(header_0)
-a.save_as_fits_file("night_34_tt_b.fits", hawc[0].data, header_0)
+a.save_as_fits_file("night_34_tt_e.fits", hawc[0].data, header_0)
 # hawc_1 = fits.open("night_34_tt.fits")
 # header_1 = (hawc_1[0].header).copy()
 # print(header_1)
