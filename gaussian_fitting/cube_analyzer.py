@@ -20,15 +20,17 @@ class Data_cube_analyzer():
     Encapsulate all the useful methods for the analysis of a data cube.
     """
 
-    def __init__(self, data_cube_file_name=str):
+    def __init__(self, data_cube_file_name=None):
         """
-        Initialize an analyzer object. The datacube's file name must be given.
+        Initialize an analyzer object. A datacube's file name may be given.
 
         Arguments
         ---------
-        data_cube_file_name: str. Specifies the path of the file inside the current folder.
+        data_cube_file_name: str, optional. Specifies the path of the file inside the current folder.
         """
-        self.data_cube = fits.open(data_cube_file_name)[0].data
+        if data_cube_file_name:
+            self.data_cube = fits.open(data_cube_file_name)[0].data
+            self.data_cube = self.data_cube[:,:10,:10]
 
     def fit_calibration(self, data_cube=None):
         """
@@ -70,6 +72,31 @@ class Data_cube_analyzer():
         # Every element in a group is a x coordinate
         # Every sub-element is the fwhm and its uncertainty
         return self.fit_fwhm_map
+
+    def fit_NII(self):
+        """
+        Fit the whole data cube to extract the NII gaussian's FWHM. This method presupposes that four OH peaks and one Halpha
+        peaks are present in the cube's spectrum in addition to the NII peak.
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
+        state with the following phrasing:
+        if __name__ == "__main__":
+        This prevents the code to create recursively instances of this code that would eventually overload the CPUs.
+
+        Returns
+        -------
+        numpy array: map of the NII peak's FWHM at every point. Each coordinate is another list with the first element being
+        the FWHM value and the second being its uncertainty.
+        """
+        data = self.bin_cube(self.data_cube, 2)
+        fit_fwhm_list = []
+        # This automatically generates an optimal number of workers
+        pool = multiprocessing.Pool()
+        start = time.time()
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data) for y in range(data.shape[1])))))
+        stop = time.time()
+        print(stop-start, "s")
+        pool.close()
+        return np.squeeze(np.array(fit_fwhm_list), axis=0)
 
     def save_as_fits_file(self, filename=str, array=np.ndarray, header=None):
         """
@@ -217,8 +244,7 @@ class Data_cube_analyzer():
                     near_pixels = np.copy(data_array[y-3:y+4, x-3:x+4])
                     near_pixels_uncertainty = np.copy(uncertainty_array[y-3:y+4, x-3:x+4])
 
-                    # if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
-                    if radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor:
+                    if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
                     else:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
@@ -231,6 +257,7 @@ class Data_cube_analyzer():
     def get_center_point(self, center_guess=(527, 484)):
         """
         Get the center coordinates of the calibration cube. This method works with a center guess that allows for greater accuracy.
+        The center is found by looking at the distances between intensity peaks of the concentric rings.
 
         Arguments
         ---------
@@ -240,49 +267,81 @@ class Data_cube_analyzer():
 
         Returns
         -------
-        tuple: the calculated center coordinates. This is an approximation based on the center_guess provided.
+        tuple: the calculated center coordinates with their uncertainty. This is an approximation based on the center_guess provided.
         """
 
         distances = {"x": [], "y": []}
-        # The success int will be used to measure how many distances will be used to calculate the average center
+        # The success int will be used to measure how many distances are utilized to calculate the average center
         success = 0
         for channel in range(1,49):
-            channel_dist = {}
+            # channel_dist = {}
             # The intensity_max dict isolates the x and y axis that pass through the center_guess
             intensity_max = {
                 "intensity_x": self.data_cube[channel-1, center_guess[1], :],
                 "intensity_y": self.data_cube[channel-1, :, center_guess[0]]
             }
-            for name, axe_list in intensity_max.items():
+            for name, axis_list in intensity_max.items():
+                # The axes_pos list collects the detected intensity peaks along each axis
                 axes_pos = []
                 for coord in range(1, 1023):
-                    if (axe_list[coord-1] < axe_list[coord] > axe_list[coord+1]
-                         and axe_list[coord] > 500):
+                    if (axis_list[coord-1] < axis_list[coord] > axis_list[coord+1]
+                         and axis_list[coord] > 500):
                         axes_pos.append(coord)
-                # Verification of single maxes
+                # Here the peaks are verified to make sure they correspond to the max intensity of each ring
                 for i in range(len(axes_pos)-1):
+                    # If two peaks are too close to each other, they cannot both be real peaks
                     if axes_pos[i+1] - axes_pos[i] < 50:
-                        if axe_list[axes_pos[i]] > axe_list[axes_pos[i+1]]:
+                        if axis_list[axes_pos[i]] > axis_list[axes_pos[i+1]]:
                             axes_pos[i+1] = 0
                         else:
                             axes_pos[i] = 0
+                # The fake peaks are removed from the list
                 axes_pos = np.setdiff1d(axes_pos, 0)
                 
+                # Here is only considered the case where the peaks of two concentric rings have been detected in the two directions
                 if len(axes_pos) == 4:
-                    channel_dist[name] = [(axes_pos[3] - axes_pos[0])/2 + axes_pos[0], (axes_pos[2] - axes_pos[1])/2 + axes_pos[1]]
-                    distances[name[-1]].append(channel_dist[name])
+                    dists = [(axes_pos[3] - axes_pos[0])/2 + axes_pos[0], (axes_pos[2] - axes_pos[1])/2 + axes_pos[1]]
+                    distances[name[-1]].append(dists)
                     success += 1
         x_mean, y_mean = np.mean(distances["x"], axis=(0,1)), np.mean(distances["y"], axis=(0,1))
         x_uncertainty, y_uncertainty = np.std(distances["x"], axis=(0,1)), np.std(distances["y"], axis=(0,1))
         return [x_mean, x_uncertainty], [y_mean, y_uncertainty]
 
-    def get_corrected_width(self, fwhm_NII, fwhm_NII_uncertainty,
-                            instrumental_function_width, instrumental_function_width_uncertainty):
+    def get_corrected_width(self, fwhm_NII=np.ndarray, fwhm_NII_uncertainty=np.ndarray,
+                            instrumental_function_width=np.ndarray, instrumental_function_width_uncertainty=np.ndarray):
+        """
+        Get the fitted gaussian FWHM value corrected by removing the instrumental_function_width.
+
+        Arguments
+        ---------
+        fwhm_NII: numpy array. Map of the FWHM of the NII gaussian.
+        fwhm_NII_uncertainty: numpy array. Uncertainty map of the FWHM of the NII gaussian.
+        instrumental_function_width: numpy array. Map of the FWHM of the calibration peak.
+        instrumental_function_width_uncertainty: numpy array. Uncertainty map of the FWHM of the calibration peak.
+
+        Returns
+        -------
+        numpy array: map of the calibration FWHM subtracted to the NII fwhm. The first element at a specific coordinate is
+        the corrected FWHM value and the second element is its uncertainty.
+        """
         return [fwhm_NII - instrumental_function_width,
                 fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
     
 
 def worker_fit(args):
+    """
+    Fit an entire line of the NII cube.
+
+    Arguments
+    ---------
+    args: tuple. The first element is the y value of the line to be fitted and the second element is the data_cube used.
+    Note that arguments are given in tuple due to the way the multiprocessing library operates.
+
+    Returns
+    -------
+    list: FWHM value of the fitted gaussian on the NII peak along the specified line. Each coordinates has two value: the former
+    being the FWHM value whilst the latter being its uncertainty.
+    """
     y, data = args
     line = []
     for x in range(data.shape[1]):
@@ -292,82 +351,76 @@ def worker_fit(args):
                     spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
     return line
 
-"""
 if __name__ == "__main__":
     analyzer = Data_cube_analyzer("night_34.fits")
-    data = analyzer.bin_cube(analyzer.data_cube, 2)
-    fit_fwhm_list = []
-    pool = multiprocessing.Pool()
-    start = time.time()
-    fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data) for y in range(data.shape[1])))))
-    stop = time.time()
-    print(stop-start, "s")
-    pool.close()
-    fitted_array = np.squeeze(np.array(fit_fwhm_list), axis=0)
-    # analyzer.save_as_fits_file("maps/fwhm_NII.fits", fitted_array[:,:,0])
-    # analyzer.save_as_fits_file("maps/fwhm_NII_unc.fits", fitted_array[:,:,1])
-"""
+    analyzer.fit_NII()
+
+
+# file = fits.open("maps/instr_func.fits")[0].data
+# file_u = fits.open("maps/instr_func_unc.fits")[0].data
+# a = Data_cube_analyzer("calibration.fits")
+# a.plot_map(a.smooth_order_change(a.bin_map(file, 3), a.bin_map(file_u, 3), (527/3, 484/3))[:,:,0], False, (0,40))
 
 
 
-# file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
-fwhms = fits.open("maps/fwhm_NII.fits")[0].data
-fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
-calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
-calibs_unc = fits.open("maps/smoothed_instr_f_unc.fits")[0].data
-corrected_fwhm = fits.open("maps/corrected_fwhm.fits")[0].data
-corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
+# # file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+# fwhms = fits.open("maps/fwhm_NII.fits")[0].data
+# fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
+# calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
+# calibs_unc = fits.open("maps/smoothed_instr_f_unc.fits")[0].data
+# corrected_fwhm = fits.open("maps/corrected_fwhm.fits")[0].data
+# corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 
 
 
-hawc = fits.open("night_34.fits")
-a = Data_cube_analyzer("night_34.fits")
+# hawc = fits.open("night_34.fits")
+# a = Data_cube_analyzer("night_34.fits")
 
-header_0 = (hawc[0].header).copy()
-header_0["CRPIX1"] = 589
-header_0["CRPIX2"] = 477
-header_0["CRVAL1"] = (36.817 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
-header_0["CRVAL2"] = 61 + (30 * 60 + 40.10)/3600
+# header_0 = (hawc[0].header).copy()
+# header_0["CRPIX1"] = 589
+# header_0["CRPIX2"] = 477
+# header_0["CRVAL1"] = (36.817 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
+# header_0["CRVAL2"] = 61 + (30 * 60 + 40.10)/3600
 
-"""
-header_0["CDELT1"] = -0.1348916666 / 263 / 2
-header_0["CDELT2"] = 0.06587500001 / 284
-"""
-header_0["CDELT1"] = -0.0005168263088 / 2.14
-header_0["CDELT2"] = 0.0002395454546 / 1.01
+# """
+# header_0["CDELT1"] = -0.1348916666 / 263 / 2
+# header_0["CDELT2"] = 0.06587500001 / 284
+# """
+# header_0["CDELT1"] = -0.0005168263088 / 2.17        #2.17
+# header_0["CDELT2"] = 0.0002395454546 / 0.967        #0.967
 
 
 
 
 
-print(header_0)
-a.save_as_fits_file("night_34_tt_e.fits", hawc[0].data, header_0)
-# hawc_1 = fits.open("night_34_tt.fits")
-# header_1 = (hawc_1[0].header).copy()
-# print(header_1)
+# print(header_0)
+# a.save_as_fits_file("night_34_tt_f.fits", hawc[0].data, header_0)
+# # hawc_1 = fits.open("night_34_tt.fits")
+# # header_1 = (hawc_1[0].header).copy()
+# # print(header_1)
 
 
-"""
-header_0["CDELT1"] = header_0["CDELT1"] * 2
-header_0["CDELT2"] = header_0["CDELT2"] * 2
-header_0["CRPIX1"] = header_0["CRPIX1"] / 2
-header_0["CRPIX2"] = header_0["CRPIX2"] / 2
-# header_0.update(NAXIS1=512, NAXIS2=512)
-print(header_0)
-a.save_as_fits_file("night_34_tt.fits", hawc[0].data, header_0)
-"""
+# """
+# header_0["CDELT1"] = header_0["CDELT1"] * 2
+# header_0["CDELT2"] = header_0["CDELT2"] * 2
+# header_0["CRPIX1"] = header_0["CRPIX1"] / 2
+# header_0["CRPIX2"] = header_0["CRPIX2"] / 2
+# # header_0.update(NAXIS1=512, NAXIS2=512)
+# print(header_0)
+# a.save_as_fits_file("night_34_tt.fits", hawc[0].data, header_0)
+# """
 
 
-# header = fits.open("night_34.fits")[0].header
-# print(header)
+# # header = fits.open("night_34.fits")[0].header
+# # print(header)
 
-# analyzer = Data_cube_analyzer("night_34.fits")
-# analyzer.plot_map(corrected_fwhm, color_autoscale=False, bounds=(0,50))
+# # analyzer = Data_cube_analyzer("night_34.fits")
+# # analyzer.plot_map(corrected_fwhm, color_autoscale=False, bounds=(0,50))
 
-# sp = Spectrum(analyzer.bin_cube(analyzer.data_cube)[:,223,309], calibration=False)
-# sp.fit(sp.get_initial_guesses())
-# sp.plot_fit()
+# # sp = Spectrum(analyzer.bin_cube(analyzer.data_cube)[:,223,309], calibration=False)
+# # sp.fit(sp.get_initial_guesses())
+# # sp.plot_fit()
 
-# corrected_map = analyzer.get_corrected_width(fwhms, fwhms_unc, analyzer.bin_map(calibs), analyzer.bin_map(calibs_unc))
-# analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
-# analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
+# # corrected_map = analyzer.get_corrected_width(fwhms, fwhms_unc, analyzer.bin_map(calibs), analyzer.bin_map(calibs_unc))
+# # analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
+# # analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
