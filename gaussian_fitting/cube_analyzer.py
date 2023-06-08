@@ -192,8 +192,27 @@ class Data_cube_analyzer():
                 cube = cube[:,:-1,:-1]
         # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
         return np.nanmean(bin_array, axis=(2,4))
+    
+    def bin_header(self, header, nb_pix_bin=2):
+        """
+        Bin a header to make the WCS match with a binned map.
 
-    def smooth_order_change(self, data_array=np.ndarray, uncertainty_array=np.ndarray, center=tuple):
+        Arguments
+        ---------
+        header: astropy.io.fits.header.Header. Specifies the header that needs to be modified
+        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis.
+
+        Returns
+        -------
+        astropy.io.fits.header.Header: binned header.
+        """
+        header["CDELT1"] *= nb_pix_bin
+        header["CDELT2"] *= nb_pix_bin
+        header["CRPIX1"] /= nb_pix_bin
+        header["CRPIX2"] /= nb_pix_bin
+        return header
+
+    def smooth_order_change(self, data_array=np.ndarray, uncertainty_array=np.ndarray, center=(527, 484)):
         """
         Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM is
         reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an order
@@ -351,19 +370,8 @@ def worker_fit(args):
                     spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
     return line
 
-if __name__ == "__main__":
-    analyzer = Data_cube_analyzer("night_34.fits")
-    analyzer.fit_NII()
 
-
-# file = fits.open("maps/instr_func.fits")[0].data
-# file_u = fits.open("maps/instr_func_unc.fits")[0].data
-# a = Data_cube_analyzer("calibration.fits")
-# a.plot_map(a.smooth_order_change(a.bin_map(file, 3), a.bin_map(file_u, 3), (527/3, 484/3))[:,:,0], False, (0,40))
-
-
-
-# # file = fits.open("cube_NII_Sh158_with_header.fits")[0].data
+# analyzer = Data_cube_analyzer()
 # fwhms = fits.open("maps/fwhm_NII.fits")[0].data
 # fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
 # calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
@@ -371,56 +379,34 @@ if __name__ == "__main__":
 # corrected_fwhm = fits.open("maps/corrected_fwhm.fits")[0].data
 # corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 
+# analyzer.plot_map(corrected_fwhm, False, (0,40))
 
 
-# hawc = fits.open("night_34.fits")
-# a = Data_cube_analyzer("night_34.fits")
-
-# header_0 = (hawc[0].header).copy()
-# header_0["CRPIX1"] = 589
-# header_0["CRPIX2"] = 477
-# header_0["CRVAL1"] = (36.817 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
-# header_0["CRVAL2"] = 61 + (30 * 60 + 40.10)/3600
-
-# """
-# header_0["CDELT1"] = -0.1348916666 / 263 / 2
-# header_0["CDELT2"] = 0.06587500001 / 284
-# """
-# header_0["CDELT1"] = -0.0005168263088 / 2.17        #2.17
-# header_0["CDELT2"] = 0.0002395454546 / 0.967        #0.967
+# hawc_1 = fits.open("night_34_tt.fits")
+# header_1 = (hawc_1[0].header).copy()
+# print(header_1)
 
 
+"""
+header_0["CDELT1"] = header_0["CDELT1"] * 2
+header_0["CDELT2"] = header_0["CDELT2"] * 2
+header_0["CRPIX1"] = header_0["CRPIX1"] / 2
+header_0["CRPIX2"] = header_0["CRPIX2"] / 2
+# header_0.update(NAXIS1=512, NAXIS2=512)
+print(header_0)
+a.save_as_fits_file("night_34_tt.fits", hawc[0].data, header_0)
+"""
 
 
+# header = fits.open("night_34.fits")[0].header
+# print(header)
 
-# print(header_0)
-# a.save_as_fits_file("night_34_tt_f.fits", hawc[0].data, header_0)
-# # hawc_1 = fits.open("night_34_tt.fits")
-# # header_1 = (hawc_1[0].header).copy()
-# # print(header_1)
+# analyzer.plot_map(corrected_fwhm, color_autoscale=False, bounds=(0,50))
 
+# sp = Spectrum(analyzer.bin_cube(analyzer.data_cube)[:,223,309], calibration=False)
+# sp.fit(sp.get_initial_guesses())
+# sp.plot_fit()
 
-# """
-# header_0["CDELT1"] = header_0["CDELT1"] * 2
-# header_0["CDELT2"] = header_0["CDELT2"] * 2
-# header_0["CRPIX1"] = header_0["CRPIX1"] / 2
-# header_0["CRPIX2"] = header_0["CRPIX2"] / 2
-# # header_0.update(NAXIS1=512, NAXIS2=512)
-# print(header_0)
-# a.save_as_fits_file("night_34_tt.fits", hawc[0].data, header_0)
-# """
-
-
-# # header = fits.open("night_34.fits")[0].header
-# # print(header)
-
-# # analyzer = Data_cube_analyzer("night_34.fits")
-# # analyzer.plot_map(corrected_fwhm, color_autoscale=False, bounds=(0,50))
-
-# # sp = Spectrum(analyzer.bin_cube(analyzer.data_cube)[:,223,309], calibration=False)
-# # sp.fit(sp.get_initial_guesses())
-# # sp.plot_fit()
-
-# # corrected_map = analyzer.get_corrected_width(fwhms, fwhms_unc, analyzer.bin_map(calibs), analyzer.bin_map(calibs_unc))
-# # analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
-# # analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
+# corrected_map = analyzer.get_corrected_width(fwhms, fwhms_unc, analyzer.bin_map(calibs), analyzer.bin_map(calibs_unc))
+# analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
+# analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
