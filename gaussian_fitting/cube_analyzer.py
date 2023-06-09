@@ -196,21 +196,24 @@ class Data_cube_analyzer():
     def bin_header(self, header, nb_pix_bin=2):
         """
         Bin a header to make the WCS match with a binned map.
+        Note that this method only works if the binned map has not been cropped in the binning process. Otherwise, the WCS will
+        not match.
 
         Arguments
         ---------
-        header: astropy.io.fits.header.Header. Specifies the header that needs to be modified
+        header: astropy.io.fits.header.Header. Specifies the header that needs to be modified.
         nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis.
 
         Returns
         -------
         astropy.io.fits.header.Header: binned header.
         """
-        header["CDELT1"] *= nb_pix_bin
-        header["CDELT2"] *= nb_pix_bin
-        header["CRPIX1"] /= nb_pix_bin
-        header["CRPIX2"] /= nb_pix_bin
-        return header
+        header_copy = header.copy()
+        header_copy["CDELT1"] *= nb_pix_bin
+        header_copy["CDELT2"] *= nb_pix_bin
+        header_copy["CRPIX1"] /= nb_pix_bin
+        header_copy["CRPIX2"] /= nb_pix_bin
+        return header_copy
 
     def smooth_order_change(self, data_array=np.ndarray, uncertainty_array=np.ndarray, center=(527, 484)):
         """

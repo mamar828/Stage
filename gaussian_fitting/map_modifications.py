@@ -1,7 +1,11 @@
 from astropy.io import fits
+from astropy.wcs import WCS
 
 from cube_analyzer import Data_cube_analyzer
 
+import reproject
+
+import matplotlib.pyplot as plt
 
 # nuit_3 = fits.open("lambda_3.fits")[0].data
 # nuit_4 = fits.open("lambda_4.fits")[0].data
@@ -12,12 +16,12 @@ from cube_analyzer import Data_cube_analyzer
 # plt.show()
 # # fits.writeto("night_34.fits", nuit_34, header, overwrite=True)
 
+map_analyzer = Data_cube_analyzer()
 
+"""
+file_night_34 = fits.open("night_34.fits")
 
-file = fits.open("night_34.fits")
-a = Data_cube_analyzer()
-
-header_1 = (file[0].header).copy()
+header_1 = (file_night_34[0].header).copy()
 header_1["CRPIX1"] = 589
 header_1["CRPIX2"] = 477
 header_1["CRVAL1"] = (36.7706 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
@@ -25,7 +29,7 @@ header_1["CRVAL2"] = 61 + (30 * 60 + 39.141)/3600
 header_1["CDELT1"] = -0.0005168263088 / 2.1458
 header_1["CDELT2"] = 0.0002395454546 / 1.0115
 
-header_2 = (file[0].header).copy()
+header_2 = (file_night_34[0].header).copy()
 header_2["CRPIX1"] = 642
 header_2["CRPIX2"] = 442
 header_2["CRVAL1"] = (30.2434 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
@@ -33,7 +37,7 @@ header_2["CRVAL2"] = 61 + (30 * 60 + 10.199)/3600
 header_2["CDELT1"] = -0.0005168263088 / 2.1956
 header_2["CDELT2"] = 0.0002395454546 / 0.968
 
-header_3 = (file[0].header).copy()
+header_3 = (file_night_34[0].header).copy()
 header_3["CRPIX1"] = 674
 header_3["CRPIX2"] = 393
 header_3["CRVAL1"] = (26.2704 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
@@ -41,4 +45,56 @@ header_3["CRVAL2"] = 61 + (29 * 60 + 28.387)/3600
 header_3["CDELT1"] = -0.0005168263088 / 2.14
 header_3["CDELT2"] = 0.0002395454546 / 0.942
 
-# a.save_as_fits_file("night_34_3a.fits", file[0].data, header_3)
+# map_analyzer.save_as_fits_file("night_34_3a.fits", file_night_34[0].data, header_3)
+"""
+
+"""
+file = fits.open("maps/data/fwhm_NII.fits")[0].data
+file_u = fits.open("maps/data/fwhm_NII_unc.fits")[0].data
+header = fits.open("night_34_tt_e.fits")[0].header
+
+map_analyzer.save_as_fits_file("maps/data/fwhm_NII_wcs.fits",
+                               file, 
+                               map_analyzer.bin_header(header, 2))
+map_analyzer.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
+                               file_u,
+                               map_analyzer.bin_header(header, 2))
+"""
+
+region_1_header = fits.open("night_34_1a.fits")[0].header
+region_2_header = fits.open("night_34_2a.fits")[0].header
+region_3_header = fits.open("night_34_3a.fits")[0].header
+
+fwhm_map = fits.open("maps/data/fwhm_NII.fits")[0]
+fwhm_map_unc = fits.open("maps/data/fwhm_NII_unc.fits")[0]
+
+# # print(repr(region_1_header))
+# wcs = WCS(region_1_header)
+
+# wcs = wcs.dropaxis(2)
+# # wcs.sip = None
+
+# map_analyzer.save_as_fits_file("maps/reproject/region_1_widening.fits",
+#                                fwhm_map.data, 
+#                                map_analyzer.bin_header(wcs.to_header(relax=True), 2))
+
+# map_analyzer.save_as_fits_file("maps/reproject/region_1_widening_unc.fits",
+#                                fwhm_map_unc.data, 
+#                                map_analyzer.bin_header(wcs.to_header(relax=True), 2))
+
+
+
+fwhm_region_1 = fits.open("maps/reproject/region_1_widening.fits")[0]
+global_region = fits.open("maps/data/fwhm_NII.fits")[0]
+
+# temp_map = fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0]
+# ax1 = plt.subplot(1,3,1, projection=WCS(fwhm_region_1.header))
+# ax1.imshow(fwhm_region_1.data, vmin=0, vmax=40)
+# ax2 = plt.subplot(1,3,2)
+# ax2.imshow(reproject.reproject_interp(fwhm_region_1, temp_map.header)[0], vmin=0, vmax=40)
+# ax3 = plt.subplot(1,3,3)
+# ax3.imshow(temp_map.data, vmin=2000, vmax=10000)
+# plt.show()
+
+
+
