@@ -15,7 +15,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
-class Data_cube_analyzer():
+class Data_cube():
     """
     Encapsulate all the useful methods for the analysis of a data cube.
     """
@@ -374,42 +374,22 @@ def worker_fit(args):
     return line
 
 
-# analyzer = Data_cube_analyzer()
-# fwhms = fits.open("maps/fwhm_NII.fits")[0].data
-# fwhms_unc = fits.open("maps/fwhm_NII_unc.fits")[0].data
-# calibs = fits.open("maps/smoothed_instr_f.fits")[0].data
-# calibs_unc = fits.open("maps/smoothed_instr_f_unc.fits")[0].data
-# corrected_fwhm = fits.open("maps/corrected_fwhm.fits")[0].data
-# corrected_fwhm_unc = fits.open("maps/corrected_fwhm_unc.fits")[0].data
 
-# analyzer.plot_map(corrected_fwhm, False, (0,40))
+class Map(Data_cube):
+    """
+    Encapsulate the necessary methods to compare and treat maps.
+    """
 
+    def __init__(self, map_data=np.ndarray):
+        """
+        Initialize a map object.
 
-# hawc_1 = fits.open("night_34_tt.fits")
-# header_1 = (hawc_1[0].header).copy()
-# print(header_1)
+        Arguments
+        ---------
+        map_data: numpy array. Two dimensional data of the map that is created.
+        """
+        self.data = map_data
 
-
-"""
-header_0["CDELT1"] = header_0["CDELT1"] * 2
-header_0["CDELT2"] = header_0["CDELT2"] * 2
-header_0["CRPIX1"] = header_0["CRPIX1"] / 2
-header_0["CRPIX2"] = header_0["CRPIX2"] / 2
-# header_0.update(NAXIS1=512, NAXIS2=512)
-print(header_0)
-a.save_as_fits_file("night_34_tt.fits", hawc[0].data, header_0)
-"""
+    
 
 
-# header = fits.open("night_34.fits")[0].header
-# print(header)
-
-# analyzer.plot_map(corrected_fwhm, color_autoscale=False, bounds=(0,50))
-
-# sp = Spectrum(analyzer.bin_cube(analyzer.data_cube)[:,223,309], calibration=False)
-# sp.fit(sp.get_initial_guesses())
-# sp.plot_fit()
-
-# corrected_map = analyzer.get_corrected_width(fwhms, fwhms_unc, analyzer.bin_map(calibs), analyzer.bin_map(calibs_unc))
-# analyzer.save_as_fits_file("maps/corrected_fwhm.fits", corrected_map[0])
-# analyzer.save_as_fits_file("maps/corrected_fwhm_unc.fits", corrected_map[1])
