@@ -2,9 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import warnings
+import scipy
 
 from astropy.io import fits
 from astropy.wcs import WCS
+from reproject import reproject_interp
+
 
 from cube_spectrum import Spectrum
 
@@ -149,7 +152,7 @@ class Data_cube(Fits_file):
         start = time.time()
         fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data) for y in range(data.shape[1])))))
         stop = time.time()
-        print(stop-start, "s")
+        print("Finished in", stop-start, "s.")
         pool.close()
         return np.squeeze(np.array(fit_fwhm_list), axis=0)
         
@@ -290,31 +293,31 @@ class Map(Fits_file):
     Encapsulate the necessary methods to compare and treat maps.
     """
 
-    def __init__(self, map_file_name=None):
+    def __init__(self, fits_object):
         """
         Initialize a map object.
 
         Arguments
         ---------
-        map_data: str, optional. Path of the map's data.
+        fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the map.
         """
-        if map_file_name is not None:
-            self.data = fits.open(map_file_name)[0].data
-            self.header = fits.open(map_file_name)[0].header
+        self.object = fits_object
+        self.data = fits_object.data
+        self.header = fits_object.header
 
     def __add__(self, other):
-        assert self.data.shape == other.data.shape, "Different map sizes are being added."
-        return self.data + other.data
+        assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
+        return Map(fits.PrimaryHDU(self.data + other.data, self.header))
     
     def __sub__(self, other):
-        assert self.data.shape == other.data.shape, "Different map sizes are being added."
-        return self.data - other.data
+        assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
+        return Map(fits.PrimaryHDU(self.data - other.data, self.header))
 
     def __pow__(self):
-        return self.data ** 2
+        return Map(fits.PrimaryHDU(self.data ** 2, self.header))
     
     def sqrt(self):
-        return np.sqrt(self.data)
+        return Map(fits.PrimaryHDU(np.sqrt(self.data), self.header))
 
     def plot_map(self, color_autoscale=True, bounds=None):
         """
@@ -334,6 +337,11 @@ class Map(Fits_file):
         else:
             plt.colorbar(plt.imshow(data, origin="lower", cmap="viridis", vmin=data[round(data.shape[0]/2), round(data.shape[1]/2)]*3/5,
                                                                      vmax=data[round(data.shape[0]/10), round(data.shape[1]/10)]*2))
+        plt.show()
+
+    def plot_two_maps(self, other):
+        plt.colorbar(plt.imshow(self.data, origin="lower", cmap="magma"))
+        plt.colorbar(plt.imshow(other.data, origin="lower", cmap="viridis", vmin=0, vmax=40, alpha=0.3))
         plt.show()
 
     def bin_map(self, nb_pix_bin=2):
@@ -425,9 +433,48 @@ class Map(Fits_file):
                     # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
         return np.stack((data, uncertainties), axis=2)
 
-    def reproject(self, other):
-        pass
+    def get_reprojection(self, other):
+        """
+        Get the reprojection of the map on the other object's WCS. This makes the coordinates match.
+
+        Arguments
+        ---------
+        other: map object. Reference map to project on.
+
+        Returns
+        -------
+        map object: map with WCS aligned to the other map.
+        """
+        reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
+        return Map(fits.PrimaryHDU(reprojection, other.header))
+    
+    def get_aligned_regions(self):
+        header_region_1 = fits.open("night_34_1a.fits")[0].header
+        header_region_2 = fits.open("night_34_2a.fits")[0].header
+        header_region_3 = fits.open("night_34_3a.fits")[0].header
 
     def get_thermal_FWHM(self):
-        
-    
+        angstroms_center = 6583.41              # Emission wavelength of NII 
+        m = 14.0067 * scipy.constants.u         # Nitrogen mass
+        c = scipy.constants.c                   # Light speed
+        k = scipy.constants.k                   # Boltzmann constant
+        angstroms_FWHM = 2 * np.sqrt(2 * np.log10(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
+        speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
+        return Map(fits.PrimaryHDU(speed_FWHM, self.header))
+
+
+temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
+glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
+
+temp_map.plot_map()
+# glob_map.plot_map(False, (0,40))
+
+reprojected_temp_map = temp_map.get_reprojection(glob_map)
+
+reprojected_temp_map.get_thermal_FWHM().plot_two_maps(glob_map)
+
+
+# new_map = temp_map.get_thermal_FWHM()
+# new_map.plot_map()
+
+
