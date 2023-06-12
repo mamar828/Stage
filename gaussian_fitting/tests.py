@@ -216,60 +216,70 @@ plt.show()
 
 # -------------------------------------------------------
 
-from reproject import reproject_interp
-from astropy.wcs import WCS
+# from reproject import reproject_interp
+# from astropy.wcs import WCS
 
-def Align(map_to_align, ref_map, name_of_new_map):
+# def Align(map_to_align, ref_map, name_of_new_map):
 	
-	"""
-	Fonction réaligner une carte avec un mauvais WCS ou un décalage à partir d'une carte de référence avec un bon WCS.
-	map_to_align: Path de la carte à réaligner. [String]
-	ref_map: Path de la carte de référence. [String]
-	name_of_new_map: Path de la carte réalignée. [String]
-	Aller lire la documentation de la librairie Reporoject.
-	"""
+# 	"""
+# 	Fonction réaligner une carte avec un mauvais WCS ou un décalage à partir d'une carte de référence avec un bon WCS.
+# 	map_to_align: Path de la carte à réaligner. [String]
+# 	ref_map: Path de la carte de référence. [String]
+# 	name_of_new_map: Path de la carte réalignée. [String]
+# 	Aller lire la documentation de la librairie Reporoject.
+# 	"""
 	
-	#Ouverure de la carte à réaligner.
-	hdu1 = fits.open(map_to_align, mode = 'denywrite')[0]
-	#Ouverure de la carte de référence avec le bon WCS.
-	hdu2 = fits.open(ref_map, mode = 'denywrite')[0]
-	#Affichage de la carte à réaligner avec son WCS.	
-	ax1 = plt.subplot(1,2,1, projection=WCS(hdu1.header))
-	ax1.imshow(hdu1.data, origin='lower')
-	ax1.coords.grid(color='white')
-	ax1.coords['ra'].set_axislabel('Right Ascension')
-	ax1.coords['dec'].set_axislabel('Declination')
-	#ax1.set_title('Sh2-158 5755')
-	#Affichage de la carte de référence avec son WCS.
-	ax2 = plt.subplot(1,2,2, projection=WCS(hdu2.header))
-	ax2.imshow(hdu2.data, origin='lower')
-	ax2.coords.grid(color='white')
-	ax2.coords['ra'].set_axislabel('Right Ascension')
-	ax2.coords['dec'].set_axislabel('Declination')
-	ax2.coords['dec'].set_axislabel_position('r')
-	ax2.coords['dec'].set_ticklabel_position('r')
-	#ax2.set_title('Sh2-158 6583')
-	plt.show()
-	#Utilisation de la librairie Reproject pour réaligner la carte déffecteuse sur celle de référence.
-	array, footprint = reproject_interp(hdu1, hdu2.header)
-	#Affichage de la carte réalignée avec son WCS.
-	ax1 = plt.subplot(1,2,1, projection=WCS(hdu2.header))
-	ax1.imshow(array, origin='lower')
-	ax1.coords.grid(color='white')
-	ax1.coords['ra'].set_axislabel('Right Ascension')
-	ax1.coords['dec'].set_axislabel('Declination')
-	#ax1.set_title('Reprojected Sh2-158 5755')
-	#Affichage de la trace de la carte réalignée sur l'ancienne carte avec son WCS.
-	ax2 = plt.subplot(1,2,2, projection=WCS(hdu2.header))
-	ax2.imshow(footprint, origin='lower')
-	ax2.coords.grid(color='white')
-	ax1.coords['ra'].set_axislabel('Right Ascension')
-	ax1.coords['dec'].set_axislabel('Declination')
-	ax2.coords['dec'].set_axislabel_position('r')
-	ax2.coords['dec'].set_ticklabel_position('r')
-	#ax2.set_title('MSX band E image footprint')
-	plt.show()
+# 	#Ouverure de la carte à réaligner.
+# 	hdu1 = fits.open(map_to_align, mode = 'denywrite')[0]
+# 	#Ouverure de la carte de référence avec le bon WCS.
+# 	hdu2 = fits.open(ref_map, mode = 'denywrite')[0]
+# 	#Affichage de la carte à réaligner avec son WCS.	
+# 	ax1 = plt.subplot(1,2,1, projection=WCS(hdu1.header))
+# 	ax1.imshow(hdu1.data, origin='lower')
+# 	ax1.coords.grid(color='white')
+# 	ax1.coords['ra'].set_axislabel('Right Ascension')
+# 	ax1.coords['dec'].set_axislabel('Declination')
+# 	#ax1.set_title('Sh2-158 5755')
+# 	#Affichage de la carte de référence avec son WCS.
+# 	ax2 = plt.subplot(1,2,2, projection=WCS(hdu2.header))
+# 	ax2.imshow(hdu2.data, origin='lower')
+# 	ax2.coords.grid(color='white')
+# 	ax2.coords['ra'].set_axislabel('Right Ascension')
+# 	ax2.coords['dec'].set_axislabel('Declination')
+# 	ax2.coords['dec'].set_axislabel_position('r')
+# 	ax2.coords['dec'].set_ticklabel_position('r')
+# 	#ax2.set_title('Sh2-158 6583')
+# 	plt.show()
+# 	#Utilisation de la librairie Reproject pour réaligner la carte déffecteuse sur celle de référence.
+# 	array, footprint = reproject_interp(hdu1, hdu2.header)
+# 	#Affichage de la carte réalignée avec son WCS.
+# 	ax1 = plt.subplot(1,2,1, projection=WCS(hdu2.header))
+# 	ax1.imshow(array, origin='lower')
+# 	ax1.coords.grid(color='white')
+# 	ax1.coords['ra'].set_axislabel('Right Ascension')
+# 	ax1.coords['dec'].set_axislabel('Declination')
+# 	#ax1.set_title('Reprojected Sh2-158 5755')
+# 	#Affichage de la trace de la carte réalignée sur l'ancienne carte avec son WCS.
+# 	ax2 = plt.subplot(1,2,2, projection=WCS(hdu2.header))
+# 	ax2.imshow(footprint, origin='lower')
+# 	ax2.coords.grid(color='white')
+# 	ax1.coords['ra'].set_axislabel('Right Ascension')
+# 	ax1.coords['dec'].set_axislabel('Declination')
+# 	ax2.coords['dec'].set_axislabel_position('r')
+# 	ax2.coords['dec'].set_ticklabel_position('r')
+# 	#ax2.set_title('MSX band E image footprint')
+# 	plt.show()
 
-Align("maps/reproject/region_1_widening_unc.fits",
-      "temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits",
-      "allooo.fits", )
+# Align("maps/reproject/region_1_widening_unc.fits",
+#       "temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits",
+#       "allooo.fits", )
+
+# ----------------------------------------------
+
+# while True:
+#     var = input("yo")
+#     if var == "1":
+#         break
+
+a = np.array([[1,2], [3,4]])
+print(a **2)
