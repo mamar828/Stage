@@ -7,8 +7,7 @@ import scipy
 from astropy.io import fits
 from astropy.wcs import WCS
 from reproject import reproject_interp
-from regions import Regions
-
+import pyregion
 
 from cube_spectrum import Spectrum
 
@@ -358,7 +357,7 @@ class Map(Fits_file):
 
         Returns
         -------
-        numpy array: binned map.
+        map object: binned map.
         """
         data = np.copy(self.data)
         # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
@@ -373,7 +372,7 @@ class Map(Fits_file):
                 print(f"Map to bin will be cut by {i+1} pixel(s).")
                 data = data[:-1,:-1]
         # The mean value of every pixel group is calculated and the array returns to a two dimensional state
-        return np.nanmean(bin_array, axis=(1,3))
+        return Map(fits.PrimaryHDU(np.nanmean(bin_array, axis=(1,3)), self.bin_header(nb_pix_bin)))
     
     def smooth_order_change(self, uncertainty_map, center=(527, 484)):
         """
@@ -449,12 +448,70 @@ class Map(Fits_file):
         reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
         return Map(fits.PrimaryHDU(reprojection, other.header))
     
-    def get_aligned_regions(self):
-        region_1_mask = 
+    def get_aligned_regions(self, uncertainties_map=False):
+        # MAKE THE UNCERTAINTIES FOLLOW
+        uncertainty_addition = None
+        if uncertainties_map:
+            uncertainty_addition = "_unc"
+        regions = [
+            pyregion.open("gaussian_fitting/regions/region_1.reg"),
+            pyregion.open("gaussian_fitting/regions/region_2.reg"),
+            pyregion.open("gaussian_fitting/regions/region_3.reg")
+        ]
+
+        masks = [region.get_mask(hdu=self.object) for region in regions]
+        masks = [np.where(mask == False, 0, mask) for mask in masks]
+        masks = [np.where(mask == True, 1, mask) for mask in masks]
+        
+        new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
+
+        region_data = [
+            fits.open(f"maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0].data * masks[0],
+            fits.open(f"maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0].data * masks[1],
+            fits.open(f"maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0].data * masks[2]
+        ]
+
+        new_data += region_data[0] + region_data[1] + region_data[2]
+
+        # Map(fits.PrimaryHDU(new_data, self.header)).save_as_fits_file("test_all_together-2.fits")
+        
+        plt.imshow(new_data, vmin=0, vmax=40, cmap="viridis", origin="lower")
+        plt.show()
+
+        # print(masks)
+        raise ArithmeticError
+
+        f = fits.open("global_widening.fits")
+        region_name = 'fabry_perrot_regions_centre_sh2158.reg'
+        r = pyregion.open(region_name)
+        mymask = r.get_mask(hdu=f[0])
+        mymask=mymask*1
+        fits.writeto('mask_centre.fits',mymask,overwrite = True)
+        fig = plt.figure(figsize=(12,10))
+        ax = fig.add_subplot(111)
+        im=ax.imshow(mymask, origin="lower", interpolation="nearest")
+        fig.colorbar(im)
+        plt.show()
+        
+        fits1_data = (fits.open("global_widening.fits"))[0].data
+        fits1_head = (fits.open("global_widening.fits"))[0].header
+        mask = (fits.open('mask_centre.fits'))[0].data
+        fits1_data[np.nonzero(mask==0)]=np.nan
+        fits.writeto("global_widening_nouveau nom.fits", fits1_data, fits1_head, overwrite = True)
+
+        # regions = Regions([Regions.read("gaussian_fitting/regions/region_1.reg", format="ds9"),
+        #                    Regions.read("gaussian_fitting/regions/region_2.reg", format="ds9"),
+        #                    Regions.read("gaussian_fitting/regions/region_3.reg", format="ds9")])
+        # pixel_region_1 = regions[0]
+        # pix = pixel_region_1.
 
         # data_region_1 = fits.open("night_34_1a.fits")[0].data
         # data_region_2 = fits.open("night_34_2a.fits")[0].data
         # data_region_3 = fits.open("night_34_3a.fits")[0].data
+
+        # print(regions[0])
+
+
 
         # self.data[451-1:561,517-1:623] = data_region_1[452-1,506-1]
 
@@ -471,6 +528,13 @@ class Map(Fits_file):
 
 temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
 glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
+glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
+raw_map  = Map(fits.PrimaryHDU(fits.open("night_34_tt_e.fits")[0].data[13,:,:], fits.open("night_34_tt_e.fits")[0].header))
+
+# glob_map.plot_map(False, (0,40))
+
+# raw_map.bin_map().get_aligned_regions()
+glob_map_unc.get_aligned_regions(True)
 
 # temp_map.plot_map()
 # glob_map.plot_map(False, (0,40))
