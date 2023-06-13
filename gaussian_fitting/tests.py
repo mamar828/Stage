@@ -295,4 +295,4 @@ Align("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35
 # new_array = array[((i-2)**2 + (j-4)**2) <= 4]
                                     
 # print(new_array)
-print(new_array.shape)
+# print(new_array.shape)
