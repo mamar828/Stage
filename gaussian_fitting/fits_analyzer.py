@@ -449,7 +449,9 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(reprojection, other.header))
     
     def get_aligned_regions(self, uncertainties_map=False):
-        # MAKE THE UNCERTAINTIES FOLLOW
+        """
+        Get the FWHM map with the three regions corrected to fit better the WCS.
+        """
         uncertainty_addition = None
         if uncertainties_map:
             uncertainty_addition = "_unc"
