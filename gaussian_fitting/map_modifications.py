@@ -17,7 +17,7 @@ import numpy as np
 # plt.show()
 # # fits.writeto("night_34.fits", nuit_34, header, overwrite=True)
 
-dc = Data_cube()
+# dc = Data_cube()
 
 
 """
@@ -71,12 +71,26 @@ global_header = fits.open("night_34_tt_e.fits")[0].header
 fwhm_map = fits.open("maps/data/corrected_fwhm.fits")[0]
 fwhm_map_unc = fits.open("maps/data/corrected_fwhm_unc.fits")[0]
 
-# print(repr(region_1_header))
-wcs = WCS(global_header)
-wcs.sip = None
-wcs = wcs.dropaxis(2)
+region_widening_1_header = fits.open("maps/reproject/region_1_widening.fits")[0].header
+region_widening_2_header = fits.open("maps/reproject/region_2_widening.fits")[0].header
+region_widening_3_header = fits.open("maps/reproject/region_3_widening.fits")[0].header
 
-print(fwhm_map)
+test_map = fits.open("test_3a.fits")[0]
+
+test_3b = Data_cube(fits.open("night_34_3a.fits")[0]).bin_cube(2)
+
+print(region_widening_3_header["CDELT2"], test_3b.header["CDELT2"])
+
+
+# print(repr(region_3_header))
+# print(repr(test_map.header))
+
+# print(repr(region_1_header))
+# wcs = WCS(global_header)
+# wcs.sip = None
+# wcs = wcs.dropaxis(2)
+
+# print(fwhm_map)
 
 # dc.save_as_fits_file("maps/reproject/global_widening11.fits",
 #                                fwhm_map.data, 
@@ -92,8 +106,8 @@ print(fwhm_map)
 # m.plot_map(m.data, False, (0,40))
 
 # fwhm_region_1 = fits.open("maps/reproject/region_1_widening.fits")[0]
-global_region = fits.open("maps/reproject/global_widening.fits")[0]
-temp_map = fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0]
+# global_region = fits.open("maps/reproject/global_widening.fits")[0]
+# temp_map = fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0]
 
 # ax1 = plt.subplot(1,3,1, projection=WCS(fwhm_region_1.header))
 # ax1.imshow(fwhm_region_1.data, vmin=0, vmax=40)
@@ -112,7 +126,7 @@ temp_map = fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_pl
 # ax3.imshow(reproject_interp(global_region, temp_map.header)[1])
 # plt.show()
 
-reprojected_global_map = reproject_interp(temp_map, global_region.header)[0]
-ax1 = plt.subplot(1,1,1, projection=WCS(temp_map.header))
-ax1.imshow(reprojected_global_map, vmin=0, vmax=40, origin="lower")
-plt.show()
+# reprojected_global_map = reproject_interp(temp_map, global_region.header)[0]
+# ax1 = plt.subplot(1,1,1, projection=WCS(temp_map.header))
+# ax1.imshow(reprojected_global_map, vmin=0, vmax=40, origin="lower")
+# plt.show()

@@ -78,17 +78,17 @@ class Data_cube(Fits_file):
     Encapsulate all the useful methods for the analysis of a data cube.
     """
 
-    def __init__(self, data_cube_file_name=None):
+    def __init__(self, fits_object):
         """
         Initialize an analyzer object. The datacube's file name must be given.
 
         Arguments
         ---------
-        data_cube_file_name: str, optional. Specifies the path of the file inside the current folder.
+        fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
         """
-        if data_cube_file_name is not None:
-            self.data = fits.open(data_cube_file_name)[0].data
-            self.header = fits.open(data_cube_file_name)[0].header
+        self.object = fits_object
+        self.data = fits_object.data
+        self.header = fits_object.header
 
     def fit_calibration(self, data_cube=None):
         """
@@ -186,7 +186,7 @@ class Data_cube(Fits_file):
                 print(f"Cube to bin will be cut by {i+1} pixel(s).")
                 data = data[:,:-1,:-1]
         # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
-        return np.nanmean(bin_array, axis=(2,4))
+        return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
 
     def get_center_point(self, center_guess=(527, 484)):
         """
@@ -340,7 +340,7 @@ class Map(Fits_file):
         plt.show()
 
     def plot_two_maps(self, other):
-        plt.colorbar(plt.imshow(self.data, origin="lower", cmap="magma"))
+        plt.colorbar(plt.imshow(self.data, origin="lower", cmap="magma", alpha=0.3))
         plt.colorbar(plt.imshow(other.data, origin="lower", cmap="viridis", vmin=0, vmax=40, alpha=0.3))
         plt.show()
 
@@ -439,7 +439,7 @@ class Map(Fits_file):
 
         Arguments
         ---------
-        other: map object. Reference map to project on.
+        other: map object. Reference map to project on and to base the shift of WCS.
 
         Returns
         -------
@@ -466,22 +466,31 @@ class Map(Fits_file):
         masks = [np.where(mask == True, 1, mask) for mask in masks]
         
         new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
-
-        region_data = [
-            fits.open(f"maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0].data * masks[0],
-            fits.open(f"maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0].data * masks[1],
-            fits.open(f"maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0].data * masks[2]
+        # plt.imshow(new_data, vmin=0, vmax=40, origin="lower")
+        # plt.show()
+        specific_maps = [
+            Map(fits.open(f"maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0]),
+            Map(fits.open(f"maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0]),
+            Map(fits.open(f"maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0])
         ]
+        specific_maps[2].save_as_fits_file("test_3a.fits")
+
+        specific_maps = [specific_map.get_reprojection(self) for specific_map in specific_maps]
+
+        region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(specific_maps)]
+        # fits.open(f"maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0].data * masks[0]]
 
         new_data += region_data[0] + region_data[1] + region_data[2]
 
         # Map(fits.PrimaryHDU(new_data, self.header)).save_as_fits_file("test_all_together-2.fits")
         
-        plt.imshow(new_data, vmin=0, vmax=40, cmap="viridis", origin="lower")
-        plt.show()
+        # Map(fits.PrimaryHDU(new_data, self.header)).save_as_fits_file("test_all_together.fits")
+
+        # plt.imshow(new_data, vmin=0, vmax=40, cmap="viridis", origin="lower")
+        # plt.show()
 
         # print(masks)
-        raise ArithmeticError
+        raise ArithmeticError("\n\n    SUCCESS\n")
 
         f = fits.open("global_widening.fits")
         region_name = 'fabry_perrot_regions_centre_sh2158.reg'
@@ -528,15 +537,15 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
 
 
-temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
-glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
-glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
-raw_map  = Map(fits.PrimaryHDU(fits.open("night_34_tt_e.fits")[0].data[13,:,:], fits.open("night_34_tt_e.fits")[0].header))
+# temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
+# glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
+# glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
+# raw_map  = Map(fits.PrimaryHDU(fits.open("night_34_tt_e.fits")[0].data[13,:,:], fits.open("night_34_tt_e.fits")[0].header))
 
-# glob_map.plot_map(False, (0,40))
+# # glob_map.plot_map(False, (0,40))
 
-# raw_map.bin_map().get_aligned_regions()
-glob_map_unc.get_aligned_regions(True)
+# # raw_map.bin_map().get_aligned_regions()
+# glob_map.get_aligned_regions()
 
 # temp_map.plot_map()
 # glob_map.plot_map(False, (0,40))
