@@ -485,9 +485,9 @@ class Map(Fits_file):
 
         # Every specific map has the same values than the global map, but the header is changed to a fit a specific region
         specific_maps = [
-            Map(fits.open(f"maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0]),
-            Map(fits.open(f"maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0]),
-            Map(fits.open(f"maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0])
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0])
         ]
         # Alignment of the specific maps on the global WCS
         specific_maps = [specific_map.get_reprojection(self) for specific_map in specific_maps]
@@ -517,8 +517,8 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
 
 
-temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
-glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
-glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
+# temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
+# glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
+# glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
 
 # glob_map_unc.get_aligned_regions(True).plot_map(False, (0,40))

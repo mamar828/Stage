@@ -15,6 +15,7 @@ In this file are examples of code that have been used to create the fits files. 
 
 
 def get_region_widening_maps():
-    fwhm_NII_map = fits.open
+    global_header = fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[0]
+    
 
 get_region_widening_maps()
