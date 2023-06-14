@@ -71,15 +71,19 @@ global_header = fits.open("night_34_tt_e.fits")[0].header
 fwhm_map = fits.open("maps/data/corrected_fwhm.fits")[0]
 fwhm_map_unc = fits.open("maps/data/corrected_fwhm_unc.fits")[0]
 
-region_widening_1_header = fits.open("maps/reproject/region_1_widening.fits")[0].header
-region_widening_2_header = fits.open("maps/reproject/region_2_widening.fits")[0].header
-region_widening_3_header = fits.open("maps/reproject/region_3_widening.fits")[0].header
+region_widening_1 = fits.open("maps/reproject/region_1_widening.fits")[0]
+region_widening_2 = fits.open("maps/reproject/region_2_widening.fits")[0]
+region_widening_3 = fits.open("maps/reproject/region_3_widening.fits")[0]
 
-test_map = fits.open("test_3a.fits")[0]
+cor = fits.open("maps/data/corrected_fwhm.fits")[0]
+raw = fits.open("maps/data/fwhm_NII.fits")[0]
+cal = Map(fits.open("maps/data/smoothed_instr_f.fits")[0]).bin_map(2)
 
-test_3b = Data_cube(fits.open("night_34_3a.fits")[0]).bin_cube(2)
+# test_map = fits.open("test_3a.fits")[0]
 
-print(region_widening_3_header["CDELT2"], test_3b.header["CDELT2"])
+# test_3b = Data_cube(fits.open("night_34_3a.fits")[0]).bin_cube(2)
+
+print(np.sum(raw.data - (cor.data + cal.data)))
 
 
 # print(repr(region_3_header))

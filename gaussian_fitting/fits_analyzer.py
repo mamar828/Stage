@@ -38,10 +38,14 @@ class Fits_file():
         astropy.io.fits.header.Header: binned header.
         """
         header_copy = self.header.copy()
-        header_copy["CDELT1"] *= nb_pix_bin
-        header_copy["CDELT2"] *= nb_pix_bin
-        header_copy["CRPIX1"] /= nb_pix_bin
-        header_copy["CRPIX2"] /= nb_pix_bin
+        # The try statement makes it so calibration maps/cubes can also be binned
+        try:
+            header_copy["CDELT1"] *= nb_pix_bin
+            header_copy["CDELT2"] *= nb_pix_bin
+            header_copy["CRPIX1"] /= nb_pix_bin
+            header_copy["CRPIX2"] /= nb_pix_bin
+        except:
+            pass
         return header_copy
     
     def save_as_fits_file(self, filename=str):
@@ -450,84 +454,60 @@ class Map(Fits_file):
     
     def get_aligned_regions(self, uncertainties_map=False):
         """
-        Get the FWHM map with the three regions corrected to fit better the WCS.
+        Get the FWHM map with the three regions corrected to fit better the WCS. The same method can also be called with an
+        uncertainty map to get the aligned uncertainty map.
+
+        Arguments
+        ---------
+        uncertainties_map: bool, default=False. Specifies if the object is an uncertainty map.
+
+        Returns
+        -------
+        Map object: global map with the three aligned regions.
         """
         uncertainty_addition = None
         if uncertainties_map:
             uncertainty_addition = "_unc"
+        
         regions = [
             pyregion.open("gaussian_fitting/regions/region_1.reg"),
             pyregion.open("gaussian_fitting/regions/region_2.reg"),
             pyregion.open("gaussian_fitting/regions/region_3.reg")
         ]
 
+        # A mask of zeros and ones is created with the regions
         masks = [region.get_mask(hdu=self.object) for region in regions]
         masks = [np.where(mask == False, 0, mask) for mask in masks]
         masks = [np.where(mask == True, 1, mask) for mask in masks]
         
+        # The map's data is removed where a mask applies
         new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
-        # plt.imshow(new_data, vmin=0, vmax=40, origin="lower")
-        # plt.show()
+
+        # Every specific map has the same values than the global map, but the header is changed to a fit a specific region
         specific_maps = [
             Map(fits.open(f"maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0]),
             Map(fits.open(f"maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0]),
             Map(fits.open(f"maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0])
         ]
-        specific_maps[2].save_as_fits_file("test_3a.fits")
-
+        # Alignment of the specific maps on the global WCS
         specific_maps = [specific_map.get_reprojection(self) for specific_map in specific_maps]
 
+        # Only the data within the mask is kept
         region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(specific_maps)]
-        # fits.open(f"maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0].data * masks[0]]
-
         new_data += region_data[0] + region_data[1] + region_data[2]
 
-        # Map(fits.PrimaryHDU(new_data, self.header)).save_as_fits_file("test_all_together-2.fits")
-        
-        # Map(fits.PrimaryHDU(new_data, self.header)).save_as_fits_file("test_all_together.fits")
-
-        # plt.imshow(new_data, vmin=0, vmax=40, cmap="viridis", origin="lower")
-        # plt.show()
-
-        # print(masks)
-        raise ArithmeticError("\n\n    SUCCESS\n")
-
-        f = fits.open("global_widening.fits")
-        region_name = 'fabry_perrot_regions_centre_sh2158.reg'
-        r = pyregion.open(region_name)
-        mymask = r.get_mask(hdu=f[0])
-        mymask=mymask*1
-        fits.writeto('mask_centre.fits',mymask,overwrite = True)
-        fig = plt.figure(figsize=(12,10))
-        ax = fig.add_subplot(111)
-        im=ax.imshow(mymask, origin="lower", interpolation="nearest")
-        fig.colorbar(im)
-        plt.show()
-        
-        fits1_data = (fits.open("global_widening.fits"))[0].data
-        fits1_head = (fits.open("global_widening.fits"))[0].header
-        mask = (fits.open('mask_centre.fits'))[0].data
-        fits1_data[np.nonzero(mask==0)]=np.nan
-        fits.writeto("global_widening_nouveau nom.fits", fits1_data, fits1_head, overwrite = True)
-
-        # regions = Regions([Regions.read("gaussian_fitting/regions/region_1.reg", format="ds9"),
-        #                    Regions.read("gaussian_fitting/regions/region_2.reg", format="ds9"),
-        #                    Regions.read("gaussian_fitting/regions/region_3.reg", format="ds9")])
-        # pixel_region_1 = regions[0]
-        # pix = pixel_region_1.
-
-        # data_region_1 = fits.open("night_34_1a.fits")[0].data
-        # data_region_2 = fits.open("night_34_2a.fits")[0].data
-        # data_region_3 = fits.open("night_34_3a.fits")[0].data
-
-        # print(regions[0])
-
-
-
-        # self.data[451-1:561,517-1:623] = data_region_1[452-1,506-1]
-
+        return Map(fits.PrimaryHDU(new_data, self.header))
 
     def get_thermal_FWHM(self):
+        """
+        Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
+        can be compared with other FWHM maps. This function can be called with an uncertainty map object to get the FWHM's
+        uncertainty.
+
+        Returns
+        -------
+        Map object: map of the FWHM due to thermal Doppler broadening.
+        """
         angstroms_center = 6583.41              # Emission wavelength of NII 
         m = 14.0067 * scipy.constants.u         # Nitrogen mass
         c = scipy.constants.c                   # Light speed
@@ -537,25 +517,8 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
 
 
-# temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
-# glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
-# glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
-# raw_map  = Map(fits.PrimaryHDU(fits.open("night_34_tt_e.fits")[0].data[13,:,:], fits.open("night_34_tt_e.fits")[0].header))
+temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
+glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
+glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
 
-# # glob_map.plot_map(False, (0,40))
-
-# # raw_map.bin_map().get_aligned_regions()
-# glob_map.get_aligned_regions()
-
-# temp_map.plot_map()
-# glob_map.plot_map(False, (0,40))
-# temp_map.get_reprojection(glob_map).plot_map()
-# reprojected_temp_map = temp_map.get_reprojection(glob_map)
-# reprojected_temp_map.get_thermal_FWHM().plot_map()
-# reprojected_temp_map.get_thermal_FWHM().plot_two_maps(glob_map)
-
-
-# new_map = temp_map.get_thermal_FWHM()
-# new_map.plot_map()
-
-
+# glob_map_unc.get_aligned_regions(True).plot_map(False, (0,40))
