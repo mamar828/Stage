@@ -10,8 +10,12 @@ import numpy as np
 In this file are examples of code that have been used to create the fits files. Every operation has been grouped into a function.
 """
 
-# def get_smoothed_instr_f():
-#     calibration_cube = 
+def get_smoothed_instr_f():
+    """
+    In this example, the smooth instrumental function map is calculated
+    """
+    # calibration_cube = 
+
 
 
 
@@ -80,3 +84,22 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
 # get_region_widening_maps(fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[0].data,
 #                          fits.open("gaussian_fitting/maps/computed_data/fwhm_NII_unc.fits")[0].data)
 
+
+def get_turbulence_map():
+    """
+    In this example, the turbulence map is obtained with the previously computed maps: all region widenings and their
+    uncertainties, smoothed_instr_f and its uncertainty. Note that the region widenings maps are not opened directly
+    but are used in the Map.align_regions() method.
+    """
+    global_FWHM_map = Map(fits.open("gaussian_fitting/maps/reproject/global_widening.fits")[0])
+    global_FWHM_map_unc = Map(fits.open("gaussian_fitting/maps/reproject/global_widening_unc.fits")[0])
+    instrumental_function = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0])
+    instrumental_function_unc = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0])
+    
+    aligned_global_map = (global_FWHM_map**2 - instrumental_function.bin_map(2)**2).align_regions()
+    
+    plt.imshow(aligned_global_map.data, vmin=0, vmax=40, origin="lower")
+    plt.show()
+    # turbulence_map_unc = 
+
+get_turbulence_map()

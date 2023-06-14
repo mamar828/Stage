@@ -317,8 +317,8 @@ class Map(Fits_file):
         assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
         return Map(fits.PrimaryHDU(self.data - other.data, self.header))
 
-    def __pow__(self):
-        return Map(fits.PrimaryHDU(self.data ** 2, self.header))
+    def __pow__(self, power):
+        return Map(fits.PrimaryHDU(self.data ** power, self.header))
     
     def sqrt(self):
         return Map(fits.PrimaryHDU(np.sqrt(self.data), self.header))
@@ -452,10 +452,10 @@ class Map(Fits_file):
         reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
         return Map(fits.PrimaryHDU(reprojection, other.header))
     
-    def get_aligned_regions(self, uncertainties_map=False):
+    def align_regions(self, uncertainties_map=False):
         """
-        Get the FWHM map with the three regions corrected to fit better the WCS. The same method can also be called with an
-        uncertainty map to get the aligned uncertainty map.
+        Get the FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
+        better the WCS. The same method can also be called with an uncertainty map to get the aligned uncertainty map.
 
         Arguments
         ---------
@@ -463,7 +463,7 @@ class Map(Fits_file):
 
         Returns
         -------
-        Map object: global map with the three aligned regions.
+        Map object: global map with the three aligned regions and the instrumental function width removed.
         """
         uncertainty_addition = None
         if uncertainties_map:
@@ -479,9 +479,10 @@ class Map(Fits_file):
         masks = [region.get_mask(hdu=self.object) for region in regions]
         masks = [np.where(mask == False, 0, mask) for mask in masks]
         masks = [np.where(mask == True, 1, mask) for mask in masks]
-        
+
         # The map's data is removed where a mask applies
         new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
+
 
         # Every specific map has the same values than the global map, but the header is changed to a fit a specific region
         specific_maps = [
@@ -489,6 +490,16 @@ class Map(Fits_file):
             Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0]),
             Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0])
         ]
+
+        calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f{uncertainty_addition or ''}.fits")[0])
+
+        if uncertainties_map:
+            # The calibration FWHM's uncertainty is propagated
+            specific_maps = []
+        else:
+            # The calibration FWHM's correction is applied
+            specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
+
         # Alignment of the specific maps on the global WCS
         specific_maps = [specific_map.get_reprojection(self) for specific_map in specific_maps]
 
