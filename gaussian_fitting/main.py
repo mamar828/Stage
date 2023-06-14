@@ -25,6 +25,11 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
     stored in gaussian_fitting/maps/reproject.
     """
     global_header = Map(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0]).header
+    header_0 = global_header.copy()
+    wcs_0 = WCS(header_0)
+    wcs_0.sip = None
+    wcs_0 = wcs_0.dropaxis(2)
+    header_0 = wcs_0.to_header(relax=True)
 
     # Creation of a header per targeted region
     header_1 = global_header.copy()
@@ -65,7 +70,7 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
 
     # Creation of every map with the matching WCS
     maps_to_create = [
-        ("global_widening.fits", fwhm_map, global_header), ("global_widening_unc.fits", fwhm_unc_map, global_header),
+        ("global_widening.fits", fwhm_map, header_0), ("global_widening_unc.fits", fwhm_unc_map, header_0),
         ("region_1_widening.fits", fwhm_map, header_1), ("region_1_widening_unc.fits", fwhm_unc_map, header_1),
         ("region_2_widening.fits", fwhm_map, header_2), ("region_2_widening_unc.fits", fwhm_unc_map, header_2),
         ("region_3_widening.fits", fwhm_map, header_3), ("region_3_widening_unc.fits", fwhm_unc_map, header_3)
@@ -93,10 +98,13 @@ def get_turbulence_map():
     """
     global_FWHM_map = Map(fits.open("gaussian_fitting/maps/reproject/global_widening.fits")[0])
     global_FWHM_map_unc = Map(fits.open("gaussian_fitting/maps/reproject/global_widening_unc.fits")[0])
-    instrumental_function = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0])
-    instrumental_function_unc = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0])
+    instrumental_function = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
+    instrumental_function_unc = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
+    a = global_FWHM_map**2 - instrumental_function**2
+    aligned_map, aligned_map_unc = (global_FWHM_map**2 - instrumental_function**2).align_regions(
+                                    global_FWHM_map.get_power_uncertainty(global_FWHM_map_unc) + 
+                                    instrumental_function.get_power_uncertainty(instrumental_function_unc))
     
-    aligned_global_map = (global_FWHM_map**2 - instrumental_function.bin_map(2)**2).align_regions()
     
     plt.imshow(aligned_global_map.data, vmin=0, vmax=40, origin="lower")
     plt.show()

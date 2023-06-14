@@ -17,7 +17,6 @@ import time
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-
 class Fits_file():
     """
     Encapsulate the methods specific to .fits files that can be used both in data cube and map analysis.
@@ -319,9 +318,6 @@ class Map(Fits_file):
 
     def __pow__(self, power):
         return Map(fits.PrimaryHDU(self.data ** power, self.header))
-    
-    def sqrt(self):
-        return Map(fits.PrimaryHDU(np.sqrt(self.data), self.header))
 
     def plot_map(self, color_autoscale=True, bounds=None):
         """
@@ -452,23 +448,20 @@ class Map(Fits_file):
         reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
         return Map(fits.PrimaryHDU(reprojection, other.header))
     
-    def align_regions(self, uncertainties_map=False):
+    def align_regions(self, uncertainty_map):
         """
-        Get the FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
+        Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
         better the WCS. The same method can also be called with an uncertainty map to get the aligned uncertainty map.
 
         Arguments
         ---------
-        uncertainties_map: bool, default=False. Specifies if the object is an uncertainty map.
+        uncertainty_map: map object. Gives the FWHM's uncertainty at every point.
 
         Returns
         -------
-        Map object: global map with the three aligned regions and the instrumental function width removed.
+        tuple of map objects: first element is the global map with the three aligned regions, result of the subtraction of the
+        squared map and the squared instrumental function map and the second element is the uncertainty.
         """
-        uncertainty_addition = None
-        if uncertainties_map:
-            uncertainty_addition = "_unc"
-        
         regions = [
             pyregion.open("gaussian_fitting/regions/region_1.reg"),
             pyregion.open("gaussian_fitting/regions/region_2.reg"),
@@ -483,31 +476,41 @@ class Map(Fits_file):
         # The map's data is removed where a mask applies
         new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
 
-
-        # Every specific map has the same values than the global map, but the header is changed to a fit a specific region
+        # Every specific map has the same values than the global map, but the header is changed to fit a specific region
         specific_maps = [
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening{uncertainty_addition or ''}.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening{uncertainty_addition or ''}.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening{uncertainty_addition or ''}.fits")[0])
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[0])
         ]
-
-        calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f{uncertainty_addition or ''}.fits")[0])
-
-        if uncertainties_map:
-            # The calibration FWHM's uncertainty is propagated
-            specific_maps = []
-        else:
-            # The calibration FWHM's correction is applied
-            specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
-
+        # The calibration map's correction is applied
+        calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
+        specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
         # Alignment of the specific maps on the global WCS
         specific_maps = [specific_map.get_reprojection(self) for specific_map in specific_maps]
-
         # Only the data within the mask is kept
         region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(specific_maps)]
         new_data += region_data[0] + region_data[1] + region_data[2]
 
+        specific_maps_unc = [
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening_unc.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening_unc.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening_unc.fits")[0])
+        ]
+        # The calibration map's uncertainty is propagated with each specific_map and specific_map_unc
+        calib_map_unc = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
+        specific_maps_unc = [maps[0].get_power_uncertainty(maps[1]) + calib_map.get_power_uncertainty(calib_map_unc)
+                             for maps in list((specific_maps, specific_maps_unc))]
+        
+        
+        
+
+
+        
+        raise ArithmeticError
         return Map(fits.PrimaryHDU(new_data, self.header))
+
+    def get_power_uncertainty(self, uncertainty_map):
+        return Map(fits.PrimaryHDU((uncertainty_map.data / self.data * 2 * self.data**2), self.header))
 
     def get_thermal_FWHM(self):
         """
@@ -526,6 +529,8 @@ class Map(Fits_file):
         angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
+
+
 
 
 # temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
