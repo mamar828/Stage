@@ -12,11 +12,13 @@ In this file are examples of code that have been used to create the fits files. 
 
 def get_smoothed_instr_f():
     """
-    In this example, the smooth instrumental function map is calculated
+    In this example, the smooth instrumental function map is calculated from the calibration_cube
     """
-    # calibration_cube = 
+    calibration_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/calibration.fits")[0])
+    calibration_cube.fit_calibration()
 
 
+get_smoothed_instr_f
 
 
 def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
@@ -77,7 +79,7 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
     ]
 
     for filename, map_data, header in maps_to_create:
-        # The header needs to be binned becaused the FWHM map is 512x512 pixels
+        # The header needs to be binned becaused the FWHM map is 512x512 pixels and the header was made for 1024x1024 pixels
         header_copy = header.copy()
         header_copy["CDELT1"] *= 2
         header_copy["CDELT2"] *= 2
@@ -93,8 +95,8 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
 def get_turbulence_map():
     """
     In this example, the turbulence map is obtained with the previously computed maps: all region widenings and their
-    uncertainties, smoothed_instr_f and its uncertainty. Note that the region widenings maps are not opened directly
-    but are used in the Map.align_regions() method.
+    uncertainties as well as smoothed_instr_f and its uncertainty. Note that the region widenings maps are not opened
+    directly but are used in the Map.align_regions() method.
     """
     global_FWHM_map = Map(fits.open("gaussian_fitting/maps/reproject/global_widening.fits")[0])
     global_FWHM_map_unc = Map(fits.open("gaussian_fitting/maps/reproject/global_widening_unc.fits")[0])
@@ -102,11 +104,9 @@ def get_turbulence_map():
     instrumental_function_unc = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
     temp_map_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0])
     temp_map_unc_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0])
+    # The temperature maps are adjusted at the same WCS than the global maps
     temperature_map = temp_map_raw.get_thermal_FWHM().get_reprojection(global_FWHM_map)
     temperature_map_unc = temp_map_unc_raw.get_thermal_FWHM().get_reprojection(global_FWHM_map_unc)
-    print(f"global_FWHM: ({global_FWHM_map.data[197,277]} ± {global_FWHM_map_unc.data[197,277]})")
-    print(f"instrumental_function: ({instrumental_function.data[197,277]} ± {instrumental_function_unc.data[197,277]})")
-    print(f"temperature_map: ({temperature_map.data[197,277]} ± {temperature_map_unc.data[197,277]})")
     # The aligned maps are the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map, aligned_map_unc = (global_FWHM_map**2 - instrumental_function**2).align_regions(
                                     global_FWHM_map.get_power_uncertainty(global_FWHM_map_unc, 2) + 
@@ -115,12 +115,8 @@ def get_turbulence_map():
     turbulence_map_unc = turbulence_map.get_power_uncertainty(
                          aligned_map_unc + temperature_map.get_power_uncertainty(temperature_map_unc, 2), 0.5)
     turbulence_map **= 0.5
-    print(f"turbulence_map: ({turbulence_map.data[197,277]} ± {turbulence_map_unc.data[197,277]})")
-    plt.imshow(turbulence_map_unc, vmin=0, vmax=40, origin="lower")
-    # plt.imshow((global_FWHM_map**2-instrumental_function**2)**0.5, vmin=0, vmax=40, origin="lower")
-    # plt.imshow(aligned_map**0.5, vmin=0, vmax=40, origin="lower")
-    # plt.imshow(turbulence_map.data, vmin=0, vmax=40, origin="lower")
-    plt.show()
+    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
+    turbulence_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence_unc.fits")
 
 
 get_turbulence_map()

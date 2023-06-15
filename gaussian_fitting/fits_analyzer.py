@@ -463,7 +463,7 @@ class Map(Fits_file):
         Returns
         -------
         tuple of map objects: first element is the global map with the three aligned regions, result of the subtraction of the
-        squared map and the squared instrumental function map and the second element is the uncertainty.
+        squared FWHM map and the squared instrumental function map and the second element is the uncertainty.
         """
         regions = [
             pyregion.open("gaussian_fitting/regions/region_1.reg"),
@@ -512,7 +512,20 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(new_data, self.header)), Map(fits.PrimaryHDU(new_data_unc, uncertainty_map.header))
 
     def get_power_uncertainty(self, uncertainty_map, power):
-        return Map(fits.PrimaryHDU((uncertainty_map.data / self.data * power * self.data**power), self.header))
+        """
+        Get the propagated uncertainty of a quantity raised to any power using uncertainty propagation rules.
+
+        Arguments
+        ---------
+        uncertainty_map: map of the uncertainty associated to the self.data.
+        power: power at which the data is raised.
+        
+        Returns
+        -------
+        map object: map of the correct uncertainty following the exponential operation. The header of the object is the
+        uncertainty_map's header.
+        """
+        return Map(fits.PrimaryHDU((uncertainty_map.data / self.data * power * self.data**power), uncertainty_map.header))
 
     def get_thermal_FWHM(self):
         """
