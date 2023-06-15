@@ -342,7 +342,7 @@ class Map(Fits_file):
         bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first element is
         the minimum and the second is the maximum.
         """
-        plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1] alpha=alpha))
+        plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1], alpha=alpha))
         plt.colorbar(plt.imshow(other.data, origin="lower", cmap="magma", vmin=bounds[0], vmax=bounds[1], alpha=alpha))
         plt.show()
 
