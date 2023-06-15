@@ -318,6 +318,9 @@ class Map(Fits_file):
 
     def __pow__(self, power):
         return Map(fits.PrimaryHDU(self.data ** power, self.header))
+    
+    def __array__(self):
+        return self.data
 
     def plot_map(self, color_autoscale=True, bounds=None):
         """
@@ -475,7 +478,6 @@ class Map(Fits_file):
 
         # The map's data is removed where a mask applies
         new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
-
         # Every specific map has the same values than the global map, but the header is changed to fit a specific region
         specific_maps = [
             Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[0]),
@@ -484,13 +486,20 @@ class Map(Fits_file):
         ]
         # The calibration map's correction is applied
         calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
-        specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
+        modified_specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
         # Alignment of the specific maps on the global WCS
-        specific_maps = [specific_map.get_reprojection(self) for specific_map in specific_maps]
+        modified_specific_maps = [specific_map.get_reprojection(self) for specific_map in modified_specific_maps]
         # Only the data within the mask is kept
-        region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(specific_maps)]
+        region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
+        plt.imshow(region_data[0] + region_data[1] + region_data[2], origin="lower", alpha=0.4)
+        plt.imshow(new_data, origin="lower", alpha=0.6, vmin=0, vmax=200)
+        plt.show()
         new_data += region_data[0] + region_data[1] + region_data[2]
+        plt.imshow(new_data, origin="lower", vmin=0, vmax=2000)
 
+
+        # The uncertainty map's data is removed where a mask applies
+        new_data_unc = np.copy(uncertainty_map.data) * (1 - (masks[0] + masks[1] + masks[2]))
         specific_maps_unc = [
             Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening_unc.fits")[0]),
             Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening_unc.fits")[0]),
@@ -498,19 +507,17 @@ class Map(Fits_file):
         ]
         # The calibration map's uncertainty is propagated with each specific_map and specific_map_unc
         calib_map_unc = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
-        specific_maps_unc = [maps[0].get_power_uncertainty(maps[1]) + calib_map.get_power_uncertainty(calib_map_unc)
-                             for maps in list((specific_maps, specific_maps_unc))]
-        
-        
-        
+        modified_specific_maps_unc = [maps[0].get_power_uncertainty(maps[1], 2) + calib_map.get_power_uncertainty(calib_map_unc, 2)
+                                      for maps in list(zip(specific_maps, specific_maps_unc))]
+        # Alignment of the specific maps uncertainty on the main map's WCS
+        modified_specific_maps_unc = [specific_map_unc.get_reprojection(self) for specific_map_unc in modified_specific_maps_unc]
+        # Only the data within the mask is kept
+        region_data_unc = [specific_map_unc.data * masks[i] for i, specific_map_unc in enumerate(modified_specific_maps_unc)]
+        new_data_unc += region_data_unc[0] + region_data_unc[1] + region_data_unc[2]
+        return Map(fits.PrimaryHDU(new_data, self.header)), Map(fits.PrimaryHDU(new_data_unc, uncertainty_map.header))
 
-
-        
-        raise ArithmeticError
-        return Map(fits.PrimaryHDU(new_data, self.header))
-
-    def get_power_uncertainty(self, uncertainty_map):
-        return Map(fits.PrimaryHDU((uncertainty_map.data / self.data * 2 * self.data**2), self.header))
+    def get_power_uncertainty(self, uncertainty_map, power):
+        return Map(fits.PrimaryHDU((uncertainty_map.data / self.data * power * self.data**power), self.header))
 
     def get_thermal_FWHM(self):
         """
