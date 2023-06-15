@@ -46,3 +46,6 @@ DEC: 0.967
 
 
 The maps in maps/reproject of certain regions are made with the night_34_Xa maps. The global map is made with night_34_tt_e.fits.
+
+temp_it_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits
+temp_it_nii_err_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits

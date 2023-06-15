@@ -299,6 +299,19 @@ plt.show()
 
 # ------------------------------------------------------------------
 
-a = [1,2,3]
-b = [4,5,6]
-print(list(zip((a,b))))
+# a = [1,2,3]
+# b = [4,5,6]
+# print(list(zip((a,b))))
+
+# -----------------------------------------------------------------------------
+
+global_FWHM = [26.493511278299923, 1.7613582640346546]
+instrumental_function = [19.043028592247367, 0.6296641923412385]
+temperature_map = [5.2978097899979195, 1.610059406400397]
+turbulence_map = [17.64093005817031, 3.8084764530987583]
+
+# print(np.sqrt(global_FWHM[0]**2-instrumental_function[0]**2-temperature_map[0]**2))
+print((global_FWHM[1]/global_FWHM[0] * 2 * global_FWHM[0]**2 + 
+      instrumental_function[1]/instrumental_function[0] * 2 * instrumental_function[0]**2 + 
+      temperature_map[1]/temperature_map[0] * 2 * temperature_map[0]**2) / turbulence_map[0]**2 * 0.5 *turbulence_map[0])
+

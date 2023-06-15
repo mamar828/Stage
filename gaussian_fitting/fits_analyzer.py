@@ -491,12 +491,7 @@ class Map(Fits_file):
         modified_specific_maps = [specific_map.get_reprojection(self) for specific_map in modified_specific_maps]
         # Only the data within the mask is kept
         region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
-        plt.imshow(region_data[0] + region_data[1] + region_data[2], origin="lower", alpha=0.4)
-        plt.imshow(new_data, origin="lower", alpha=0.6, vmin=0, vmax=200)
-        plt.show()
         new_data += region_data[0] + region_data[1] + region_data[2]
-        plt.imshow(new_data, origin="lower", vmin=0, vmax=2000)
-
 
         # The uncertainty map's data is removed where a mask applies
         new_data_unc = np.copy(uncertainty_map.data) * (1 - (masks[0] + masks[1] + masks[2]))

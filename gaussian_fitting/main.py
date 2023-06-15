@@ -100,10 +100,13 @@ def get_turbulence_map():
     global_FWHM_map_unc = Map(fits.open("gaussian_fitting/maps/reproject/global_widening_unc.fits")[0])
     instrumental_function = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
     instrumental_function_unc = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
-    temp_map = Map(fits.open("gaussian_fitting/maps/external_maps/temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
-    temp_map_unc = Map(fits.open("gaussian_fitting/maps/external_maps/temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
-    temperature_map = temp_map.get_thermal_FWHM().get_reprojection(global_FWHM_map)
-    temperature_map_unc = temp_map_unc.get_thermal_FWHM().get_reprojection(global_FWHM_map_unc)
+    temp_map_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0])
+    temp_map_unc_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0])
+    temperature_map = temp_map_raw.get_thermal_FWHM().get_reprojection(global_FWHM_map)
+    temperature_map_unc = temp_map_unc_raw.get_thermal_FWHM().get_reprojection(global_FWHM_map_unc)
+    print(f"global_FWHM: ({global_FWHM_map.data[197,277]} ± {global_FWHM_map_unc.data[197,277]})")
+    print(f"instrumental_function: ({instrumental_function.data[197,277]} ± {instrumental_function_unc.data[197,277]})")
+    print(f"temperature_map: ({temperature_map.data[197,277]} ± {temperature_map_unc.data[197,277]})")
     # The aligned maps are the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map, aligned_map_unc = (global_FWHM_map**2 - instrumental_function**2).align_regions(
                                     global_FWHM_map.get_power_uncertainty(global_FWHM_map_unc, 2) + 
@@ -112,10 +115,8 @@ def get_turbulence_map():
     turbulence_map_unc = turbulence_map.get_power_uncertainty(
                          aligned_map_unc + temperature_map.get_power_uncertainty(temperature_map_unc, 2), 0.5)
     turbulence_map **= 0.5
-    
-    diff = aligned_map**0.5 - (global_FWHM_map**2 - instrumental_function**2)**0.5
-
-    plt.imshow(diff, vmin=0, vmax=15, origin="lower")
+    print(f"turbulence_map: ({turbulence_map.data[197,277]} ± {turbulence_map_unc.data[197,277]})")
+    plt.imshow(turbulence_map_unc, vmin=0, vmax=40, origin="lower")
     # plt.imshow((global_FWHM_map**2-instrumental_function**2)**0.5, vmin=0, vmax=40, origin="lower")
     # plt.imshow(aligned_map**0.5, vmin=0, vmax=40, origin="lower")
     # plt.imshow(turbulence_map.data, vmin=0, vmax=40, origin="lower")
