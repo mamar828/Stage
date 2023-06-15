@@ -7,18 +7,41 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 """
-In this file are examples of code that have been used to create the fits files. Every operation has been grouped into a function.
+In this file are examples of code that have been used to create the .fits files. Every operation has been grouped into
+a function to improve readability.
 """
 
 def get_smoothed_instr_f():
     """
-    In this example, the smooth instrumental function map is calculated from the calibration_cube
+    In this example, the smooth instrumental function map is calculated from the calibration_cube.
     """
     calibration_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/calibration.fits")[0])
-    calibration_cube.fit_calibration()
+    calibration_map, calibration_map_unc = calibration_cube.fit_calibration()
+    # For smoothing the change of interference order, a center pixel is required
+    calibration_center_pixel = calibration_cube.get_center_point(center_guess=(527,484))
+    calibration_center_pixel_rounded = round(calibration_center_pixel[0][0]), round(calibration_center_pixel[1][0])
+    smoothed_instr_f, smoothed_instr_f_unc = calibration_map.smooth_order_change(
+                                            calibration_map_unc, center=calibration_center_pixel_rounded)
+    smoothed_instr_f.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")
+    smoothed_instr_f_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")
 
 
-get_smoothed_instr_f
+# if __name__ == "__main__":
+#     get_smoothed_instr_f()
+
+
+def get_FWHM_maps():
+    """
+    In this example, the FWHM_NII maps are obtained.
+    """
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    nii_map, nii_map_unc = nii_cube.fit_NII()
+    nii_map.save_as_fits_file("gaussian_fitting/maps/computed_maps/fwhm_NII.fits")
+    nii_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_maps/fwhm_NII_unc.fits")
+
+
+# if __name__ == "__main__":
+#     get_FWHM_maps()
 
 
 def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
@@ -105,18 +128,18 @@ def get_turbulence_map():
     temp_map_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0])
     temp_map_unc_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0])
     # The temperature maps are adjusted at the same WCS than the global maps
-    temperature_map = temp_map_raw.get_thermal_FWHM().get_reprojection(global_FWHM_map)
-    temperature_map_unc = temp_map_unc_raw.get_thermal_FWHM().get_reprojection(global_FWHM_map_unc)
+    temperature_map = temp_map_raw.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map)
+    temperature_map_unc = temp_map_unc_raw.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map_unc)
     # The aligned maps are the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map, aligned_map_unc = (global_FWHM_map**2 - instrumental_function**2).align_regions(
-                                    global_FWHM_map.get_power_uncertainty(global_FWHM_map_unc, 2) + 
-                                    instrumental_function.get_power_uncertainty(instrumental_function_unc, 2))
+                                    global_FWHM_map.calc_power_uncertainty(global_FWHM_map_unc, 2) + 
+                                    instrumental_function.calc_power_uncertainty(instrumental_function_unc, 2))
     turbulence_map = aligned_map - temperature_map**2
-    turbulence_map_unc = turbulence_map.get_power_uncertainty(
-                         aligned_map_unc + temperature_map.get_power_uncertainty(temperature_map_unc, 2), 0.5)
+    turbulence_map_unc = turbulence_map.calc_power_uncertainty(
+                         aligned_map_unc + temperature_map.calc_power_uncertainty(temperature_map_unc, 2), 0.5)
     turbulence_map **= 0.5
     turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
     turbulence_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence_unc.fits")
 
 
-get_turbulence_map()
+# get_turbulence_map()

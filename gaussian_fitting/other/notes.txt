@@ -49,3 +49,7 @@ The maps in maps/reproject of certain regions are made with the night_34_Xa maps
 
 temp_it_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits
 temp_it_nii_err_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits
+
+In the numpy array, every vertical group is a y coordinate, starting from (1,1) at the top
+Every element in a group is a x coordinate
+Every sub-element is the fwhm and its uncertainty

@@ -62,12 +62,12 @@ class Fits_file():
             fits.open(filename)[0]
             # The file already exists
             while True:
-                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [yes/no]")
-                if answer == "yes":
+                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                if answer == "y":
                     fits.writeto(filename, self.data, self.header, overwrite=True)
                     print("File overwritten.")
                     break
-                elif answer == "no":
+                elif answer == "n":
                     break        
                 
         except:
@@ -93,46 +93,31 @@ class Data_cube(Fits_file):
         self.data = fits_object.data
         self.header = fits_object.header
 
-    def fit_calibration(self, data_cube=None):
+    def fit_calibration(self):
         """
         Fit the whole data cube as if it was a calibration cube and extract the FWHM and its uncertainty at every point.
-        Set the global numpy array self.fit_fwhm_map the value of the fit's FWHM at every point. The first element of the
-        array along the third axis is the FWHM value and the second value is its uncertainty. Print the x value of the
-        pixel row whose x is divisible by 10 and print a point for every other row. Every print is a row being fitted.
-        Note that this process utilizes only a single CPU and therefore could be accelerated.
-
-        Arguments
-        ---------
-        data: numpy array, optional. Specifies the data cube to be fitted. If None, the data cube of the analyzer will be
-        fitted directly.
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
+        state with the following phrasing:
+        if __name__ == "__main__":
+        This prevents the code to recursively create instances of this code that would eventually overload the CPUs.
 
         Returns
         -------
-        numpy array: map of the fit's FWHM and its uncertainty at every point.
+        tuple of Map objects: first element is the map of the calibration peak's FWHM at every point whilst the second is
+        the associated uncertainty map.
         """
-        if data_cube is None:
-            data_cube = np.copy(self.data)
-        
-        self.fit_fwhm_map = np.zeros([data_cube.shape[1], data_cube.shape[2], 2])
-        for x in range(0, data_cube.shape[2]):
-            # Optional prints
-            if x%10 == 0:
-                print("\n", x, end=" ")
-            else:
-                print(".", end="")
-            for y in range(data_cube.shape[1]):
-                try:
-                    spectrum_object = Spectrum(data_cube[:,y,x], calibration=True)
-                    spectrum_object.fit()
-                    self.fit_fwhm_map[y,x,:] = spectrum_object.get_FWHM_speed(
-                        spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"])
-                except:
-                    self.fit_fwhm_map[y,x,:] = [np.NAN, np.NAN]
-        
-        # In the numpy array, every vertical group is a y coordinate, starting from (1,1) at the top
-        # Every element in a group is a x coordinate
-        # Every sub-element is the fwhm and its uncertainty
-        return self.fit_fwhm_map
+        data = np.copy(self.data)
+        fit_fwhm_list = []
+        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
+        start = time.time()
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration") for y in range(data.shape[1])))))
+        stop = time.time()
+        print("Finished in", stop-start, "s.")
+        pool.close()
+        # The map is temporarily stored in a simple format to facilitate extraction
+        fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
+        return (Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension())), 
+                Map(fits.PrimaryHDU(fit_fwhm_map[:,:,1], self.get_header_without_third_dimension())))
 
     def fit_NII(self):
         """
@@ -141,23 +126,25 @@ class Data_cube(Fits_file):
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
         state with the following phrasing:
         if __name__ == "__main__":
-        This prevents the code to create recursively instances of this code that would eventually overload the CPUs.
+        This prevents the code to recursively create instances of this code that would eventually overload the CPUs.
 
         Returns
         -------
-        numpy array: map of the NII peak's FWHM at every point. Each coordinate is another list with the first element being
-        the FWHM value and the second being its uncertainty.
+        tuple of Map objects: first element is the map of the NII peak's FWHM at every point whilst the second is the associated
+        uncertainty map.
         """
-        data = self.bin_cube(self.data, 2)
+        data = np.copy(self.data)
         fit_fwhm_list = []
-        # This automatically generates an optimal number of workers
-        pool = multiprocessing.Pool()
+        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data) for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII") for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
-        return np.squeeze(np.array(fit_fwhm_list), axis=0)
+        # The map is temporarily stored in a simple format to facilitate extraction
+        fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
+        return (Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension())), 
+                Map(fits.PrimaryHDU(fit_fwhm_map[:,:,1], self.get_header_without_third_dimension())))
         
     def bin_cube(self, nb_pix_bin=2):
         """
@@ -167,13 +154,13 @@ class Data_cube(Fits_file):
 
         Arguments
         ---------
-        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the default value 2
-        will give a new cube in which every pixel at a specific channel is the mean value of every 4 pixels (2x2 bin) at that same
-        channel.
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For example, the default
+        value 2 will give a new cube in which every pixel at a specific channel is the mean value of every 4 pixels (2x2 bin) at that
+        same channel.
 
         Returns
         -------
-        numpy array: binned cube.
+        Data_cube object: binned cube with the same header.
         """
         data = np.copy(self.data)
         # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
@@ -206,7 +193,6 @@ class Data_cube(Fits_file):
         -------
         tuple: the calculated center coordinates with their uncertainty. This is an approximation based on the center_guess provided.
         """
-
         distances = {"x": [], "y": []}
         # The success int will be used to measure how many distances are utilized to calculate the average center
         success = 0
@@ -243,52 +229,59 @@ class Data_cube(Fits_file):
         x_mean, y_mean = np.mean(distances["x"], axis=(0,1)), np.mean(distances["y"], axis=(0,1))
         x_uncertainty, y_uncertainty = np.std(distances["x"], axis=(0,1)), np.std(distances["y"], axis=(0,1))
         return [x_mean, x_uncertainty], [y_mean, y_uncertainty]
-
-    # ---------------------------------- MAY BECOME OBSOLETE ----------------------------------
-    def get_corrected_width(self, fwhm_NII=np.ndarray, fwhm_NII_uncertainty=np.ndarray,
-                            instrumental_function_width=np.ndarray, instrumental_function_width_uncertainty=np.ndarray):
+    
+    def get_header_without_third_dimension(self):
         """
-        Get the fitted gaussian FWHM value corrected by removing the instrumental_function_width.
-
-        Arguments
-        ---------
-        fwhm_NII: numpy array. Map of the FWHM of the NII gaussian.
-        fwhm_NII_uncertainty: numpy array. Uncertainty map of the FWHM of the NII gaussian.
-        instrumental_function_width: numpy array. Map of the FWHM of the calibration peak.
-        instrumental_function_width_uncertainty: numpy array. Uncertainty map of the FWHM of the calibration peak.
+        Get the adaptation of a Data_cube object's header for a Map object by removing the spectral axis.
 
         Returns
         -------
-        numpy array: map of the calibration FWHM subtracted to the NII fwhm. The first element at a specific coordinate is
-        the corrected FWHM value and the second element is its uncertainty.
+        astropy.io.fits.header.Header: header with the same but with the third axis removed.
         """
-        return [fwhm_NII - instrumental_function_width,
-                fwhm_NII_uncertainty + instrumental_function_width_uncertainty]
-    
+        header = self.header.copy()
+        wcs = WCS(header)
+        wcs.sip = None
+        wcs = wcs.dropaxis(2)
+        header = wcs.to_header(relax=True)
+        return header
+
 
 def worker_fit(args):
     """
-    Fit an entire line of the NII cube.
+    Fit an entire line of a Data_cube.
 
     Arguments
     ---------
-    args: tuple. The first element is the y value of the line to be fitted and the second element is the data_cube used.
+    args: tuple. The first element is the y value of the line to be fitted, the second element is the Data_cube used and the
+    third element is a string specifying if the cube is a calibration cube or a NII cube: "calibration" or "NII".
     Note that arguments are given in tuple due to the way the multiprocessing library operates.
 
     Returns
     -------
-    list: FWHM value of the fitted gaussian on the NII peak along the specified line. Each coordinates has two value: the former
-    being the FWHM value whilst the latter being its uncertainty.
+    list: FWHM value of the fitted gaussian on the studied peak along the specified line. Each coordinates has two values:
+    the former being the FWHM value whilst the latter being its uncertainty.
     """
-    y, data = args
+    y, data, cube_type = args
     line = []
-    for x in range(data.shape[1]):
-        spectrum_object = Spectrum(data[:,y,x], calibration=False)
-        spectrum_object.fit(spectrum_object.get_initial_guesses())
-        line.append(spectrum_object.get_FWHM_speed(
-                    spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
-    return line
+    if cube_type == "calibration":
+        for x in range(data.shape[2]):
+            spectrum_object = Spectrum(data[:,y,x], calibration=True)
+            spectrum_object.fit()
+            try:
+                line.append(spectrum_object.get_FWHM_speed(
+                            spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
+            except:
+                print(x,y)
+                line.append(np.NAN, np.NAN)
 
+    elif cube_type == "NII":
+        for x in range(data.shape[2]):
+            spectrum_object = Spectrum(data[:,y,x], calibration=False)
+            spectrum_object.fit(spectrum_object.get_initial_guesses())
+            line.append(spectrum_object.get_FWHM_speed(
+                        spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
+    return line
+        
 
 
 class Map(Fits_file):
@@ -298,7 +291,7 @@ class Map(Fits_file):
 
     def __init__(self, fits_object):
         """
-        Initialize a map object.
+        Initialize a Map object.
 
         Arguments
         ---------
@@ -322,29 +315,35 @@ class Map(Fits_file):
     def __array__(self):
         return self.data
 
-    def plot_map(self, color_autoscale=True, bounds=None):
+    def plot_map(self, bounds=None):
         """
         Plot the map in matplotlib.pyplot.
 
         Arguments
         ---------
-        color_autoscale: bool. If True, the colorbar will automatically scale to have as bounds the map's minimum and maximum. If
-        False, bounds must be specified.
-        bounds: tuple. Indicates the colorbar's bounds. The tuple's first element is the minimum and the second is the maximum.
+        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first element is
+        the minimum and the second is the maximum.
         """
         data = np.copy(self.data)
-        if color_autoscale:
-            plt.colorbar(plt.imshow(data, origin="lower", cmap="viridis"))
-        elif bounds:
+        if bounds:
             plt.colorbar(plt.imshow(data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
         else:
-            plt.colorbar(plt.imshow(data, origin="lower", cmap="viridis", vmin=data[round(data.shape[0]/2), round(data.shape[1]/2)]*3/5,
-                                                                     vmax=data[round(data.shape[0]/10), round(data.shape[1]/10)]*2))
+            plt.colorbar(plt.imshow(data, origin="lower", cmap="viridis"))
         plt.show()
 
-    def plot_two_maps(self, other):
-        plt.colorbar(plt.imshow(self.data, origin="lower", cmap="magma", alpha=0.3))
-        plt.colorbar(plt.imshow(other.data, origin="lower", cmap="viridis", vmin=0, vmax=40, alpha=0.3))
+    def plot_two_maps(self, other, bounds=None, alpha=0.5):
+        """
+        Plot two maps superposed with a certain alpha. The first map is plotted with the viridis colormap whereas the second
+        map is plotted with the magma colormap.
+
+        Arguments
+        ---------
+        other: Map object. The second map that will be plotted with the magma colormap.
+        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first element is
+        the minimum and the second is the maximum.
+        """
+        plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1] alpha=alpha))
+        plt.colorbar(plt.imshow(other.data, origin="lower", cmap="magma", vmin=bounds[0], vmax=bounds[1], alpha=alpha))
         plt.show()
 
     def bin_map(self, nb_pix_bin=2):
@@ -360,7 +359,7 @@ class Map(Fits_file):
 
         Returns
         -------
-        map object: binned map.
+        Map object: binned map.
         """
         data = np.copy(self.data)
         # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
@@ -379,9 +378,9 @@ class Map(Fits_file):
     
     def smooth_order_change(self, uncertainty_map, center=(527, 484)):
         """
-        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM is
-        reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an order
-        change to the mean value of certain pixels in a 7x7 area around the pixel.
+        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM
+        is reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an
+        order change to the mean value of certain pixels in a 7x7 area around the pixel.
 
         Arguments
         ---------
@@ -390,7 +389,7 @@ class Map(Fits_file):
 
         Returns
         -------
-        numpy array: map of the FWHM at every point and its associated uncertainty.
+        tuple of Map objects: the first Map is the FWHM at every point and the second is its associated uncertainty.
         """
         data = np.copy(self.data)
         uncertainties = np.copy(uncertainty_map.data)
@@ -434,19 +433,19 @@ class Map(Fits_file):
                     data[y,x] = np.nanmean(near_pixels)
                     uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
                     # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
-        return np.stack((data, uncertainties), axis=2)
+        return Map(fits.PrimaryHDU(data, self.header)), Map(fits.PrimaryHDU(uncertainties, self.header))
 
-    def get_reprojection(self, other):
+    def reproject_on(self, other):
         """
         Get the reprojection of the map on the other object's WCS. This makes the coordinates match.
 
         Arguments
         ---------
-        other: map object. Reference map to project on and to base the shift of WCS.
+        other: Map object. Reference map to project on and to base the shift of WCS.
 
         Returns
         -------
-        map object: map with WCS aligned to the other map.
+        Map object: map with WCS aligned to the other map.
         """
         reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
         return Map(fits.PrimaryHDU(reprojection, other.header))
@@ -458,11 +457,11 @@ class Map(Fits_file):
 
         Arguments
         ---------
-        uncertainty_map: map object. Gives the FWHM's uncertainty at every point.
+        uncertainty_map: Map object. Gives the FWHM's uncertainty at every point.
 
         Returns
         -------
-        tuple of map objects: first element is the global map with the three aligned regions, result of the subtraction of the
+        tuple of Map objects: first element is the global map with the three aligned regions, result of the subtraction of the
         squared FWHM map and the squared instrumental function map and the second element is the uncertainty.
         """
         regions = [
@@ -488,7 +487,7 @@ class Map(Fits_file):
         calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
         modified_specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
         # Alignment of the specific maps on the global WCS
-        modified_specific_maps = [specific_map.get_reprojection(self) for specific_map in modified_specific_maps]
+        modified_specific_maps = [specific_map.reproject_on(self) for specific_map in modified_specific_maps]
         # Only the data within the mask is kept
         region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
         new_data += region_data[0] + region_data[1] + region_data[2]
@@ -502,16 +501,16 @@ class Map(Fits_file):
         ]
         # The calibration map's uncertainty is propagated with each specific_map and specific_map_unc
         calib_map_unc = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
-        modified_specific_maps_unc = [maps[0].get_power_uncertainty(maps[1], 2) + calib_map.get_power_uncertainty(calib_map_unc, 2)
+        modified_specific_maps_unc = [maps[0].calc_power_uncertainty(maps[1], 2) + calib_map.calc_power_uncertainty(calib_map_unc, 2)
                                       for maps in list(zip(specific_maps, specific_maps_unc))]
         # Alignment of the specific maps uncertainty on the main map's WCS
-        modified_specific_maps_unc = [specific_map_unc.get_reprojection(self) for specific_map_unc in modified_specific_maps_unc]
+        modified_specific_maps_unc = [specific_map_unc.reproject_on(self) for specific_map_unc in modified_specific_maps_unc]
         # Only the data within the mask is kept
         region_data_unc = [specific_map_unc.data * masks[i] for i, specific_map_unc in enumerate(modified_specific_maps_unc)]
         new_data_unc += region_data_unc[0] + region_data_unc[1] + region_data_unc[2]
         return Map(fits.PrimaryHDU(new_data, self.header)), Map(fits.PrimaryHDU(new_data_unc, uncertainty_map.header))
 
-    def get_power_uncertainty(self, uncertainty_map, power):
+    def calc_power_uncertainty(self, uncertainty_map, power):
         """
         Get the propagated uncertainty of a quantity raised to any power using uncertainty propagation rules.
 
@@ -522,15 +521,15 @@ class Map(Fits_file):
         
         Returns
         -------
-        map object: map of the correct uncertainty following the exponential operation. The header of the object is the
+        Map object: map of the correct uncertainty following the exponential operation. The header of the object is the
         uncertainty_map's header.
         """
         return Map(fits.PrimaryHDU((uncertainty_map.data / self.data * power * self.data**power), uncertainty_map.header))
 
-    def get_thermal_FWHM(self):
+    def transfer_temperature_to_FWHM(self):
         """
         Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
-        can be compared with other FWHM maps. This function can be called with an uncertainty map object to get the FWHM's
+        can be compared with other FWHM maps. This function can be called with an uncertainty Map object to get the FWHM's
         uncertainty.
 
         Returns
@@ -544,12 +543,3 @@ class Map(Fits_file):
         angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
-
-
-
-
-# temp_map = Map(fits.open("temp_nii_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35_incertitude_moins_de_1000.fits")[0])
-# glob_map = Map(fits.open("maps/reproject/global_widening.fits")[0])
-# glob_map_unc = Map(fits.open("maps/reproject/global_widening_unc.fits")[0])
-
-# glob_map_unc.get_aligned_regions(True).plot_map(False, (0,40))
