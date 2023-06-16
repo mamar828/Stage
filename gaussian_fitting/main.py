@@ -115,7 +115,7 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
 #                          fits.open("gaussian_fitting/maps/computed_data/fwhm_NII_unc.fits")[0].data)
 
 
-def get_turbulence_map():
+def get_turbulence_map(temp_map, temp_map_unc):
     """
     In this example, the turbulence map is obtained with the previously computed maps: all region widenings and their
     uncertainties as well as smoothed_instr_f and its uncertainty. Note that the region widenings maps are not opened
@@ -125,11 +125,9 @@ def get_turbulence_map():
     global_FWHM_map_unc = Map(fits.open("gaussian_fitting/maps/reproject/global_widening_unc.fits")[0])
     instrumental_function = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
     instrumental_function_unc = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
-    temp_map_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0])
-    temp_map_unc_raw = Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0])
     # The temperature maps are adjusted at the same WCS than the global maps
-    temperature_map = temp_map_raw.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map)
-    temperature_map_unc = temp_map_unc_raw.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map_unc)
+    temperature_map = temp_map.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map)
+    temperature_map_unc = temp_map_unc.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map_unc)
     # The aligned maps are the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map, aligned_map_unc = (global_FWHM_map**2 - instrumental_function**2).align_regions(
                                     global_FWHM_map.calc_power_uncertainty(global_FWHM_map_unc, 2) + 
@@ -142,4 +140,5 @@ def get_turbulence_map():
     turbulence_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence_unc.fits")
 
 
-# get_turbulence_map()
+get_turbulence_map(Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0]),
+                   Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]))
