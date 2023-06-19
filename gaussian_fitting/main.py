@@ -26,8 +26,8 @@ def get_smoothed_instr_f():
     smoothed_instr_f_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")
 
 
-if __name__ == "__main__":
-    get_smoothed_instr_f()
+# if __name__ == "__main__":
+#     get_smoothed_instr_f()
 
 
 def get_FWHM_maps():
@@ -36,7 +36,7 @@ def get_FWHM_maps():
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
-    nii_map, nii_map_unc = nii_cube.fit(4)
+    nii_map, nii_map_unc = nii_cube.bin_cube(2).fit(4)
     nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits")
     nii_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII_unc.fits")
 
@@ -145,6 +145,17 @@ def get_turbulence_map(temp_map, temp_map_unc):
 #                    Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]))
 
 
+def get_temperature_from_NII_and_SII():
+    sii_FWHM = Map(fits.open("gaussian_fitting/maps/external_maps/leo/SII_FWHM.fits")[0])
+    temp_to_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((sii_FWHM.data.shape), 8500), None))
+    sii_FWHM_without_temperature = (sii_FWHM**2 + temp_to_fwhm**2)**0.5
+    sii_FWHM_without_temperature.data[sii_FWHM_without_temperature.data > 10000] = np.NAN
+    sii_FWHM_without_temperature.plot_map((0,50))
+
+
+get_temperature_from_NII_and_SII()
+
+
 def get_turbulence_from_Halpha():
     """
     In this example, turbulence maps from the Halpha ray are obtained and saved.
@@ -153,3 +164,4 @@ def get_turbulence_from_Halpha():
 
 
 get_turbulence_from_Halpha()
+

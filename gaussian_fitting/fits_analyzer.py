@@ -306,7 +306,6 @@ def worker_fit(args):
                 line.append(spectrum_object.get_FWHM_speed(
                             spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
             except:
-                print(x,y)
                 line.append([np.NAN, np.NAN])
         Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
 
@@ -463,8 +462,8 @@ class Map(Fits_file):
                 # The 5 and 4 ints have been observed to offer better results considering the rings' width
                 if (radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor or
                     radiuses[1] - 4*bin_factor <= current_radius <= radiuses[1] + 4*bin_factor):
-                    near_pixels = np.copy(data[y-3:y+4, x-3:x+4])
-                    near_pixels_uncertainty = np.copy(uncertainties[y-3:y+4, x-3:x+4])
+                    near_pixels = np.copy(self.data[y-3:y+4, x-3:x+4])
+                    near_pixels_uncertainty = np.copy(uncertainty_map.data[y-3:y+4, x-3:x+4])
 
                     if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN

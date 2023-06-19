@@ -332,3 +332,4 @@ plt.show()
 # file.write(number + 1)
 # file.close()
 
+# print(np.random.rand()*100)

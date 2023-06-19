@@ -1,12 +1,14 @@
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from fits_analyzer import Data_cube, Map
-
 from reproject import reproject_interp
 
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
+
+from fits_analyzer import Data_cube, Map
+
 
 # nuit_3 = fits.open("lambda_3.fits")[0].data
 # nuit_4 = fits.open("lambda_4.fits")[0].data
@@ -63,27 +65,27 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
                                dc.bin_header(header, 2))
 """
 
-region_1_header = fits.open("night_34_1a.fits")[0].header
-region_2_header = fits.open("night_34_2a.fits")[0].header
-region_3_header = fits.open("night_34_3a.fits")[0].header
-global_header = fits.open("night_34_tt_e.fits")[0].header
+# region_1_header = fits.open("night_34_1a.fits")[0].header
+# region_2_header = fits.open("night_34_2a.fits")[0].header
+# region_3_header = fits.open("night_34_3a.fits")[0].header
+# global_header = fits.open("night_34_tt_e.fits")[0].header
 
-fwhm_map = fits.open("maps/data/corrected_fwhm.fits")[0]
-fwhm_map_unc = fits.open("maps/data/corrected_fwhm_unc.fits")[0]
+# fwhm_map = fits.open("maps/data/corrected_fwhm.fits")[0]
+# fwhm_map_unc = fits.open("maps/data/corrected_fwhm_unc.fits")[0]
 
-region_widening_1 = fits.open("maps/reproject/region_1_widening.fits")[0]
-region_widening_2 = fits.open("maps/reproject/region_2_widening.fits")[0]
-region_widening_3 = fits.open("maps/reproject/region_3_widening.fits")[0]
+# region_widening_1 = fits.open("maps/reproject/region_1_widening.fits")[0]
+# region_widening_2 = fits.open("maps/reproject/region_2_widening.fits")[0]
+# region_widening_3 = fits.open("maps/reproject/region_3_widening.fits")[0]
 
-cor = fits.open("maps/data/corrected_fwhm.fits")[0]
-raw = fits.open("maps/data/fwhm_NII.fits")[0]
-cal = Map(fits.open("maps/data/smoothed_instr_f.fits")[0]).bin_map(2)
+# cor = fits.open("maps/data/corrected_fwhm.fits")[0]
+# raw = fits.open("maps/data/fwhm_NII.fits")[0]
+# cal = Map(fits.open("maps/data/smoothed_instr_f.fits")[0]).bin_map(2)
 
 # test_map = fits.open("test_3a.fits")[0]
 
 # test_3b = Data_cube(fits.open("night_34_3a.fits")[0]).bin_cube(2)
 
-print(np.sum(raw.data - (cor.data + cal.data)))
+# print(np.sum(raw.data - (cor.data + cal.data)))
 
 
 # print(repr(region_3_header))
@@ -134,3 +136,23 @@ print(np.sum(raw.data - (cor.data + cal.data)))
 # ax1 = plt.subplot(1,1,1, projection=WCS(temp_map.header))
 # ax1.imshow(reprojected_global_map, vmin=0, vmax=40, origin="lower")
 # plt.show()
+
+
+# ---------------------------
+# MODIFICATIONS OF LEO'S MAPS
+# ---------------------------
+
+ref = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+cube = Data_cube(fits.open("gaussian_fitting/leo/cube_nouveau.fits")[0])
+cube.header = cube.get_header_without_third_dimension()
+cube.header["CRPIX1"] = 155
+cube.header["CRPIX2"] = 169
+cube.header["CRVAL1"] = (36.7805 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
+cube.header["CRVAL2"] = 61 + (30 * 60 + 39.147)/3600
+cube.header["CDELT1"] = -0.00047
+cube.header["CDELT2"] = 0.000492
+cube.header["CTYPE1"] = "RA---TAN"
+cube.header["CTYPE2"] = "DEC--TAN"
+print(repr(cube.header))
+print(repr(ref.header))
+cube.save_as_fits_file("gaussian_fitting/leo/reference_cube.fits")
