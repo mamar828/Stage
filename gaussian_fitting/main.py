@@ -35,7 +35,8 @@ def get_FWHM_maps():
     In this example, the FWHM_NII maps are obtained.
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
-    nii_map, nii_map_unc = nii_cube.fit_NII()
+    # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
+    nii_map, nii_map_unc = nii_cube.fit(4)
     nii_map.save_as_fits_file("gaussian_fitting/maps/computed_maps/fwhm_NII.fits")
     nii_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_maps/fwhm_NII_unc.fits")
 
@@ -140,5 +141,15 @@ def get_turbulence_map(temp_map, temp_map_unc):
     turbulence_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence_unc.fits")
 
 
-get_turbulence_map(Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0]),
-                   Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]))
+# get_turbulence_map(Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0]),
+#                    Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]))
+
+
+def get_turbulence_from_Halpha():
+    """
+    In this example, turbulence maps from the Halpha ray are obtained and saved.
+    """
+    pass
+
+
+get_turbulence_from_Halpha()

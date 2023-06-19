@@ -117,57 +117,63 @@ class Spectrum:
         else:
             self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit(self, params=None, stddev_mins=None):
+    def fit_calibration(self):
         """
-        Fit the data using specutils and initial guesses.
+        Fit the calibration cube's data using specutils. Also sets the astropy model of the fitted gaussian to the variable
+        self.fitted_gaussian.
+
+        Returns
+        -------
+        astropy.modeling.core.CompoundModel: model of the fitted distribution using a single gaussian function.
+        """
+        spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
+        # Initialize the single gaussian using the max peak's position
+        g_init = models.Gaussian1D(amplitude=self.max_tuple[1]*u.Jy, mean=self.max_tuple[0]*u.um)
+        self.fitted_gaussian = fit_lines(spectrum, g_init,
+                                            fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
+
+
+    def fit_data_cube(self, params, stddev_mins=None):
+        """
+        Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the variable
+        self.fitted_gaussian.
 
         Arguments
         ---------
-        params: dict, optional. Dictionary containing the initial guesses for the amplitude and mean of each gaussian
-        component. In the case of the calibration cube, the initial guesses are defined within the function and no dict
-        is needed. 
+        params: dict. Dictionary containing the initial guesses for the amplitude and mean of each gaussian
+        component.
         stddev_mins: dict, optional. Specifies the standard deviation's minimum value of every gaussian component.
         This is used in the fit_iteratively method to increase the fit's accuracy.
 
         Returns
         -------
-        astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 gauss functions (only one for
-        the calibration cube). Also sets the astropy model to the variable self.fitted_gaussian.
+        astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 gaussian functions.
         """
+        # Initialize the six gaussians using the params dict
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
-        if self.calibration:
-            # Initialize the single gaussian using the max peak's position
-            g_init = models.Gaussian1D(amplitude=self.max_tuple[1]*u.Jy, mean=self.max_tuple[0]*u.um)
-            self.fitted_gaussian = fit_lines(spectrum, g_init,
-                                                fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True)
+        g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
+                                        bounds={"amplitude": (0,100)*u.Jy})
+        g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
+                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (17,21)*u.um})
+        g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
+                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (36,40)*u.um})
+        g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
+                                        bounds={"amplitude": (0,100)*u.Jy})
+        g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
+                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um})
+        g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"] *u.Jy, mean=params["Ha"]["x0"] *u.um,
+                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um})
+        g_init_OH1.mean.max = 3*u.um
+        g_init_OH4.mean.min = 47*u.um
+        
+        # Set the standard deviation's minimum of the gaussians of the corresponding rays if the dict is present
+        if stddev_mins:
+            for ray, min_guess in stddev_mins.items():
+                exec(f"g_init_{ray}.stddev.min = {min_guess}*u.um")
 
-        else:
-            # Initialize the six gaussians using the params dict
-            g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
-                                           bounds={"amplitude": (0,100)*u.Jy})
-            g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (17,21)*u.um})
-            g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (36,40)*u.um})
-            g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
-                                           bounds={"amplitude": (0,100)*u.Jy})
-            g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um})
-            g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"] *u.Jy, mean=params["Ha"]["x0"] *u.um,
-                                           bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um})
-            g_init_OH1.mean.max = 3*u.um
-            g_init_OH4.mean.min = 47*u.um
-            
-            # Set the standard deviation's minimum of the gaussians of the corresponding rays if the dict is present
-            if stddev_mins:
-                for ray, min_guess in stddev_mins.items():
-                    exec(f"g_init_{ray}.stddev.min = {min_guess}*u.um")
-
-            # The maxiter integer can be modified to reach greater accuracy, although it has been tested and it does not affect
-            # considerably the fwhm
-            self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
-                                                fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
-            return self.fitted_gaussian
+        self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
+                                            fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
+        return self.fitted_gaussian
 
     def fit_iteratively(self, stddev_increments=0.2):
         """

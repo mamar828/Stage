@@ -110,7 +110,7 @@ class Data_cube(Fits_file):
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration") for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, None, "calibration") for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -119,14 +119,24 @@ class Data_cube(Fits_file):
         return (Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension())), 
                 Map(fits.PrimaryHDU(fit_fwhm_map[:,:,1], self.get_header_without_third_dimension())))
 
-    def fit_NII(self):
+    def fit(self, targeted_ray=int):
         """
-        Fit the whole data cube to extract the NII gaussian's FWHM. This method presupposes that four OH peaks and one Halpha
+        Fit the whole data cube to extract a gaussian's FWHM. This method presupposes that four OH peaks and one Halpha
         peaks are present in the cube's spectrum in addition to the NII peak.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
         state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of this code that would eventually overload the CPUs.
+
+        Arguments
+        ---------
+        targeted_ray: int. Specifies the ray whose FWHM needs to be extracted. The following legend is used:
+        0 : First OH peak
+        1 : Second OH peak
+        2 : Third OH peak
+        3 : Fourth OH peak
+        4 : NII peak
+        5 : Halpha peak
 
         Returns
         -------
@@ -137,7 +147,7 @@ class Data_cube(Fits_file):
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII") for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, "NII") for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -261,12 +271,12 @@ def worker_fit(args):
     list: FWHM value of the fitted gaussian on the studied peak along the specified line. Each coordinates has two values:
     the former being the FWHM value whilst the latter being its uncertainty.
     """
-    y, data, cube_type = args
+    y, data, targeted_ray, cube_type = args
     line = []
     if cube_type == "calibration":
         for x in range(data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=True)
-            spectrum_object.fit()
+            spectrum_object.fit_calibration()
             try:
                 line.append(spectrum_object.get_FWHM_speed(
                             spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
@@ -277,9 +287,10 @@ def worker_fit(args):
     elif cube_type == "NII":
         for x in range(data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
-            spectrum_object.fit(spectrum_object.get_initial_guesses())
+            spectrum_object.fit_data_cube(spectrum_object.get_initial_guesses())
             line.append(spectrum_object.get_FWHM_speed(
-                        spectrum_object.get_fitted_gaussian_parameters()[4], spectrum_object.get_uncertainties()["g4"]["stddev"]))
+                        spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
+                        spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"]))
     return line
         
 
