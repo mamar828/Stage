@@ -129,9 +129,12 @@ class Spectrum:
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         # Initialize the single gaussian using the max peak's position
         g_init = models.Gaussian1D(amplitude=self.max_tuple[1]*u.Jy, mean=self.max_tuple[0]*u.um)
-        self.fitted_gaussian = fit_lines(spectrum, g_init,
-                                            fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
-
+        try:
+            self.fitted_gaussian = fit_lines(spectrum, g_init,
+                                            fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)  
+            return self.fitted_gaussian
+        except:
+            pass
 
     def fit_data_cube(self, params, stddev_mins=None):
         """

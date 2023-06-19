@@ -26,8 +26,8 @@ def get_smoothed_instr_f():
     smoothed_instr_f_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")
 
 
-# if __name__ == "__main__":
-#     get_smoothed_instr_f()
+if __name__ == "__main__":
+    get_smoothed_instr_f()
 
 
 def get_FWHM_maps():
@@ -37,8 +37,8 @@ def get_FWHM_maps():
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
     nii_map, nii_map_unc = nii_cube.fit(4)
-    nii_map.save_as_fits_file("gaussian_fitting/maps/computed_maps/fwhm_NII.fits")
-    nii_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_maps/fwhm_NII_unc.fits")
+    nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits")
+    nii_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII_unc.fits")
 
 
 # if __name__ == "__main__":

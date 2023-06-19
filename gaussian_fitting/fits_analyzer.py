@@ -74,6 +74,29 @@ class Fits_file():
             # The file does not yet exist
             fits.writeto(filename, self.data, self.header, overwrite=True)
 
+    def reset_update_file(self):
+        """
+        Reset the update output file. If the file does not yet exist, it is created. This method should always be called before
+        a loop.
+        """
+        file = open("output.txt", "w")
+        file.write("0")
+        file.close()
+
+    def give_update(self, info=str):
+        """
+        Give the user an update of the status of the running code in the text file output.txt.
+
+        Arguments
+        ---------
+        info: str. Beggining string to give information about the current running program.
+        """
+        file = open("output.txt", "r")
+        number = int(file.readlines()[-1])
+        file = open("output.txt", "w")
+        file.write(f"{info}\n{str(number + 1)}")
+        file.close()
+
 
 
 class Data_cube(Fits_file):
@@ -109,6 +132,7 @@ class Data_cube(Fits_file):
         data = np.copy(self.data)
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
+        self.reset_update_file()
         start = time.time()
         fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, None, "calibration") for y in range(data.shape[1])))))
         stop = time.time()
@@ -146,6 +170,7 @@ class Data_cube(Fits_file):
         data = np.copy(self.data)
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
+        self.reset_update_file()
         start = time.time()
         fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, "NII") for y in range(data.shape[1])))))
         stop = time.time()
@@ -282,7 +307,8 @@ def worker_fit(args):
                             spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
             except:
                 print(x,y)
-                line.append(np.NAN, np.NAN)
+                line.append([np.NAN, np.NAN])
+        Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
 
     elif cube_type == "NII":
         for x in range(data.shape[2]):
@@ -291,8 +317,9 @@ def worker_fit(args):
             line.append(spectrum_object.get_FWHM_speed(
                         spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
                         spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"]))
+        Data_cube.give_update(None, f"NII fitting progress /{data.shape[2]}")
     return line
-        
+
 
 
 class Map(Fits_file):
@@ -325,6 +352,9 @@ class Map(Fits_file):
     
     def __array__(self):
         return self.data
+    
+    def __eq__(self, other):
+        return np.array_equal(self.data, other.data)
 
     def plot_map(self, bounds=None):
         """
