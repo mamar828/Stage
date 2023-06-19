@@ -146,7 +146,7 @@ def get_turbulence_map(temp_map, temp_map_unc):
 
 
 def get_temperature_from_NII_and_SII():
-    sii_FWHM = Map(fits.open("gaussian_fitting/maps/external_maps/leo/SII_FWHM.fits")[0])
+    sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII_FWHM+header.fits")[0])
     temp_to_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((sii_FWHM.data.shape), 8500), None))
     sii_FWHM_without_temperature = (sii_FWHM**2 + temp_to_fwhm**2)**0.5
     sii_FWHM_without_temperature.data[sii_FWHM_without_temperature.data > 10000] = np.NAN
