@@ -17,6 +17,8 @@ import time
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
+
+
 class Fits_file():
     """
     Encapsulate the methods specific to .fits files that can be used both in data cube and map analysis.
@@ -47,64 +49,32 @@ class Fits_file():
             pass
         return header_copy
     
-    def save_as_fits_file(self, filename=str, data_uncertainty=None):
+    def save_as_fits_file(self, filename=str):
         """
         Write an array as a fits file of the specified name with or without a header. If the object has a header, it will be saved.
 
         Arguments
         ---------
-        filename: str. Indicates the path and name of the created file. If the file already exists, it is overwritten.
-        header: astropy.io.fits.header.Header, optional. If specified, the fits file will have the given header. This is mainly
-        useful for saving maps with usable WCS.
-        data_uncertainty: Fits_file object, optional. If present, makes it so the data uncertainty is saved as the [1] extension of
-        the fits file. To view the uncertainty map on DS9, simply open the file with the following path:
-        File -> Open as -> Multi Extension Cube. The data and its uncertainty will then be visible just like in a data cube.
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
+        file can be overwritten.
         """
-        if data_uncertainty is None:
-            # Check if the file already exists
-            try:
-                fits.open(filename)[0]
-                # The file already exists
-                while True:
-                    answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
-                    if answer == "y":
-                        fits.writeto(filename, self.data, self.header, overwrite=True)
-                        print("File overwritten.")
-                        break
-                    elif answer == "n":
-                        break        
-                    
-            except:
-                # The file does not yet exist
-                fits.writeto(filename, self.data, self.header, overwrite=True)
-        
-        else:
-            # Check if the file already exists
-            try:
-                fits.open(filename)[0]
-                # The file already exists
-                while True:
-                    answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
-                    if answer == "y":
-                        hdu_list = fits.HDUList([
-                            fits.PrimaryHDU(self.data, self.header),
-                            fits.ImageHDU(data_uncertainty.data, data_uncertainty.header)
-                        ])
+        # Check if the file already exists
+        try:
+            fits.open(filename)[0]
+            # The file already exists
+            while True:
+                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                if answer == "y":
+                    fits.writeto(filename, self.data, self.header, overwrite=True)
+                    print("File overwritten.")
+                    break
 
-                        hdu_list.writeto(filename, overwrite=True)
-                        print("File overwritten.")
-                        break
-                    elif answer == "n":
-                        break        
-                    
-            except:
-                # The file does not yet exist
-                hdu_list = fits.HDUList([
-                    fits.PrimaryHDU(self.data, self.header),
-                    fits.ImageHDU(data_uncertainty.data, data_uncertainty.header)
-                ])
-
-                hdu_list.writeto(filename, overwrite=True)
+                elif answer == "n":
+                    break        
+                
+        except:
+            # The file does not yet exist
+            fits.writeto(filename, self.data, self.header, overwrite=True)
 
     def reset_update_file(self):
         """
@@ -158,8 +128,7 @@ class Data_cube(Fits_file):
 
         Returns
         -------
-        tuple of Map objects: first element is the map of the calibration peak's FWHM at every point whilst the second is
-        the associated uncertainty map.
+        Map_u object: map of the FWHM value and its associated uncertainty.
         """
         data = np.copy(self.data)
         fit_fwhm_list = []
@@ -172,8 +141,8 @@ class Data_cube(Fits_file):
         pool.close()
         # The map is temporarily stored in a simple format to facilitate extraction
         fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
-        return (Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension())), 
-                Map(fits.PrimaryHDU(fit_fwhm_map[:,:,1], self.get_header_without_third_dimension())))
+        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension()),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,1], None)]))
 
     def fit(self, targeted_ray=int):
         """
@@ -196,8 +165,7 @@ class Data_cube(Fits_file):
 
         Returns
         -------
-        tuple of Map objects: first element is the map of the NII peak's FWHM at every point whilst the second is the associated
-        uncertainty map.
+        Map_u object: map of the FWHM value and its associated uncertainty.
         """
         data = np.copy(self.data)
         fit_fwhm_list = []
@@ -210,8 +178,8 @@ class Data_cube(Fits_file):
         pool.close()
         # The map is temporarily stored in a simple format to facilitate extraction
         fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
-        return (Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension())), 
-                Map(fits.PrimaryHDU(fit_fwhm_map[:,:,1], self.get_header_without_third_dimension())))
+        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension()),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,1], None)]))
         
     def bin_cube(self, nb_pix_bin=2):
         """
@@ -402,6 +370,12 @@ class Map(Fits_file):
     def __eq__(self, other):
         return np.array_equal(self.data, other.data)
 
+    def to_primaryHDU(self):
+        return fits.PrimaryHDU(self.data, self.header)
+    
+    def to_imageHDU(self):
+        return fits.ImageHDU(self.data, self.header)
+
     def plot_map(self, bounds=None):
         """
         Plot the map in matplotlib.pyplot.
@@ -411,11 +385,10 @@ class Map(Fits_file):
         bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first element is
         the minimum and the second is the maximum.
         """
-        data = np.copy(self.data)
         if bounds:
-            plt.colorbar(plt.imshow(data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
+            plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
         else:
-            plt.colorbar(plt.imshow(data, origin="lower", cmap="viridis"))
+            plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis"))
         plt.show()
 
     def plot_two_maps(self, other, bounds=None, alpha=0.5):
@@ -433,7 +406,7 @@ class Map(Fits_file):
         plt.colorbar(plt.imshow(other.data, origin="lower", cmap="magma", vmin=bounds[0], vmax=bounds[1], alpha=alpha))
         plt.show()
 
-    def bin_map(self, nb_pix_bin=2):
+    def bin_map(self, nb_pix_bin=2, raw_data=None):
         """
         Bin the map by the amount of pixels given.
         Note that this works with every square map, even though the number of pixels to bin cannot fully divide the map's size. In
@@ -443,12 +416,17 @@ class Map(Fits_file):
         ---------
         nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the default value 2
         will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
+        raw_data: numpy array, default=None. If present, specifies the data to bin. By default, the Map's data will be binned.
 
         Returns
         -------
         Map object: binned map.
         """
-        data = np.copy(self.data)
+        if raw_data is None:
+            data = np.copy(self.data)
+        else:
+            data = np.copy(raw_data)
+        
         # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
         for i in range(nb_pix_bin):
             try:
@@ -463,7 +441,7 @@ class Map(Fits_file):
         # The mean value of every pixel group is calculated and the array returns to a two dimensional state
         return Map(fits.PrimaryHDU(np.nanmean(bin_array, axis=(1,3)), self.bin_header(nb_pix_bin)))
     
-    def smooth_order_change(self, uncertainty_map, center=(527, 484)):
+    def smooth_order_change(self, center=(527, 484)):
         """
         Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM
         is reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an
@@ -471,15 +449,13 @@ class Map(Fits_file):
 
         Arguments
         ---------
-        uncertainty_map: Map object. Map of the FWHM's uncertainty of the fitted peak at every point.
         center: tuple. Specifies the coordinates of the interference pattern's center pixel.
 
         Returns
         -------
-        tuple of Map objects: the first Map is the FWHM at every point and the second is its associated uncertainty.
+        Map object: FWHM at every point.
         """
         data = np.copy(self.data)
-        uncertainties = np.copy(uncertainty_map.data)
         center = round(center[0]), round(center[1])
         # The bin_factor corrects the distances in the case of a binned array
         bin_factor = center[0] / 527
@@ -510,7 +486,6 @@ class Map(Fits_file):
                 if (radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor or
                     radiuses[1] - 4*bin_factor <= current_radius <= radiuses[1] + 4*bin_factor):
                     near_pixels = np.copy(self.data[y-3:y+4, x-3:x+4])
-                    near_pixels_uncertainty = np.copy(uncertainty_map.data[y-3:y+4, x-3:x+4])
 
                     if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
@@ -518,9 +493,8 @@ class Map(Fits_file):
                         near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
                     
                     data[y,x] = np.nanmean(near_pixels)
-                    uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
                     # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
-        return Map(fits.PrimaryHDU(data, self.header)), Map(fits.PrimaryHDU(uncertainties, self.header))
+        return Map(fits.PrimaryHDU(data, self.header))
 
     def reproject_on(self, other):
         """
@@ -537,14 +511,10 @@ class Map(Fits_file):
         reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
         return Map(fits.PrimaryHDU(reprojection, other.header))
     
-    def align_regions(self, uncertainty_map):
+    def align_regions(self):
         """
         Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
-        better the WCS. The same method can also be called with an uncertainty map to get the aligned uncertainty map.
-
-        Arguments
-        ---------
-        uncertainty_map: Map object. Gives the FWHM's uncertainty at every point.
+        better the WCS.
 
         Returns
         -------
@@ -578,9 +548,264 @@ class Map(Fits_file):
         # Only the data within the mask is kept
         region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
         new_data += region_data[0] + region_data[1] + region_data[2]
+        
+        return Map(fits.PrimaryHDU(new_data, self.header))
+
+    def transfer_temperature_to_FWHM(self):
+        """
+        Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
+        can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler calculations.
+
+        Returns
+        -------
+        Map object: map of the FWHM due to thermal Doppler broadening.
+        """
+        angstroms_center = 6583.41              # Emission wavelength of NII 
+        m = 14.0067 * scipy.constants.u         # Nitrogen mass
+        c = scipy.constants.c                   # Light speed
+        k = scipy.constants.k                   # Boltzmann constant
+        angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
+        speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
+        return Map(fits.PrimaryHDU(speed_FWHM, self.header))
+
+
+
+class Map_u(Map):
+    """
+    Encapsulate the methods specific to maps with uncertainties.
+    """
+
+    def __init__(self, fits_list):
+        """
+        Initialize a Map_u object.
+
+        Arguments
+        ---------
+        fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties and header
+        of the map.
+        """
+        self.object = fits_list
+        self.data = fits_list[0].data
+        self.uncertainties = fits_list[1].data
+        self.header = fits_list[0].header
+
+    def __add__(self, other):
+        if type(other) == Map_u:
+            assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other.data, self.header),
+                                       fits.ImageHDU(self.uncertainties + other.uncertainties, None)]))
+        else:
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other, self.header),
+                                       fits.ImageHDU(self.uncertainties, None)]))
+    
+    def __sub__(self, other):
+        if type(other) == Map_u:
+            assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other.data, self.header),
+                                       fits.ImageHDU(self.uncertainties + other.uncertainties, None)]))
+        else:
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other, self.header),
+                                       fits.ImageHDU(self.uncertainties, None)]))
+
+    def __pow__(self, power):
+        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data ** power, self.header),
+                                   fits.ImageHDU(self.uncertainties / self.data * power * self.data**power, None)]))
+    
+    def __mul__(self, float):
+        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * float, self.header),
+                                   fits.ImageHDU(self.uncertainties * float, None)]))
+    
+    def __rmul__(self, float):
+        return self.__mul__(float)
+    
+    def __truediv__(self, float):
+        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / float, self.header),
+                                   fits.ImageHDU(self.uncertainties / float, None)]))
+
+    def __rtruediv__(self, float):
+        return self.__div__(float)
+
+    def __array__(self):
+        return self.data
+    
+    def __eq__(self, other):
+        return np.array_equal(self.data, other.data) and np.array_equal(self.uncertainties, other.uncertainties)
+    
+    def save_as_fits_file(self, filename=str):
+        """
+        Write the Map_u as a fits file of the specified name with or without a header. If the object has a header, it will be
+        saved. The data uncertainty is saved as the [1] extension of the fits file. To view the uncertainty map on DS9, simply
+        open the file with the following path: File -> Open as -> Multi Extension Cube. The data and its uncertainty will then
+        be visible just like in a data cube.
+        
+        Arguments
+        ---------
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
+        file can be overwritten.
+        """
+        # Check if the file already exists
+        try:
+            fits.open(filename)[0]
+            # The file already exists
+            while True:
+                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                if answer == "y":
+                    hdu_list = fits.HDUList([
+                        fits.PrimaryHDU(self.data, self.header),
+                        fits.ImageHDU(self.uncertainties, self.header)
+                    ])
+
+                    hdu_list.writeto(filename, overwrite=True)
+                    print("File overwritten.")
+                    break
+
+                elif answer == "n":
+                    break        
+                
+        except:
+            # The file does not yet exist
+            hdu_list = fits.HDUList([
+                fits.PrimaryHDU(self.data, self.header),
+                fits.ImageHDU(self.uncertainties, self.header)
+            ])
+
+            hdu_list.writeto(filename, overwrite=True)
+
+    def bin_map(self, nb_pix_bin=2):
+        """
+        Bin the data and the uncertainty by the amount of pixels given.
+        Note that this works with every square map, even though the number of pixels to bin cannot fully divide the map's size. In
+        the case of a rectangular map, it cannot always find a suitable reshape size.
+
+        Arguments
+        ---------
+        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the default value 2
+        will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
+
+        Returns
+        -------
+        Map_u object: binned map.
+        """
+        binned_data, binned_uncertainties = super().bin_map(nb_pix_bin), super().bin_map(nb_pix_bin, self.uncertainties)
+        return Map_u(fits.HDUList([binned_data.to_primaryHDU(),
+                                   binned_uncertainties.to_imageHDU()]))
+    
+    def smooth_order_change(self, center=(527, 484)):
+        """
+        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM
+        is reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an
+        order change to the mean value of certain pixels in a 7x7 area around the pixel.
+
+        Arguments
+        ---------
+        center: tuple. Specifies the coordinates of the interference pattern's center pixel.
+
+        Returns
+        -------
+        Map_u object: map with the smoothed instrumental function.
+        """
+        data = np.copy(self.data)
+        uncertainties = np.copy(self.uncertainties)
+        center = round(center[0]), round(center[1])
+        # The bin_factor corrects the distances in the case of a binned array
+        bin_factor = center[0] / 527
+        # The smoothing_max_thresholds list of ints is defined by trial and error and tunes the pixels to calculate the mean
+        # The first element is used for the first interference order change and the second element is for the second change
+        smoothing_max_thresholds = [0.4, 1.8]
+        # The bounds list define the area in which the FWHM minimum will be searched, corresponding to an order change
+        bounds = [
+            np.array((255,355)) * bin_factor,
+            np.array((70,170)) * bin_factor
+        ]
+        # The peak_regions list gives the data's values within the bounds for the two regions
+        peak_regions = [
+            list(data[center[1], int(bounds[0][0]):int(bounds[0][1])]),
+            list(data[center[1], int(bounds[1][0]):int(bounds[1][1])])
+        ]
+        # The radiuses list gives the position of the minimum fwhms relative to the center of the image
+        radiuses = [
+            center[0] - (peak_regions[0].index(min(peak_regions[0])) + bounds[0][0]),
+            center[0] - (peak_regions[1].index(min(peak_regions[1])) + bounds[1][0])
+        ]
+
+        for x in range(data.shape[1]):
+            for y in range(data.shape[0]):
+                current_radius = np.sqrt((x-center[0])**2 + (y-center[1])**2)
+
+                # The 5 and 4 ints have been observed to offer better results considering the rings' width
+                if (radiuses[0] - 5*bin_factor <= current_radius <= radiuses[0] + 5*bin_factor or
+                    radiuses[1] - 4*bin_factor <= current_radius <= radiuses[1] + 4*bin_factor):
+                    near_pixels = np.copy(self.data[y-3:y+4, x-3:x+4])
+                    near_pixels_uncertainty = np.copy(self.uncertainties[y-3:y+4, x-3:x+4])
+
+                    if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
+                    else:
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
+                    
+                    data[y,x] = np.nanmean(near_pixels)
+                    uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
+                    # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
+        return Map_u(fits.HDUList([fits.PrimaryHDU(data, self.header),
+                                   fits.ImageHDU(uncertainties, None)]))
+
+    def reproject_on(self, other):
+        """
+        Get the reprojection of the map on the other object's WCS. This makes the coordinates match.
+
+        Arguments
+        ---------
+        other: Map_u object. Reference map to project on and to base the shift of WCS.
+
+        Returns
+        -------
+        Map_u object: map with WCS aligned to the other map.
+        """
+        reprojected_data = reproject_interp(self.object[0], other.header, return_footprint=False, order="nearest-neighbor")
+        reprojected_uncertainties = reproject_interp(self.object[1], other.header, return_footprint=False, order="nearest-neighbor")
+        return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
+                                   fits.ImageHDU(reprojected_uncertainties, None)]))
+    
+    def align_regions(self):
+        """
+        Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
+        better the WCS.
+
+        Returns
+        -------
+        Map_u object: global map with the three aligned regions, result of the subtraction of the squared FWHM map and the squared
+        instrumental function map.
+        """
+        regions = [
+            pyregion.open("gaussian_fitting/regions/region_1.reg"),
+            pyregion.open("gaussian_fitting/regions/region_2.reg"),
+            pyregion.open("gaussian_fitting/regions/region_3.reg")
+        ]
+
+        # A mask of zeros and ones is created with the regions
+        masks = [region.get_mask(hdu=self.object) for region in regions]
+        masks = [np.where(mask == False, 0, mask) for mask in masks]
+        masks = [np.where(mask == True, 1, mask) for mask in masks]
+
+        # The map's data is removed where a mask applies
+        new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
+        # Every specific map has the same values than the global map, but the header is changed to fit a specific region
+        specific_maps = [
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[0]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[0])
+        ]
+        # The calibration map's correction is applied
+        calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
+        modified_specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
+        # Alignment of the specific maps on the global WCS
+        modified_specific_maps = [specific_map.reproject_on(self) for specific_map in modified_specific_maps]
+        # Only the data within the mask is kept
+        region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
+        new_data += region_data[0] + region_data[1] + region_data[2]
 
         # The uncertainty map's data is removed where a mask applies
-        new_data_unc = np.copy(uncertainty_map.data) * (1 - (masks[0] + masks[1] + masks[2]))
+        new_data_unc = np.copy(self.uncertainties) * (1 - (masks[0] + masks[1] + masks[2]))
         specific_maps_unc = [
             Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[1]),
             Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[1]),
@@ -595,33 +820,17 @@ class Map(Fits_file):
         # Only the data within the mask is kept
         region_data_unc = [specific_map_unc.data * masks[i] for i, specific_map_unc in enumerate(modified_specific_maps_unc)]
         new_data_unc += region_data_unc[0] + region_data_unc[1] + region_data_unc[2]
-        return Map(fits.PrimaryHDU(new_data, self.header)), Map(fits.PrimaryHDU(new_data_unc, uncertainty_map.header))
-
-    def calc_power_uncertainty(self, uncertainty_map, power):
-        """
-        Get the propagated uncertainty of a quantity raised to any power using uncertainty propagation rules.
-
-        Arguments
-        ---------
-        uncertainty_map: map of the uncertainty associated to the self.data.
-        power: power at which the data is raised.
-        
-        Returns
-        -------
-        Map object: map of the correct uncertainty following the exponential operation. The header of the object is the
-        uncertainty_map's header.
-        """
-        return Map(fits.PrimaryHDU((uncertainty_map.data / self.data * power * self.data**power), uncertainty_map.header))
+        return Map_u(fits.HDUList([fits.PrimaryHDU(new_data, self.header),
+                                   fits.ImageHDU(new_data_unc, None)]))
 
     def transfer_temperature_to_FWHM(self):
         """
         Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
-        can be compared with other FWHM maps. This function can be called with an uncertainty Map object to get the FWHM's
-        uncertainty.
+        can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler calculations.
 
         Returns
         -------
-        Map object: map of the FWHM due to thermal Doppler broadening.
+        Map_u object: map of the FWHM due to thermal Doppler broadening.
         """
         angstroms_center = 6583.41              # Emission wavelength of NII 
         m = 14.0067 * scipy.constants.u         # Nitrogen mass
@@ -629,4 +838,7 @@ class Map(Fits_file):
         k = scipy.constants.k                   # Boltzmann constant
         angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
-        return Map(fits.PrimaryHDU(speed_FWHM, self.header))
+        angstroms_FWHM_unc = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.uncertainties * k / (c**2 * m))
+        speed_FWHM_unc = c * angstroms_FWHM_unc / angstroms_center / 1000
+        return Map_u(fits.HDUList([fits.PrimaryHDU(speed_FWHM, self.header),
+                                   fits.ImageHDU(speed_FWHM_unc, None)]))

@@ -53,3 +53,12 @@ temp_it_nii_err_8300_pouss_snrsig2_seuil_sec_test95_avec_seuil_plus_que_0point35
 In the numpy array, every vertical group is a y coordinate, starting from (1,1) at the top
 Every element in a group is a x coordinate
 Every sub-element is the fwhm and its uncertainty
+
+
+
+TODOLIST
+- Map_u
+- Default types
+- Solve SII
+- Halpha NII temperature map Courtes style
+- OIII NII temperature map Courtes style

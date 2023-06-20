@@ -17,13 +17,12 @@ def get_smoothed_instr_f():
     In this example, the smooth instrumental function map is calculated from the calibration_cube.
     """
     calibration_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/calibration.fits")[0])
-    calibration_map, calibration_map_unc = calibration_cube.fit_calibration()
+    calibration_map = calibration_cube.fit_calibration()
     # For smoothing the change of interference order, a center pixel is required
     calibration_center_pixel = calibration_cube.get_center_point(center_guess=(527,484))
     calibration_center_pixel_rounded = round(calibration_center_pixel[0][0]), round(calibration_center_pixel[1][0])
-    smoothed_instr_f, smoothed_instr_f_unc = calibration_map.smooth_order_change(
-                                            calibration_map_unc, center=calibration_center_pixel_rounded)
-    smoothed_instr_f.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits", smoothed_instr_f_unc)
+    smoothed_instr_f = calibration_map.smooth_order_change(center=calibration_center_pixel_rounded)
+    smoothed_instr_f.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")
 
 
 # if __name__ == "__main__":
@@ -154,9 +153,9 @@ def get_temperature_from_NII_and_SII():
     In this example, we obtain a temperature map using Courtes's method with the NII and SII emission lines.
     """
     # The SII broadening map is acquired
-    sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII_FWHM+header.fits")[0])
-    temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((sii_FWHM.data.shape), 8500), None))
-    sii_FWHM_with_temperature = (sii_FWHM**2 + temp_in_fwhm**2)**0.5
+    sii_sigma = Map(fits.open("gaussian_fitting/leo/SII_FWHM+header.fits")[0])
+    temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((sii_sigma.data.shape), 8500), None))
+    sii_FWHM_with_temperature = (((sii_sigma * (2 * np.sqrt(2 * np.log(2)))))**2 + temp_in_fwhm**2)**0.5
     sii_FWHM_with_temperature.data[sii_FWHM_with_temperature.data > 10000] = np.NAN
     sii_sigma_with_temperature = sii_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
 
@@ -179,7 +178,7 @@ def get_temperature_from_NII_and_SII():
     temperature_map.plot_map()
 
 
-# get_temperature_from_NII_and_SII()
+get_temperature_from_NII_and_SII()
 
 
 def get_turbulence_from_Halpha():
