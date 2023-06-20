@@ -352,23 +352,24 @@ class Map(Fits_file):
     def __pow__(self, power):
         return Map(fits.PrimaryHDU(self.data ** power, self.header))
     
-    def __mul__(self, float):
-        return Map(fits.PrimaryHDU(self.data * float, self.header))
+    def __mul__(self, other):
+        return Map(fits.PrimaryHDU(self.data * other, self.header))
     
-    def __rmul__(self, float):
-        return self.__mul__(float)
+    def __rmul__(self, other):
+        return self.__mul__(other)
     
-    def __truediv__(self, float):
-        return Map(fits.PrimaryHDU(self.data / float, self.header))
+    def __truediv__(self, other):
+        return Map(fits.PrimaryHDU(self.data / other, self.header))
 
-    def __rtruediv__(self, float):
-        return self.__div__(float)
+    def __rtruediv__(self, other):
+        return self.__div__(other)
 
     def __array__(self):
         return self.data
     
     def __eq__(self, other):
-        return np.array_equal(self.data, other.data)
+        return (np.nansum(self.data - other.data) < 10**(-10) and 
+                self.header == other.header)
 
     def to_primaryHDU(self):
         return fits.PrimaryHDU(self.data, self.header)
@@ -593,44 +594,41 @@ class Map_u(Map):
         if type(other) == Map_u:
             assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other.data, self.header),
-                                       fits.ImageHDU(self.uncertainties + other.uncertainties, None)]))
+                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]))
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other, self.header),
-                                       fits.ImageHDU(self.uncertainties, None)]))
+                                       fits.ImageHDU(self.uncertainties, self.header)]))
     
     def __sub__(self, other):
         if type(other) == Map_u:
             assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other.data, self.header),
-                                       fits.ImageHDU(self.uncertainties + other.uncertainties, None)]))
+                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]))
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other, self.header),
-                                       fits.ImageHDU(self.uncertainties, None)]))
+                                       fits.ImageHDU(self.uncertainties, self.header)]))
 
     def __pow__(self, power):
         return Map_u(fits.HDUList([fits.PrimaryHDU(self.data ** power, self.header),
-                                   fits.ImageHDU(self.uncertainties / self.data * power * self.data**power, None)]))
+                                   fits.ImageHDU(self.uncertainties / self.data * power * self.data**power, self.header)]))
     
-    def __mul__(self, float):
-        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * float, self.header),
-                                   fits.ImageHDU(self.uncertainties * float, None)]))
-    
-    def __rmul__(self, float):
-        return self.__mul__(float)
-    
-    def __truediv__(self, float):
-        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / float, self.header),
-                                   fits.ImageHDU(self.uncertainties / float, None)]))
+    def __mul__(self, other):
+        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other, self.header),
+                                   fits.ImageHDU(self.uncertainties * other, self.header)]))
+        
+    def __truediv__(self, other):
+        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other, self.header),
+                                   fits.ImageHDU(self.uncertainties / other, self.header)]))
 
-    def __rtruediv__(self, float):
-        return self.__div__(float)
-
-    def __array__(self):
-        return self.data
-    
     def __eq__(self, other):
-        return np.array_equal(self.data, other.data) and np.array_equal(self.uncertainties, other.uncertainties)
+        return (np.nansum(self.data - other.data) == 0. and 
+                np.nansum(self.uncertainties - other.uncertainties) == 0. and
+                self.header == other.header)
     
+    def copy(self):
+        return Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), self.header.copy()),
+                                   fits.ImageHDU(np.copy(self.uncertainties), self.header.copy())]))
+
     def save_as_fits_file(self, filename=str):
         """
         Write the Map_u as a fits file of the specified name with or without a header. If the object has a header, it will be
@@ -747,7 +745,7 @@ class Map_u(Map):
                     uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
                     # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
         return Map_u(fits.HDUList([fits.PrimaryHDU(data, self.header),
-                                   fits.ImageHDU(uncertainties, None)]))
+                                   fits.ImageHDU(uncertainties, self.header)]))
 
     def reproject_on(self, other):
         """
@@ -764,7 +762,7 @@ class Map_u(Map):
         reprojected_data = reproject_interp(self.object[0], other.header, return_footprint=False, order="nearest-neighbor")
         reprojected_uncertainties = reproject_interp(self.object[1], other.header, return_footprint=False, order="nearest-neighbor")
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
-                                   fits.ImageHDU(reprojected_uncertainties, None)]))
+                                   fits.ImageHDU(reprojected_uncertainties, self.header)]))
     
     def align_regions(self):
         """
@@ -783,45 +781,27 @@ class Map_u(Map):
         ]
 
         # A mask of zeros and ones is created with the regions
-        masks = [region.get_mask(hdu=self.object) for region in regions]
+        masks = [region.get_mask(hdu=self.object[0]) for region in regions]
         masks = [np.where(mask == False, 0, mask) for mask in masks]
         masks = [np.where(mask == True, 1, mask) for mask in masks]
 
         # The map's data is removed where a mask applies
-        new_data = np.copy(self.data) * (1 - (masks[0] + masks[1] + masks[2]))
+        new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
         # Every specific map has the same values than the global map, but the header is changed to fit a specific region
         specific_maps = [
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[0])
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")),
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")),
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits"))
         ]
         # The calibration map's correction is applied
-        calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
+        calib_map = Map_u(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)
         modified_specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
         # Alignment of the specific maps on the global WCS
         modified_specific_maps = [specific_map.reproject_on(self) for specific_map in modified_specific_maps]
         # Only the data within the mask is kept
-        region_data = [specific_map.data * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
-        new_data += region_data[0] + region_data[1] + region_data[2]
-
-        # The uncertainty map's data is removed where a mask applies
-        new_data_unc = np.copy(self.uncertainties) * (1 - (masks[0] + masks[1] + masks[2]))
-        specific_maps_unc = [
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[1]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[1]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[1])
-        ]
-        # The calibration map's uncertainty is propagated with each specific_map and specific_map_unc
-        calib_map_unc = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[1]).bin_map(2)
-        modified_specific_maps_unc = [maps[0].calc_power_uncertainty(maps[1], 2) + calib_map.calc_power_uncertainty(calib_map_unc, 2)
-                                      for maps in list(zip(specific_maps, specific_maps_unc))]
-        # Alignment of the specific maps uncertainty on the main map's WCS
-        modified_specific_maps_unc = [specific_map_unc.reproject_on(self) for specific_map_unc in modified_specific_maps_unc]
-        # Only the data within the mask is kept
-        region_data_unc = [specific_map_unc.data * masks[i] for i, specific_map_unc in enumerate(modified_specific_maps_unc)]
-        new_data_unc += region_data_unc[0] + region_data_unc[1] + region_data_unc[2]
-        return Map_u(fits.HDUList([fits.PrimaryHDU(new_data, self.header),
-                                   fits.ImageHDU(new_data_unc, None)]))
+        region_data = [specific_map * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
+        new_map += region_data[0] + region_data[1] + region_data[2]
+        return new_map
 
     def transfer_temperature_to_FWHM(self):
         """
@@ -841,4 +821,4 @@ class Map_u(Map):
         angstroms_FWHM_unc = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.uncertainties * k / (c**2 * m))
         speed_FWHM_unc = c * angstroms_FWHM_unc / angstroms_center / 1000
         return Map_u(fits.HDUList([fits.PrimaryHDU(speed_FWHM, self.header),
-                                   fits.ImageHDU(speed_FWHM_unc, None)]))
+                                   fits.ImageHDU(speed_FWHM_unc, self.header)]))

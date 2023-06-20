@@ -1,7 +1,7 @@
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from fits_analyzer import Data_cube, Map
+from fits_analyzer import Data_cube, Map, Map_u
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,8 +35,8 @@ def get_FWHM_maps():
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
-    nii_map, nii_map_unc = nii_cube.bin_cube(2).fit(4)
-    nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits", nii_map_unc)
+    nii_map = nii_cube.bin_cube(2).fit(4)
+    nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits")
 
 
 # if __name__ == "__main__":
@@ -108,44 +108,36 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
         header_copy["CRPIX1"] /= 2
         header_copy["CRPIX2"] /= 2
 
-        data_map = Map(fits.PrimaryHDU(fwhm_map, header_copy))
-        uncertainty_map = Map(fits.PrimaryHDU(fwhm_unc_map, header_copy))
-        data_map.save_as_fits_file(f"gaussian_fitting/maps/reproject/{filename}", uncertainty_map)
+        data_map = Map_u(fits.HDUList([fits.PrimaryHDU(fwhm_map, header_copy),
+                                       fits.ImageHDU(fwhm_unc_map, header_copy)]))
+        data_map.save_as_fits_file(f"gaussian_fitting/maps/reproject/--{filename}")
 
 
 # get_region_widening_maps(fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[0].data,
 #                          fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[1].data)
 
 
-def get_turbulence_map(temp_map, temp_map_unc):
+
+def get_turbulence_map(temp_map):
     """
     In this example, the turbulence map is obtained with the previously computed maps: all region widenings and their
     uncertainties as well as smoothed_instr_f and its uncertainty. Note that the region widenings maps are not opened
     directly but are used in the Map.align_regions() method.
     """
-    global_FWHM_map = Map(fits.open("gaussian_fitting/maps/reproject/global_widening.fits")[0])
-    global_FWHM_map_unc = Map(fits.open("gaussian_fitting/maps/reproject/global_widening.fits")[1])
-    instrumental_function = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
-    instrumental_function_unc = Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[1]).bin_map(2)
+    global_FWHM_map = Map_u(fits.open("gaussian_fitting/maps/reproject/global_widening.fits"))
+    instrumental_function = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)
     # The temperature maps are adjusted at the same WCS than the global maps
     temperature_map = temp_map.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map)
-    temperature_map_unc = temp_map_unc.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map_unc)
     # The aligned maps are the result of the subtraction of the instrumental_function map squared to the global map squared
-    aligned_map, aligned_map_unc = (global_FWHM_map**2 - instrumental_function**2).align_regions(
-                                    global_FWHM_map.calc_power_uncertainty(global_FWHM_map_unc, 2) + 
-                                    instrumental_function.calc_power_uncertainty(instrumental_function_unc, 2))
-    turbulence_map = aligned_map - temperature_map**2
-    turbulence_map_unc = turbulence_map.calc_power_uncertainty(
-                         aligned_map_unc + temperature_map.calc_power_uncertainty(temperature_map_unc, 2), 0.5)
-    turbulence_map **= 0.5
+    aligned_map = (global_FWHM_map**2 - instrumental_function**2).align_regions()
+    turbulence_map = (aligned_map - temperature_map**2)**0.5
     # The standard deviation is the desired quantity
     turbulence_map /= 2 * np.sqrt(2 * np.log(2))
-    turbulence_map_unc /= 2 * np.sqrt(2 * np.log(2))
-    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits", turbulence_map_unc)
+    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence_2.fits")
 
 
-# get_turbulence_map(Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0]),
-#                    Map(fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]))
+# get_turbulence_map(Map_u(fits.HDUList([fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0],
+#                                          fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]])))
 
 
 def get_temperature_from_NII_and_SII():
@@ -178,7 +170,7 @@ def get_temperature_from_NII_and_SII():
     temperature_map.plot_map()
 
 
-get_temperature_from_NII_and_SII()
+# get_temperature_from_NII_and_SII()
 
 
 def get_turbulence_from_Halpha():
@@ -191,5 +183,5 @@ def get_turbulence_from_Halpha():
     ha_map.save_as_fits_file("gaussian_fitting/maps/computed_data/halpha/fwhm_NII.fits", ha_map_unc)
 
 
-get_turbulence_from_Halpha()
+# get_turbulence_from_Halpha()
 

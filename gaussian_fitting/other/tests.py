@@ -353,9 +353,6 @@ plt.show()
 # plt.imshow(file[1].data)
 # plt.show()
 
-c = fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")
-print(type(c))
-
 
 
 
