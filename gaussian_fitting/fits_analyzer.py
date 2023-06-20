@@ -47,7 +47,7 @@ class Fits_file():
             pass
         return header_copy
     
-    def save_as_fits_file(self, filename=str):
+    def save_as_fits_file(self, filename=str, data_uncertainty=None):
         """
         Write an array as a fits file of the specified name with or without a header. If the object has a header, it will be saved.
 
@@ -56,23 +56,55 @@ class Fits_file():
         filename: str. Indicates the path and name of the created file. If the file already exists, it is overwritten.
         header: astropy.io.fits.header.Header, optional. If specified, the fits file will have the given header. This is mainly
         useful for saving maps with usable WCS.
+        data_uncertainty: Fits_file object, optional. If present, makes it so the data uncertainty is saved as the [1] extension of
+        the fits file. To view the uncertainty map on DS9, simply open the file with the following path:
+        File -> Open as -> Multi Extension Cube. The data and its uncertainty will then be visible just like in a data cube.
         """
-        # Check if the file already exists
-        try:
-            fits.open(filename)[0]
-            # The file already exists
-            while True:
-                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
-                if answer == "y":
-                    fits.writeto(filename, self.data, self.header, overwrite=True)
-                    print("File overwritten.")
-                    break
-                elif answer == "n":
-                    break        
-                
-        except:
-            # The file does not yet exist
-            fits.writeto(filename, self.data, self.header, overwrite=True)
+        if data_uncertainty is None:
+            # Check if the file already exists
+            try:
+                fits.open(filename)[0]
+                # The file already exists
+                while True:
+                    answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                    if answer == "y":
+                        fits.writeto(filename, self.data, self.header, overwrite=True)
+                        print("File overwritten.")
+                        break
+                    elif answer == "n":
+                        break        
+                    
+            except:
+                # The file does not yet exist
+                fits.writeto(filename, self.data, self.header, overwrite=True)
+        
+        else:
+            # Check if the file already exists
+            try:
+                fits.open(filename)[0]
+                # The file already exists
+                while True:
+                    answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                    if answer == "y":
+                        hdu_list = fits.HDUList([
+                            fits.PrimaryHDU(self.data, self.header),
+                            fits.ImageHDU(data_uncertainty.data, data_uncertainty.header)
+                        ])
+
+                        hdu_list.writeto(filename, overwrite=True)
+                        print("File overwritten.")
+                        break
+                    elif answer == "n":
+                        break        
+                    
+            except:
+                # The file does not yet exist
+                hdu_list = fits.HDUList([
+                    fits.PrimaryHDU(self.data, self.header),
+                    fits.ImageHDU(data_uncertainty.data, data_uncertainty.header)
+                ])
+
+                hdu_list.writeto(filename, overwrite=True)
 
     def reset_update_file(self):
         """
@@ -550,12 +582,12 @@ class Map(Fits_file):
         # The uncertainty map's data is removed where a mask applies
         new_data_unc = np.copy(uncertainty_map.data) * (1 - (masks[0] + masks[1] + masks[2]))
         specific_maps_unc = [
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening_unc.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening_unc.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening_unc.fits")[0])
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[1]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[1]),
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[1])
         ]
         # The calibration map's uncertainty is propagated with each specific_map and specific_map_unc
-        calib_map_unc = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f_unc.fits")[0]).bin_map(2)
+        calib_map_unc = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[1]).bin_map(2)
         modified_specific_maps_unc = [maps[0].calc_power_uncertainty(maps[1], 2) + calib_map.calc_power_uncertainty(calib_map_unc, 2)
                                       for maps in list(zip(specific_maps, specific_maps_unc))]
         # Alignment of the specific maps uncertainty on the main map's WCS

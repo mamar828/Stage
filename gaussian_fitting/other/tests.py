@@ -338,16 +338,25 @@ plt.show()
 
 # a = fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0]
 # b = fits.open("gaussian_fitting/maps/computed_data/turbulence_unc.fits")[0]
-# # b_table = fits.TableHDU(b.data)
+# b_table = fits.TableHDU(b.data)
 
 # hdu_list = fits.HDUList([
 #     a,
-#     fits.ImageHDU(b.data)
+#     fits.ImageHDU(b.data, b.header)
 # ])
 
 # hdu_list.writeto("gaussian_fitting/test_maps/list_test.fits", overwrite=True)
 
 # file = fits.open("gaussian_fitting/test_maps/list_test.fits")
+# print(repr(file[1].header), "\n")
 # print(repr(file[0].header))
 # plt.imshow(file[1].data)
 # plt.show()
+
+
+
+
+
+
+
+

@@ -157,7 +157,12 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # print(repr(ref.header))
 # cube.save_as_fits_file("gaussian_fitting/leo/reference_cube.fits")
 
-cube = Data_cube(fits.open("gaussian_fitting/leo/reference_cube.fits")[0])
-sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII_FWHM.fits")[0])
-sii_FWHM.header = cube.get_header_without_third_dimension()
-sii_FWHM.save_as_fits_file("gaussian_fitting/leo/SII_FWHM+header.fits")
+# cube = Data_cube(fits.open("gaussian_fitting/leo/reference_cube.fits")[0])
+# sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII_FWHM.fits")[0])
+# sii_FWHM.header = cube.get_header_without_third_dimension()
+# sii_FWHM.save_as_fits_file("gaussian_fitting/leo/SII_FWHM+header.fits")
+
+# ---------------------------
+# MODIFICATIONS OF LEO'S MAPS
+# ---------------------------
+
