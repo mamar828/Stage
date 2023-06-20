@@ -5,6 +5,7 @@ from fits_analyzer import Data_cube, Map
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 
 """
 In this file are examples of code that have been used to create the .fits files. Every operation has been grouped into
@@ -137,6 +138,9 @@ def get_turbulence_map(temp_map, temp_map_unc):
     turbulence_map_unc = turbulence_map.calc_power_uncertainty(
                          aligned_map_unc + temperature_map.calc_power_uncertainty(temperature_map_unc, 2), 0.5)
     turbulence_map **= 0.5
+    # The standard deviation is the desired quantity
+    turbulence_map /= 2 * np.sqrt(2 * np.log(2))
+    turbulence_map_unc /= 2 * np.sqrt(2 * np.log(2))
     turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
     turbulence_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence_unc.fits")
 
@@ -146,21 +150,48 @@ def get_turbulence_map(temp_map, temp_map_unc):
 
 
 def get_temperature_from_NII_and_SII():
+    """
+    In this example, we obtain a temperature map using Courtes's method with the NII and SII emission lines.
+    """
+    # The SII broadening map is acquired
     sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII_FWHM+header.fits")[0])
-    temp_to_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((sii_FWHM.data.shape), 8500), None))
-    sii_FWHM_without_temperature = (sii_FWHM**2 + temp_to_fwhm**2)**0.5
-    sii_FWHM_without_temperature.data[sii_FWHM_without_temperature.data > 10000] = np.NAN
-    sii_FWHM_without_temperature.plot_map((0,50))
+    temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((sii_FWHM.data.shape), 8500), None))
+    sii_FWHM_with_temperature = (sii_FWHM**2 + temp_in_fwhm**2)**0.5
+    sii_FWHM_with_temperature.data[sii_FWHM_with_temperature.data > 10000] = np.NAN
+    sii_sigma_with_temperature = sii_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
+
+    # The NII turbulence map is acquired
+    nii_sigma = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+    temp_map_FWHM = Map(fits.open(
+        "gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0]).transfer_temperature_to_FWHM().reproject_on(nii_sigma)
+    nii_sigma_with_temperature = (nii_sigma**2 + (temp_map_FWHM / (2*np.sqrt(2*np.log(2))))**2)**0.5
+
+    # The FWHM maps are converted in Angstroms
+    sii_peak_AA = 6716
+    nii_peak_AA = 6583.41
+    
+    sii_sigma_with_temperature = 1000 * sii_sigma_with_temperature * sii_peak_AA / scipy.constants.c
+    nii_sigma_with_temperature = 1000 * nii_sigma_with_temperature * nii_peak_AA / scipy.constants.c
+
+    # The two maps are used to compute a temperature map
+    temperature_map = 4.15 * 10**4 * (nii_sigma_with_temperature**2 - 
+                       sii_sigma_with_temperature.reproject_on(nii_sigma_with_temperature)**2)
+    temperature_map.plot_map()
 
 
-get_temperature_from_NII_and_SII()
+# get_temperature_from_NII_and_SII()
 
 
 def get_turbulence_from_Halpha():
     """
     In this example, turbulence maps from the Halpha ray are obtained and saved.
     """
-    pass
+    cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
+    # ha_map, ha_map_unc = cube.bin_cube(2).fit(4)
+    # ha_map.save_as_fits_file("gaussian_fitting/maps/computed_data/halpha/fwhm_NII.fits")
+    # ha_map_unc.save_as_fits_file("gaussian_fitting/maps/computed_data/halpha/fwhm_NII_unc.fits")
+
 
 
 get_turbulence_from_Halpha()

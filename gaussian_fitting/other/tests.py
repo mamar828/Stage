@@ -333,3 +333,16 @@ plt.show()
 # file.close()
 
 # print(np.random.rand()*100)
+
+# ----------------------------------------------------------------------------------------
+
+a = fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0]
+b = fits.open("gaussian_fitting/maps/computed_data/turbulence_unc.fits")[0]
+# b_table = fits.TableHDU(b.data)
+
+hdu_list = fits.HDUList([
+    fits.PrimaryHDU(a.data, a.header),
+    b
+])
+
+hdu_list.writeto("gaussian_fitting/test_maps/list_test.fits")

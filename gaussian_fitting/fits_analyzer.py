@@ -339,8 +339,11 @@ class Map(Fits_file):
         self.header = fits_object.header
 
     def __add__(self, other):
-        assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
-        return Map(fits.PrimaryHDU(self.data + other.data, self.header))
+        if type(other) == Map:
+            assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
+            return Map(fits.PrimaryHDU(self.data + other.data, self.header))
+        else:
+            return Map(fits.PrimaryHDU(self.data + other, self.header))
     
     def __sub__(self, other):
         assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
@@ -349,6 +352,18 @@ class Map(Fits_file):
     def __pow__(self, power):
         return Map(fits.PrimaryHDU(self.data ** power, self.header))
     
+    def __mul__(self, float):
+        return Map(fits.PrimaryHDU(self.data * float, self.header))
+    
+    def __rmul__(self, float):
+        return self.__mul__(float)
+    
+    def __truediv__(self, float):
+        return Map(fits.PrimaryHDU(self.data / float, self.header))
+
+    def __rtruediv__(self, float):
+        return self.__div__(float)
+
     def __array__(self):
         return self.data
     
