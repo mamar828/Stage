@@ -181,7 +181,7 @@ def get_courtes_temperature_from_NII_and_Halpha():
     """
     # Here the Halpha emission line sigma is obtained (includes the temperature's contribution)
     # A global temperature of 8500K was used
-    halpha_FWHM = Map(fits.open("gaussian_fitting/leo/SII_FWHM+header.fits")[0]) * 2*np.sqrt(2*np.log(2))
+    halpha_FWHM = Map(fits.open("gaussian_fitting/leo/Halpha/Halpha_FWHM+header.fits")[0]) * 2*np.sqrt(2*np.log(2))
     temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((halpha_FWHM.data.shape), 8500), None))
     halpha_FWHM_with_temperature = (halpha_FWHM**2 + temp_in_fwhm**2)**0.5
     halpha_FWHM_with_temperature.data[halpha_FWHM_with_temperature.data > 10000] = np.NAN
@@ -194,7 +194,7 @@ def get_courtes_temperature_from_NII_and_Halpha():
     nii_sigma_with_temperature = (nii_sigma**2 + (temp_map_FWHM / (2*np.sqrt(2*np.log(2))))**2)**0.5
 
     # The FWHM maps are converted in Angstroms
-    halpha_peak_AA = 6716
+    halpha_peak_AA = 6562.8
     nii_peak_AA = 6583.41
     
     halpha_sigma_with_temperature_AA = 1000 * halpha_sigma_with_temperature * halpha_peak_AA / scipy.constants.c
@@ -206,7 +206,41 @@ def get_courtes_temperature_from_NII_and_Halpha():
     temperature_map.plot_map()
 
 
-get_courtes_temperature_from_NII_and_Halpha()
+# get_courtes_temperature_from_NII_and_Halpha()
+
+
+def get_courtes_temperature_from_NII_and_OIII():
+    """
+    In this example, we obtain a temperature map using Courtes's method with the NII and OIII emission lines.
+    """
+    # Here the OIII emission line sigma is obtained (includes the temperature's contribution)
+    # A global temperature of 8500K was used
+    oiii_FWHM = Map(fits.open("gaussian_fitting/leo/OIII/OIII_FWHM+header.fits")[0]) * 2*np.sqrt(2*np.log(2))
+    temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((oiii_FWHM.data.shape), 8500), None))
+    oiii_FWHM_with_temperature = (oiii_FWHM**2 + temp_in_fwhm**2)**0.5
+    oiii_FWHM_with_temperature.data[oiii_FWHM_with_temperature.data > 10000] = np.NAN
+    oiii_sigma_with_temperature = oiii_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
+
+    # The NII turbulence map is acquired
+    nii_sigma = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+    temp_map_FWHM = Map(fits.open(
+        "gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0]).transfer_temperature_to_FWHM().reproject_on(nii_sigma)
+    nii_sigma_with_temperature = (nii_sigma**2 + (temp_map_FWHM / (2*np.sqrt(2*np.log(2))))**2)**0.5
+
+    # The FWHM maps are converted in Angstroms
+    oiii_peak_AA = 5007
+    nii_peak_AA = 6583.41
+    
+    oiii_sigma_with_temperature_AA = 1000 * oiii_sigma_with_temperature * oiii_peak_AA / scipy.constants.c
+    nii_sigma_with_temperature_AA = 1000 * nii_sigma_with_temperature * nii_peak_AA / scipy.constants.c
+
+    # The two maps are used to compute a temperature map
+    temperature_map = 4.73 * 10**4 * (nii_sigma_with_temperature_AA**2 - 
+                       oiii_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2)
+    temperature_map.plot_map()
+
+
+get_courtes_temperature_from_NII_and_OIII()
 
 
 def get_turbulence_from_Halpha():

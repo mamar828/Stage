@@ -164,7 +164,6 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 
 # ------------------------------------------------------------------------------
 
-# ref = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
 # cube = Data_cube(fits.open("gaussian_fitting/leo/Halpha/cube_final.fits")[0])
 # cube.header = cube.get_header_without_third_dimension()
 # cube.header["CRPIX1"] = 328
@@ -177,8 +176,27 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # cube.header["CTYPE2"] = "DEC--TAN"
 # cube.save_as_fits_file("gaussian_fitting/leo/Halpha/reference_cube.fits")
 
-cube = Data_cube(fits.open("gaussian_fitting/leo/Halpha/reference_cube.fits")[0])
-halpha_FWHM = Map(fits.open("gaussian_fitting/leo/Halpha/Halpha_FWHM.fits")[0])
-halpha_FWHM.header = cube.get_header_without_third_dimension()
-halpha_FWHM.save_as_fits_file("gaussian_fitting/leo/Halpha/Halpha_FWHM+header.fits")
+# cube = Data_cube(fits.open("gaussian_fitting/leo/Halpha/reference_cube.fits")[0])
+# halpha_FWHM = Map(fits.open("gaussian_fitting/leo/Halpha/Halpha_FWHM.fits")[0])
+# cube.header = cube.get_header_without_third_dimension()
+# halpha_FWHM.header = cube.bin_header(4)
+# halpha_FWHM.save_as_fits_file("gaussian_fitting/leo/Halpha/Halpha_FWHM+header.fits")
 
+# ------------------------------------------------------------------------------
+
+# cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/O00102.fits")[0])
+# cube.header = cube.get_header_without_third_dimension()
+# cube.header["CRPIX1"] = 395
+# cube.header["CRPIX2"] = 265
+# cube.header["CRVAL1"] = (26.2739 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
+# cube.header["CRVAL2"] = 61 + (29 * 60 + 28.462)/3600
+# cube.header["CDELT1"] = -0.00024233
+# cube.header["CDELT2"] = 0.00024126
+# cube.header["CTYPE1"] = "RA---TAN"
+# cube.header["CTYPE2"] = "DEC--TAN"
+# cube.save_as_fits_file("gaussian_fitting/leo/OIII/reference_cube.fits")
+
+# cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits")[0])
+# halpha_FWHM = Map(fits.open("gaussian_fitting/leo/OIII/OIII_FWHM.fits")[0])
+# halpha_FWHM.header = cube.get_header_without_third_dimension()
+# halpha_FWHM.save_as_fits_file("gaussian_fitting/leo/OIII/OIII_FWHM+header.fits")
