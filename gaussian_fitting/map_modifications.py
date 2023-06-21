@@ -138,12 +138,12 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # plt.show()
 
 
-# ---------------------------
-# MODIFICATIONS OF LEO'S MAPS
-# ---------------------------
+# --------------------------
+# MODIFICATION OF LEO'S MAPS
+# --------------------------
 
 # ref = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
-# cube = Data_cube(fits.open("gaussian_fitting/leo/cube_nouveau.fits")[0])
+# cube = Data_cube(fits.open("gaussian_fitting/leo/SII/cube_nouveau.fits")[0])
 # cube.header = cube.get_header_without_third_dimension()
 # cube.header["CRPIX1"] = 155
 # cube.header["CRPIX2"] = 169
@@ -155,14 +155,30 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # cube.header["CTYPE2"] = "DEC--TAN"
 # print(repr(cube.header))
 # print(repr(ref.header))
-# cube.save_as_fits_file("gaussian_fitting/leo/reference_cube.fits")
+# cube.save_as_fits_file("gaussian_fitting/leo/SII/reference_cube.fits")
 
-# cube = Data_cube(fits.open("gaussian_fitting/leo/reference_cube.fits")[0])
-# sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII_FWHM.fits")[0])
+# cube = Data_cube(fits.open("gaussian_fitting/leo/SII/reference_cube.fits")[0])
+# sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII/SII_FWHM.fits")[0])
 # sii_FWHM.header = cube.get_header_without_third_dimension()
-# sii_FWHM.save_as_fits_file("gaussian_fitting/leo/SII_FWHM+header.fits")
+# sii_FWHM.save_as_fits_file("gaussian_fitting/leo/SII/SII_FWHM+header.fits")
 
-# ---------------------------
-# MODIFICATIONS OF LEO'S MAPS
-# ---------------------------
+# ------------------------------------------------------------------------------
+
+# ref = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+# cube = Data_cube(fits.open("gaussian_fitting/leo/Halpha/cube_final.fits")[0])
+# cube.header = cube.get_header_without_third_dimension()
+# cube.header["CRPIX1"] = 328
+# cube.header["CRPIX2"] = 242
+# cube.header["CRVAL1"] = (30.2443 + 13 * 60 + 23 * 3600)/(24 * 3600) * 360
+# cube.header["CRVAL2"] = 61 + (30 * 60 + 10.112)/3600
+# cube.header["CDELT1"] = -0.00046204             # -0.000407
+# cube.header["CDELT2"] = 0.0004201               # 0.000453
+# cube.header["CTYPE1"] = "RA---TAN"
+# cube.header["CTYPE2"] = "DEC--TAN"
+# cube.save_as_fits_file("gaussian_fitting/leo/Halpha/reference_cube.fits")
+
+cube = Data_cube(fits.open("gaussian_fitting/leo/Halpha/reference_cube.fits")[0])
+halpha_FWHM = Map(fits.open("gaussian_fitting/leo/Halpha/Halpha_FWHM.fits")[0])
+halpha_FWHM.header = cube.get_header_without_third_dimension()
+halpha_FWHM.save_as_fits_file("gaussian_fitting/leo/Halpha/Halpha_FWHM+header.fits")
 

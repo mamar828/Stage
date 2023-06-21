@@ -398,7 +398,7 @@ class Map(Fits_file):
             plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis"))
         plt.show()
 
-    def plot_two_maps(self, other: Map, bounds: tuple=None, alpha: float=0.5):
+    def plot_two_maps(self, other: Map, bounds: tuple=None):
         """
         Plot two maps superposed with a certain alpha. The first map is plotted with the viridis colormap whereas the second
         map is plotted with the magma colormap.
@@ -408,14 +408,17 @@ class Map(Fits_file):
         other: Map object. The second map that will be plotted with the magma colormap.
         bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first element is
         the minimum and the second is the maximum.
-        alpha: float, default=0.5. Desired alpha of the maps, 1 being completely opaque and zero perfectly transparent.
         """
         if bounds is None:
-            plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", alpha=alpha))
-            plt.colorbar(plt.imshow(other.data, origin="lower", cmap="magma", alpha=alpha))
+            ax1 = plt.subplot(1,2,1)
+            ax2 = plt.subplot(1,2,2)
+            plt.colorbar(ax1.imshow(self.data, origin="lower", cmap="viridis"))
+            plt.colorbar(ax2.imshow(other.data, origin="lower", cmap="viridis"))
         else:
-            plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1], alpha=alpha))
-            plt.colorbar(plt.imshow(other.data, origin="lower", cmap="magma", vmin=bounds[0], vmax=bounds[1], alpha=alpha))
+            ax1 = plt.subplot(1,2,1)
+            ax2 = plt.subplot(1,2,2)
+            plt.colorbar(ax1.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
+            plt.colorbar(ax2.imshow(other.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
         plt.show()
 
     def bin_map(self, nb_pix_bin: int=2, raw_data: np.ndarray=None) -> Map:
@@ -640,6 +643,17 @@ class Map_u(Map):
     def copy(self):
         return Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), self.header.copy()),
                                    fits.ImageHDU(np.copy(self.uncertainties), self.header.copy())]))
+    
+    def __iter__(self):
+        self.n = -1
+        return self
+    
+    def __next__(self):
+        self.n += 1
+        if self.n > len(self.object) - 1:
+            raise StopIteration
+        else:
+            return Map(fits.PrimaryHDU(self.object[self.n].data, self.header))
 
     def save_as_fits_file(self, filename: str):
         """
