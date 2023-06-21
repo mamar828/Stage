@@ -354,7 +354,7 @@ plt.show()
 # plt.show()
 
 
-
+assert 1 == 2, "you're dumb"
 
 
 

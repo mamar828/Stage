@@ -161,12 +161,12 @@ def get_temperature_from_NII_and_SII():
     sii_peak_AA = 6716
     nii_peak_AA = 6583.41
     
-    sii_sigma_with_temperature = 1000 * sii_sigma_with_temperature * sii_peak_AA / scipy.constants.c
-    nii_sigma_with_temperature = 1000 * nii_sigma_with_temperature * nii_peak_AA / scipy.constants.c
+    sii_sigma_with_temperature_AA = 1000 * sii_sigma_with_temperature * sii_peak_AA / scipy.constants.c
+    nii_sigma_with_temperature_AA = 1000 * nii_sigma_with_temperature * nii_peak_AA / scipy.constants.c
 
     # The two maps are used to compute a temperature map
-    temperature_map = 4.73 * 10**4 * (nii_sigma_with_temperature**2 - 
-                       sii_sigma_with_temperature.reproject_on(nii_sigma_with_temperature)**2)
+    temperature_map = 4.73 * 10**4 * (nii_sigma_with_temperature_AA**2 - 
+                       sii_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2)
     temperature_map.plot_map()
 
 
@@ -179,8 +179,8 @@ def get_turbulence_from_Halpha():
     """
     cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 5 int indicates from which gaussian the FWHM will be extracted, in this case from the Halpha peak
-    ha_map, ha_map_unc = cube.bin_cube(2).fit(4)
-    ha_map.save_as_fits_file("gaussian_fitting/maps/computed_data/halpha/fwhm_NII.fits", ha_map_unc)
+    ha_map = cube.bin_cube(2).fit(5)
+    ha_map.save_as_fits_file("gaussian_fitting/maps/computed_data/halpha/fwhm_NII.fits")
 
 
 # get_turbulence_from_Halpha()

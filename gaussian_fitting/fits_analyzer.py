@@ -365,7 +365,7 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(self.data / other, self.header))
 
     def __rtruediv__(self, other):
-        return self.__div__(other)
+        return (self.__truediv__(other))**(-1)
 
     def __array__(self):
         return self.data
@@ -600,6 +600,7 @@ class Map_u(Map):
         self.data = fits_list[0].data
         self.uncertainties = fits_list[1].data
         self.header = fits_list[0].header
+        assert self.data.shape == self.uncertainties.shape, "The data and uncertainty sizes do not match."
 
     def __add__(self, other):
         if type(other) == Map_u:
@@ -621,7 +622,7 @@ class Map_u(Map):
 
     def __pow__(self, power):
         return Map_u(fits.HDUList([fits.PrimaryHDU(self.data ** power, self.header),
-                                   fits.ImageHDU(self.uncertainties / self.data * power * self.data**power, self.header)]))
+                                   fits.ImageHDU(np.abs(self.uncertainties / self.data * power * self.data**power), self.header)]))
     
     def __mul__(self, other):
         return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other, self.header),
