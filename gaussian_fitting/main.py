@@ -133,11 +133,11 @@ def get_turbulence_map(temp_map):
     turbulence_map = (aligned_map - temperature_map**2)**0.5
     # The standard deviation is the desired quantity
     turbulence_map /= 2 * np.sqrt(2 * np.log(2))
-    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence_2.fits")
+    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
 
 
 # get_turbulence_map(Map_u(fits.HDUList([fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0],
-#                                          fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]])))
+#                                        fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]])))
 
 
 def get_temperature_from_NII_and_SII():

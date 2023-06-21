@@ -16,7 +16,7 @@ class Spectrum:
     Encapsulate all the data and methods of a cube's spectrum.
     """
 
-    def __init__(self, data=np.ndarray, calibration=bool, desired_peak_position=35):
+    def __init__(self, data: np.ndarray, calibration: bool, desired_peak_position: int=35):
         """
         Initialize a Spectrum object. Calibration boolean must be set to True to force the analysis of a single peak such as
         with a calibration cube's spectrum.
@@ -49,15 +49,15 @@ class Spectrum:
             mean = np.sum(self.y_values[24:34]) / 10
             self.y_values -= mean
         
-    def plot(self, coords=None, fullscreen=False, **other_values):
+    def plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
         """
         Plot the data and the fits.
         
         Arguments
         ---------
-        coords: optional tuple of the x and y coordinates of the evaluated point. Serves as a landmark in the cube and will
-        appear on screen.
-        fullscreen: boolean that specifies if the graph must be opened in fullscreen.
+        coords: tuple of ints, optional. x and y coordinates of the evaluated point. Serves as a landmark in the cube
+        and will appear on screen.
+        fullscreen: bool. Specifies if the graph must be opened in fullscreen.
         other_values: optional. This argument may take any distribution to be plotted and is used to plot all the gaussian
         fits on the same plot.
         """
@@ -91,14 +91,14 @@ class Spectrum:
             manager.full_screen_toggle()
         plt.show()
 
-    def plot_fit(self, coords=None, fullscreen=False, plot_all=False):
+    def plot_fit(self, coords: int=None, fullscreen: bool=False, plot_all: bool=False):
         """
         Send all the functions to be plotted to the plot method depending on the data cube used.
 
         Arguments
         ---------
-        coord: tuple of ints. x and y coordinates of the evaluated point. Serves as a landmark in the cube and will
-        appear on screen.
+        coord: tuple of ints, optional. x and y coordinates of the evaluated point. Serves as a landmark in the cube
+        and will appear on screen.
         fullscreen: bool. Specifies if the graph must be opened in fullscreen.
         plot_all: bool. Specifies if all gaussian functions contributing to the main fit must be plotted.
         """
@@ -117,7 +117,7 @@ class Spectrum:
         else:
             self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit_calibration(self):
+    def fit_calibration(self) -> models:
         """
         Fit the calibration cube's data using specutils. Also sets the astropy model of the fitted gaussian to the variable
         self.fitted_gaussian.
@@ -134,16 +134,17 @@ class Spectrum:
                                             fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)  
             return self.fitted_gaussian
         except:
+            # Fit unsuccessful
             pass
 
-    def fit_data_cube(self, params, stddev_mins=None):
+    def fit_data_cube(self, params: dict, stddev_mins: dict=None) -> models:
         """
         Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the variable
         self.fitted_gaussian.
 
         Arguments
         ---------
-        params: dict. Dictionary containing the initial guesses for the amplitude and mean of each gaussian
+        params: dict. Contains the initial guesses for the amplitude and mean of each gaussian
         component.
         stddev_mins: dict, optional. Specifies the standard deviation's minimum value of every gaussian component.
         This is used in the fit_iteratively method to increase the fit's accuracy.
@@ -178,7 +179,7 @@ class Spectrum:
                                             fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
         return self.fitted_gaussian
 
-    def fit_iteratively(self, stddev_increments=0.2):
+    def fit_iteratively(self, stddev_increments: float=0.2) -> models:
         """
         Use the fit method iteratively to find the best possible standard deviation values for the gauss functions representing
         the OH emission rays by minimizing the residual's standard deviation. After finding every best minimum standard
@@ -222,7 +223,7 @@ class Spectrum:
         # Fit the data with the standard deviation minimums found
         return self.fit(initial_guesses, stddev_mins)
 
-    def get_initial_guesses(self):
+    def get_initial_guesses(self) -> dict:
         """
         Find the most plausible initial guess for the amplitude and mean value of every gaussian function with the NII data cube.
 
@@ -299,7 +300,7 @@ class Spectrum:
             params[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
         return params
     
-    def get_fitted_gaussian_parameters(self):
+    def get_fitted_gaussian_parameters(self) -> models:
         """
         Get the parameters of every gaussian component of the complete fit.
 
@@ -309,7 +310,7 @@ class Spectrum:
         """
         return self.fitted_gaussian
     
-    def get_uncertainties(self):
+    def get_uncertainties(self) -> dict:
         """
         Get the uncertainty on every parameter of every gaussian component.
 
@@ -328,9 +329,13 @@ class Spectrum:
             }
         return ordered_uncertainties 
     
-    def get_stddev(self, array):
+    def get_stddev(self, array: np.ndarray) -> float:
         """
         Get the standard deviation of any array. It is mainly used to find the subtracted fit's standard deviation.
+
+        Arguments
+        ---------
+        array: numpy array. Array from which the standard deviation needs to be calculated.
 
         Returns
         -------
@@ -338,7 +343,7 @@ class Spectrum:
         """
         return np.std(array)
         
-    def get_subtracted_fit(self):
+    def get_subtracted_fit(self) -> np.ndarray:
         """
         Get the values of the subtracted_fit.
 
@@ -349,7 +354,7 @@ class Spectrum:
         subtracted_y = self.y_values*u.Jy - self.fitted_gaussian(self.x_values*u.um)
         return subtracted_y
     
-    def get_FWHM_channels(self, function, stddev_uncertainty):
+    def get_FWHM_channels(self, function, stddev_uncertainty: float) -> np.ndarray:
         """
         Get the full width at half max of a function along with its uncertainty in channels.
 
@@ -366,7 +371,7 @@ class Spectrum:
         fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*stddev_uncertainty
         return np.array((fwhm, fwhm_uncertainty))
 
-    def get_FWHM_speed(self, function, stddev_uncertainty):
+    def get_FWHM_speed(self, function, stddev_uncertainty: float) -> np.ndarray:
         """
         Get the full width at half max of a function along with its uncertainty in km/s.
 
