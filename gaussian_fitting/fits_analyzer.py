@@ -588,6 +588,10 @@ class Map(Fits_file):
 class Map_u(Map):
     """
     Encapsulate the methods specific to maps with uncertainties.
+    Note that a Map_u is essentially two Map objects into a single object, the first Map being the data and the second one
+    being its uncertainty. This makes conversion from Map_u -> Map easier via the following statement:
+    data_map, uncertainty_map = [Map_u object].
+    data_map and uncertainty_map would then be two Map objects.
     """
 
     def __init__(self, fits_list):
@@ -603,7 +607,7 @@ class Map_u(Map):
         self.data = fits_list[0].data
         self.uncertainties = fits_list[1].data
         self.header = fits_list[0].header
-        assert self.data.shape == self.uncertainties.shape, "The data and uncertainty sizes do not match."
+        assert self.data.shape == self.uncertainties.shape, "The data and uncertainties sizes do not match."
 
     def __add__(self, other):
         if type(other) == Map_u:

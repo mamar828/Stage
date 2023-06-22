@@ -158,9 +158,9 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # cube.save_as_fits_file("gaussian_fitting/leo/SII/reference_cube.fits")
 
 # cube = Data_cube(fits.open("gaussian_fitting/leo/SII/reference_cube.fits")[0])
-# sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII/SII_FWHM.fits")[0])
-# sii_FWHM.header = cube.get_header_without_third_dimension()
-# sii_FWHM.save_as_fits_file("gaussian_fitting/leo/SII/SII_FWHM+header.fits")
+# sii_sigma = Map(fits.open("gaussian_fitting/leo/SII/SII_sigma.fits")[0])
+# sii_sigma.header = cube.get_header_without_third_dimension()
+# sii_sigma.save_as_fits_file("gaussian_fitting/leo/SII/SII_sigma+header.fits")
 
 # ------------------------------------------------------------------------------
 
@@ -177,10 +177,10 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # cube.save_as_fits_file("gaussian_fitting/leo/Halpha/reference_cube.fits")
 
 # cube = Data_cube(fits.open("gaussian_fitting/leo/Halpha/reference_cube.fits")[0])
-# halpha_FWHM = Map(fits.open("gaussian_fitting/leo/Halpha/Halpha_FWHM.fits")[0])
+# halpha_sigma = Map(fits.open("gaussian_fitting/leo/Halpha/Halpha_sigma.fits")[0])
 # cube.header = cube.get_header_without_third_dimension()
-# halpha_FWHM.header = cube.bin_header(4)
-# halpha_FWHM.save_as_fits_file("gaussian_fitting/leo/Halpha/Halpha_FWHM+header.fits")
+# halpha_sigma.header = cube.bin_header(4)
+# halpha_sigma.save_as_fits_file("gaussian_fitting/leo/Halpha/Halpha_sigma+header.fits")
 
 # ------------------------------------------------------------------------------
 
@@ -197,6 +197,6 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # cube.save_as_fits_file("gaussian_fitting/leo/OIII/reference_cube.fits")
 
 # cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits")[0])
-# halpha_FWHM = Map(fits.open("gaussian_fitting/leo/OIII/OIII_FWHM.fits")[0])
-# halpha_FWHM.header = cube.get_header_without_third_dimension()
-# halpha_FWHM.save_as_fits_file("gaussian_fitting/leo/OIII/OIII_FWHM+header.fits")
+# halpha_sigma = Map(fits.open("gaussian_fitting/leo/OIII/OIII_sigma.fits")[0])
+# halpha_sigma.header = cube.get_header_without_third_dimension()
+# halpha_sigma.save_as_fits_file("gaussian_fitting/leo/OIII/OIII_sigma+header.fits")

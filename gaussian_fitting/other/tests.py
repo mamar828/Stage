@@ -356,5 +356,7 @@ plt.show()
 
 # assert 1 == 2, "you're dumb"
 
-
+a = 2
+a /= 2 * 4
+print(a)
 
