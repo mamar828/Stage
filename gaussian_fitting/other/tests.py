@@ -356,7 +356,14 @@ plt.show()
 
 # assert 1 == 2, "you're dumb"
 
-a = 2
-a /= 2 * 4
-print(a)
+# a = 2
+# a /= 2 * 4
+# print(a)
+
+import sys
+sys.path.append(".")
+
+from gaussian_fitting.cube_spectrum import Spectrum
+# from gaussian_fitting.fits_analyzer import Map_u
+
 

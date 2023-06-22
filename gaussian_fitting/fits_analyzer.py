@@ -582,6 +582,31 @@ class Map(Fits_file):
         angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
+    
+    def get_region_statistics(self, region: pyregion.core.ShapeList, plot_histogram: bool=False) -> dict:
+        # A mask of zeros and ones is created with the region
+        try:
+            mask = region.get_mask(hdu=self.object)
+        except:
+            mask = region.get_mask(hdu=self.object[0])
+        mask = np.where(mask == False, np.nan, mask)
+        mask = np.where(mask == True, 1, mask)
+        # The map's data is only kept where a mask applies
+        new_map = self.copy() * mask
+        stats = {
+            "median": np.nanmedian(new_map.data),
+            "mean": np.nanmean(new_map.data),
+            "standard_deviation": np.nanstd(new_map.data),
+            "skewness": scipy.stats.skew(new_map.data, axis=None, nan_policy="omit"),
+            "kurtosis": scipy.stats.kurtosis(new_map.data, axis=None, nan_policy="omit")
+        }
+        map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
+        print(np.nanmedian(new_map.uncertainties))
+        if plot_histogram:
+            plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
+            plt.show()
+            
+        return stats
 
 
 
@@ -592,6 +617,7 @@ class Map_u(Map):
     being its uncertainty. This makes conversion from Map_u -> Map easier via the following statement:
     data_map, uncertainty_map = [Map_u object].
     data_map and uncertainty_map would then be two Map objects.
+    It is also possible to create a Map_u object from two Map objects using the from_map_objects method.
     """
 
     def __init__(self, fits_list):
@@ -608,6 +634,25 @@ class Map_u(Map):
         self.uncertainties = fits_list[1].data
         self.header = fits_list[0].header
         assert self.data.shape == self.uncertainties.shape, "The data and uncertainties sizes do not match."
+    
+    @classmethod
+    def from_Map_objects(self, map_data: Map, map_uncertainty: Map) -> Map_u:
+        """
+        Create a Map_u object using two Map objects. An object may be created using the following statement:
+        new_map = Map_u.from_Map_objects(data_map, uncertainties_map),
+        where data_map and uncertainties_map are two Map objects.
+
+        Arguments
+        ---------
+        map_data: Map object. Serves as the Map_u's data.
+        map_uncertainty: Map object. Serves as the Map_u's uncertainties.
+
+        Returns
+        -------
+        Map_u object: map with the corresponding data and uncertainties.
+        """
+        return self(fits.HDUList([fits.PrimaryHDU(map_data.data, map_data.header),
+                                  fits.ImageHDU(map_uncertainty.data, None)]))
 
     def __add__(self, other):
         if type(other) == Map_u:
@@ -688,7 +733,7 @@ class Map_u(Map):
                     break
 
                 elif answer == "n":
-                    break        
+                    break
                 
         except:
             # The file does not yet exist

@@ -57,8 +57,6 @@ Every sub-element is the fwhm and its uncertainty
 
 
 TODOLIST
-- Map_u
-- Default types
-- Solve SII
-- Halpha NII temperature map Courtes style
-- OIII NII temperature map Courtes style
+- 1. RSB >= 6       RSB: gaussian_amplitude/sigma_residue
+- 2. Stats
+- 3. Temperature maps
