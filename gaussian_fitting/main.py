@@ -205,6 +205,35 @@ def get_courtes_temperature_from_NII_and_Halpha():
 # get_courtes_temperature_from_NII_and_Halpha()
 
 
+def get_courtes_temperature_from_NII_and_Halpha2():
+    """
+    In this example, we obtain a temperature map using Courtes's method with the NII and Halpha emission lines.
+    """
+    # Here the Halpha emission line sigma is obtained (includes the temperature's contribution)
+    halpha_FWHM_with_temperature = Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_Halpha.fits")[0])
+    halpha_sigma_with_temperature = halpha_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
+
+    # The NII sigma map is acquired
+    nii_FWHM_with_temperature = Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[0])
+    nii_sigma_with_temperature = nii_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
+
+    # The FWHM maps are converted in Angstroms
+    halpha_peak_AA = 6562.78
+    nii_peak_AA = 6583.41
+    
+    halpha_sigma_with_temperature_AA = 1000 * halpha_sigma_with_temperature * halpha_peak_AA / scipy.constants.c
+    nii_sigma_with_temperature_AA = 1000 * nii_sigma_with_temperature * nii_peak_AA / scipy.constants.c
+
+    # The two maps are used to compute a temperature map
+    temperature_map = 4.73 * 10**4 * (halpha_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2 - 
+                       nii_sigma_with_temperature_AA**2)
+    (halpha_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA) - nii_sigma_with_temperature_AA).plot_map((0,1))
+    temperature_map.save_as_fits_file("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")
+
+
+get_courtes_temperature_from_NII_and_Halpha2()
+
+
 def get_courtes_temperature_from_Halpha_and_OIII():
     """
     In this example, we obtain a temperature map using Courtes's method with the NII and OIII emission lines.
@@ -255,7 +284,7 @@ def get_region_statistics(map, region_number: int, write=False):
     plt.show()
     # The write bool must be set to True if the statistics need to be put in the file
     if write:
-        file = open("gaussian_fitting/maps/computed_data/turbulence_stats.txt", "a")
+        file = open("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.txt", "a")
         file.write(f"Region {region_number+1}:\n")
         for key, value in stats.items():
             file.write(f"{key}: {value}\n")
@@ -263,5 +292,5 @@ def get_region_statistics(map, region_number: int, write=False):
         file.close()
 
 
-# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/computed_data/turbulence.fits")[0]), 0, write=False)
+get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")[0]), 0, write=True)
 

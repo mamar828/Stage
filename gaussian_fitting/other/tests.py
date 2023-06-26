@@ -360,10 +360,19 @@ plt.show()
 # a /= 2 * 4
 # print(a)
 
-import sys
-sys.path.append(".")
+# import sys
+# sys.path.append(".")
 
-from gaussian_fitting.cube_spectrum import Spectrum
+# from gaussian_fitting.cube_spectrum import Spectrum
 # from gaussian_fitting.fits_analyzer import Map_u
 
+
+import scipy
+angstroms_center = 6583.41              # Emission wavelength of NII 
+m = 14.0067 * scipy.constants.u         # Nitrogen mass
+c = scipy.constants.c                   # Light speed
+k = scipy.constants.k                   # Boltzmann constant
+angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(2000 * k / (c**2 * m))
+speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
+print(speed_FWHM)
 
