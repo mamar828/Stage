@@ -394,17 +394,10 @@ class Map(Fits_file):
         return self.data
     
     def __eq__(self, other):
-        return (np.nansum(self.data - other.data) < 10**(-10) and 
-                self.header == other.header)
+        return np.nansum(self.data - other.data) < 10**(-10)
 
     def copy(self):
         return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()))
-
-    def to_primaryHDU(self):
-        return fits.PrimaryHDU(self.data, self.header)
-    
-    def to_imageHDU(self):
-        return fits.ImageHDU(self.data, self.header)
 
     def plot_map(self, bounds: tuple=None):
         """
@@ -648,8 +641,8 @@ class Map_u(Map):
     """
     Encapsulate the methods specific to maps with uncertainties.
     Note that a Map_u is essentially two Map objects into a single object, the first Map being the data and the second one
-    being its uncertainty. This makes conversion from Map_u -> Map easier via the following statement:
-    data_map, uncertainty_map = Map_u.
+    being its uncertainty. This makes conversion from Map_u -> Map easier via one of the following statements:
+    data_map, uncertainty_map = Map_u | uncertainty_map = Map_u[1]
     data_map and uncertainty_map would then be two Map objects.
     It is also possible to create a Map_u object from two Map objects using the from_map_objects method.
     """
@@ -720,8 +713,7 @@ class Map_u(Map):
 
     def __eq__(self, other):
         return (np.nansum(self.data - other.data) == 0. and 
-                np.nansum(self.uncertainties - other.uncertainties) == 0. and
-                self.header == other.header)
+                np.nansum(self.uncertainties - other.uncertainties) == 0.)
     
     def copy(self):
         return Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), self.header.copy()),
@@ -737,6 +729,9 @@ class Map_u(Map):
             raise StopIteration
         else:
             return Map(fits.PrimaryHDU(self.object[self.n].data, self.header))
+        
+    def __getitem__(self, index):
+        return Map(self.object[index])
 
     def save_as_fits_file(self, filename: str):
         """
@@ -794,8 +789,8 @@ class Map_u(Map):
         Map_u object: binned map.
         """
         binned_data, binned_uncertainties = super().bin_map(nb_pix_bin), super().bin_map(nb_pix_bin, self.uncertainties)
-        return Map_u(fits.HDUList([binned_data.to_primaryHDU(),
-                                   binned_uncertainties.to_imageHDU()]))
+        return Map_u(fits.HDUList([fits.PrimaryHDU(binned_data.data, binned_data.header),
+                                   fits.ImageHDU(binned_uncertainties.data, binned_data.header)]))
     
     def smooth_order_change(self, center: int=(527, 484)) -> Map_u:
         """
@@ -935,7 +930,7 @@ class Map_usnr(Map_u):
     Encapsulate the methods specific to maps with uncertainties and signal to noise ratios.
     Note that a Map_usnr is essentially three Map objects into a single object, the first Map being the data, the second one
     being its uncertainty and the third one being the signal to noise ratio. This makes conversion from Map_usnr -> Map easier
-    via the following statement: data_map, uncertainty_map, snr_map = Map_usnr.
+    via one of the following statements: data_map, uncertainty_map, snr_map = Map_usnr | snr_map = Map_usnr[2]
     data_map, uncertainty_map and snr_map would then be three Map objects.
     It is also possible to create a Map_usnr object from three Map objects using the from_map_objects method.
     """

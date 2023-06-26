@@ -170,7 +170,7 @@ def get_courtes_temperature_from_NII_and_SII():
     # The two maps are used to compute a temperature map
     temperature_map = 4.73 * 10**4 * (nii_sigma_with_temperature_AA**2 - 
                        sii_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2)
-    temperature_map.plot_map((0,10000))
+    temperature_map.save_as_fits_file("gaussian_fitting/maps/temp_maps_courtes/NII_SII.fits")
 
 
 # get_courtes_temperature_from_NII_and_SII()
@@ -181,13 +181,8 @@ def get_courtes_temperature_from_NII_and_Halpha():
     In this example, we obtain a temperature map using Courtes's method with the NII and Halpha emission lines.
     """
     # Here the Halpha emission line sigma is obtained (includes the temperature's contribution)
-    # A global temperature of 8500K was used
-    halpha_FWHM_with_temperature = (Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_Ha.fits")[0])**2 - 
+    halpha_FWHM_with_temperature = (Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_Halpha.fits")[0])**2 - 
                                     Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5
-    # halpha_FWHM = Map(fits.open("gaussian_fitting/leo/Halpha/Halpha_sigma+header.fits")[0]) * 2*np.sqrt(2*np.log(2))
-    # temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((halpha_FWHM.data.shape), 8500), None))
-    # halpha_FWHM_with_temperature = (halpha_FWHM**2 + temp_in_fwhm**2)**0.5
-    # halpha_FWHM_with_temperature.data[halpha_FWHM_with_temperature.data > 10000] = np.NAN
     halpha_sigma_with_temperature = halpha_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
 
     # The NII sigma map is acquired
@@ -204,16 +199,7 @@ def get_courtes_temperature_from_NII_and_Halpha():
     # The two maps are used to compute a temperature map
     temperature_map = 4.73 * 10**4 * (halpha_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2 - 
                        nii_sigma_with_temperature_AA**2)
-    temperature_map.plot_map((0,10000))
-    # temperature_map = 4.73 * 10**4 * (halpha_sigma_with_temperature_AA**2 - 
-    #                    nii_sigma_with_temperature_AA.reproject_on(halpha_sigma_with_temperature_AA)**2)
-    # temperature_map.plot_map((0,10000))
-    # temperature_map.save_as_fits_file("gaussian_fitting/test_maps/1temperature_map.fits")
-    # halpha_sigma_with_temperature_AA.save_as_fits_file("gaussian_fitting/test_maps/1halpha_map.fits")
-    # nii_sigma_with_temperature_AA.save_as_fits_file("gaussian_fitting/test_maps/1nii_map.fits")
-    # temperature_map_2 = 4.73 * 10**4 * (halpha_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2 - 
-    #                    nii_sigma_with_temperature_AA**2)
-    # temperature_map.plot_two_maps(temperature_map_2, (0,10000))
+    temperature_map.save_as_fits_file("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha.fits")
 
 
 # get_courtes_temperature_from_NII_and_Halpha()
@@ -232,7 +218,7 @@ def get_courtes_temperature_from_Halpha_and_OIII():
     oiii_sigma_with_temperature = oiii_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
 
     # The Halpha sigma map is acquired
-    halpha_FWHM_with_temperature = (Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_Ha.fits")[0])**2 - 
+    halpha_FWHM_with_temperature = (Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_Halpha.fits")[0])**2 - 
                                     Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5
     halpha_sigma_with_temperature = halpha_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
 
@@ -246,15 +232,15 @@ def get_courtes_temperature_from_Halpha_and_OIII():
     # The two maps are used to compute a temperature map
     temperature_map = 4.73 * 10**4 * (halpha_sigma_with_temperature_AA**2 - 
                        oiii_sigma_with_temperature_AA.reproject_on(halpha_sigma_with_temperature_AA)**2)
-    temperature_map.plot_map((0,10000))
+    temperature_map.save_as_fits_file("gaussian_fitting/maps/temp_maps_courtes/Halpha_OIII.fits")
 
 
 # get_courtes_temperature_from_Halpha_and_OIII()
 
 
-def get_region_statistics():
+def get_region_statistics(map, region_number: int, write=False):
     """
-    In this example, the statistics of a region are obtained.
+    In this example, the statistics of a region are obtained and stored in the turbulence_stats.txt file.
     """
     # Open the three possible regions
     regions = [
@@ -262,13 +248,20 @@ def get_region_statistics():
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
-    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
-    stats = turbulence_map.get_region_statistics(regions[1], plot_histogram=True)
+    # The region number int specifies from which region the stats are taken
+    # A histogram may be shown if the plot_histogram bool is set to True
+    stats = map.get_region_statistics(regions[region_number], plot_histogram=False)
     print(stats)
     plt.show()
+    # The write bool must be set to True if the statistics need to be put in the file
+    if write:
+        file = open("gaussian_fitting/maps/computed_data/turbulence_stats.txt", "a")
+        file.write(f"Region {region_number+1}:\n")
+        for key, value in stats.items():
+            file.write(f"{key}: {value}\n")
+        file.write("\n")
+        file.close()
 
 
-# get_region_statistics()
-
-
+# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/computed_data/turbulence.fits")[0]), 0, write=False)
 
