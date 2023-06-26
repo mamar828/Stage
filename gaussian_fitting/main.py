@@ -41,13 +41,13 @@ def get_FWHM_maps():
     nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits")
 
 
-if __name__ == "__main__":
-    get_FWHM_maps()
+# if __name__ == "__main__":
+#     get_FWHM_maps()
 
 
-def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
+def get_region_widening_maps(base_map: Map_usnr):
     """
-    In this example, the four headers are extracted and attributed to the fwhm_map and the fwhm_unc_map. The data is also
+    In this example, the four headers are extracted and attributed to the various region widenings. The data is 
     stored in gaussian_fitting/maps/reproject.
     """
     global_header = Map(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0]).header
@@ -110,13 +110,13 @@ def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
         header_copy["CRPIX1"] /= 2
         header_copy["CRPIX2"] /= 2
 
-        data_map = Map_u(fits.HDUList([fits.PrimaryHDU(fwhm_map, header_copy),
-                                       fits.ImageHDU(fwhm_unc_map, header_copy)]))
-        data_map.save_as_fits_file(f"gaussian_fitting/maps/reproject/--{filename}")
+        data_map = Map_usnr(fits.HDUList([fits.PrimaryHDU(base_map.data, header_copy),
+                                          fits.ImageHDU(base_map.uncertainties, header_copy),
+                                          fits.ImageHDU(base_map.snr, header_copy)]))
+        data_map.save_as_fits_file(f"gaussian_fitting/maps/reproject/{filename}")
 
 
-# get_region_widening_maps(fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[0].data,
-#                          fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[1].data)
+# get_region_widening_maps(Map_usnr(fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")))
 
 
 def get_turbulence_map(temp_map):
@@ -124,7 +124,9 @@ def get_turbulence_map(temp_map):
     In this example, the turbulence map is obtained with the previously computed maps: all region widenings as well as
     smoothed_instr_f. Note that the region widenings maps are not opened directly but are used in the Map.align_regions() method.
     """
-    global_FWHM_map = Map_u(fits.open("gaussian_fitting/maps/reproject/global_widening.fits"))
+    global_FWHM_map = Map_usnr(fits.open("gaussian_fitting/maps/reproject/global_widening.fits"))
+    # The pixels that have a snr inferior to 6 are masked
+    global_FWHM_map = global_FWHM_map.filter_snr(snr_threshold=6)
     instrumental_function = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)
     # The aligned maps are the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map = (global_FWHM_map**2 - instrumental_function**2).align_regions()
@@ -134,6 +136,7 @@ def get_turbulence_map(temp_map):
     turbulence_map = (aligned_map - temperature_map**2)**0.5
     # The standard deviation is the desired quantity
     turbulence_map /= 2 * np.sqrt(2 * np.log(2))
+    turbulence_map.plot_map()
     turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
 
 
@@ -268,12 +271,4 @@ def get_region_statistics():
 # get_region_statistics()
 
 
-# test = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
-# test_usnr = Map_usnr(fits.HDUList([fits.PrimaryHDU(test.data, test.header),
-#                                    fits.ImageHDU(test.uncertainties, test.header),
-#                                    fits.ImageHDU(np.ones(test.data.shape), test.header)]))
-# test_usnr.smooth_order_change()
 
-# copy1 = test_usnr.copy()
-# copy2 = test_usnr.copy()
-# print(copy1 == copy2)

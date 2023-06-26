@@ -120,7 +120,6 @@ class Data_cube(Fits_file):
         self.object = fits_object
         self.data = fits_object.data
         self.header = fits_object.header
-        self.data = self.data[:,:4,:4]
 
     def fit_calibration(self) -> Map_u:
         """
@@ -568,8 +567,7 @@ class Map(Fits_file):
 
         # A mask of zeros and ones is created with the regions
         masks = [region.get_mask(hdu=self.object) for region in regions]
-        masks = [np.where(mask == False, 0, mask) for mask in masks]
-        masks = [np.where(mask == True, 1, mask) for mask in masks]
+        masks = [np.where(mask == False, 0, 1) for mask in masks]
 
         # The map's data is removed where a mask applies
         new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
@@ -627,8 +625,7 @@ class Map(Fits_file):
             mask = region.get_mask(hdu=self.object)
         except:
             mask = region.get_mask(hdu=self.object[0])
-        mask = np.where(mask == False, np.nan, mask)
-        mask = np.where(mask == True, 1, mask)
+        mask = np.where(mask == False, np.nan, 1)
         # The map's data is only kept where a mask applies
         new_map = self.copy() * mask
         stats = {
@@ -894,8 +891,7 @@ class Map_u(Map):
 
         # A mask of zeros and ones is created with the regions
         masks = [region.get_mask(hdu=self.object[0]) for region in regions]
-        masks = [np.where(mask == False, 0, mask) for mask in masks]
-        masks = [np.where(mask == True, 1, mask) for mask in masks]
+        masks = [np.where(mask == False, 0, 1) for mask in masks]
 
         # The map's data is removed where a mask applies
         new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
@@ -953,8 +949,9 @@ class Map_usnr(Map_u):
         fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties, signal to
         noise ratio and header of the map.
         """
-        super().__init__(fits_list[:-1])
+        super().__init__(fits_list)
         self.snr = fits_list[2].data
+        assert self.data.shape == self.snr.shape, "The data and signal to noise ratios sizes do not match."
 
     @classmethod
     def from_Map_objects(self, map_data: Map, map_uncertainty: Map, map_snr: Map) -> Map_usnr:
@@ -1045,4 +1042,24 @@ class Map_usnr(Map_u):
             ])
 
             hdu_list.writeto(filename, overwrite=True)
-    
+
+    def filter_snr(self, snr_threshold: float=6) -> Map_usnr:
+        """ 
+        Filter the map's values by keeping only the data that has a signal to noise ratio superior or equal to the provided
+        quantity.
+
+        Arguments
+        ---------
+        snr_threshold: float, default=6. The pixels that have a signal to noise ratio inferior to this quantity will be
+        excluded.
+
+        Returns
+        Map_usnr object: map with the filtered data.
+        """
+        mask = np.ma.masked_less(self.snr, snr_threshold).mask
+        mask = np.where(mask == True, 0, 1)
+        return Map_usnr(fits.HDUList([fits.PrimaryHDU(self.data * mask, self.header),
+                                      fits.ImageHDU(self.uncertainties * mask, self.header),
+                                      fits.ImageHDU(self.snr * mask, self.header)]))
+
+
