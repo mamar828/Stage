@@ -8,6 +8,7 @@ import scipy
 
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy import units as u
 from reproject import reproject_interp
 import pyregion
 
@@ -119,6 +120,7 @@ class Data_cube(Fits_file):
         self.object = fits_object
         self.data = fits_object.data
         self.header = fits_object.header
+        self.data = self.data[:,:4,:4]
 
     def fit_calibration(self) -> Map_u:
         """
@@ -126,7 +128,7 @@ class Data_cube(Fits_file):
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
         state with the following phrasing:
         if __name__ == "__main__":
-        This prevents the code to recursively create instances of this code that would eventually overload the CPUs.
+        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
 
         Returns
         -------
@@ -146,14 +148,14 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension()),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], None)]))
 
-    def fit(self, targeted_ray: int) -> Map_u:
+    def fit(self, targeted_ray: int, calculate_snr: bool=False) -> object:
         """
         Fit the whole data cube to extract a gaussian's FWHM. This method presupposes that four OH peaks and one Halpha
-        peaks are present in the cube's spectrum in addition to the NII peak.
+        peak are present in the cube's spectrum in addition to the NII peak.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
         state with the following phrasing:
         if __name__ == "__main__":
-        This prevents the code to recursively create instances of this code that would eventually overload the CPUs.
+        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
 
         Arguments
         ---------
@@ -164,24 +166,35 @@ class Data_cube(Fits_file):
         3 : Fourth OH peak
         4 : NII peak
         5 : Halpha peak
+        calculate_snr: bool, default=False. Determines whether the signal to noise ratio must also be calculated and
+        stored as Map_usnr object.
 
         Returns
         -------
-        Map_u object: map of the FWHM value and its associated uncertainty.
+        object: depending on the calculate_snr boolean, the output may be a Map_u or a Map_usnr. It represents the FWHM value,
+        its associated uncertainty and it may also have a signal to noise ratio map.
         """
         data = np.copy(self.data)
         fit_fwhm_list = []
+        cube_type = "NII"
+        if calculate_snr:
+            cube_type = "NII with snr"
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, "NII") for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, cube_type) for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
+        new_header = self.get_header_without_third_dimension()
         # The map is temporarily stored in a simple format to facilitate extraction
         fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
-        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension()),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,1], None)]))
+        if calculate_snr:
+            return Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
+                                       fits.ImageHDU(fit_fwhm_map[:,:,1], new_header),
+                                       fits.ImageHDU(fit_fwhm_map[:,:,2], new_header)]))
+        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
         
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
@@ -320,6 +333,17 @@ def worker_fit(args: tuple) -> list:
                         spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
                         spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"]))
         Data_cube.give_update(None, f"NII fitting progress /{data.shape[2]}")
+    
+    elif cube_type == "NII with snr":
+        for x in range(data.shape[2]):
+            spectrum_object = Spectrum(data[:,y,x], calibration=False)
+            spectrum_object.fit_data_cube(spectrum_object.get_initial_guesses())
+            fwhm_values = spectrum_object.get_FWHM_speed(
+                          spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
+                          spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"])
+            line.append(np.concatenate((fwhm_values, np.array([(spectrum_object.get_fitted_gaussian_parameters()[targeted_ray].amplitude
+                                                                /u.Jy)/spectrum_object.get_residue_stddev()]))))
+        Data_cube.give_update(None, f"NII with snr fitting progress /{data.shape[2]}")
     return line
 
 
@@ -584,6 +608,20 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
     
     def get_region_statistics(self, region: pyregion.core.ShapeList, plot_histogram: bool=False) -> dict:
+        """
+        Get the statistics of a region along with a histogram. The supported statistic measures are: median, mean, standard
+        deviation, skewness and kurtosis.
+
+        Arguments
+        ---------
+        region: pyregion.core.ShapeList. Region in which the statistics need to be calculated. A histogram will also be made with
+        the data in this region.
+        plot_histogram: bool, default=False. Boolean that specifies if the histogram should be plotted.
+
+        Returns
+        -------
+        dict: statistics of the region. Every key is a statistic measure.
+        """
         # A mask of zeros and ones is created with the region
         try:
             mask = region.get_mask(hdu=self.object)
@@ -600,11 +638,10 @@ class Map(Fits_file):
             "skewness": scipy.stats.skew(new_map.data, axis=None, nan_policy="omit"),
             "kurtosis": scipy.stats.kurtosis(new_map.data, axis=None, nan_policy="omit")
         }
+        # The NANs are removed from the data from which the statistics are computed
         map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
-        print(np.nanmedian(new_map.uncertainties))
         if plot_histogram:
             plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
-            plt.show()
             
         return stats
 
@@ -615,14 +652,14 @@ class Map_u(Map):
     Encapsulate the methods specific to maps with uncertainties.
     Note that a Map_u is essentially two Map objects into a single object, the first Map being the data and the second one
     being its uncertainty. This makes conversion from Map_u -> Map easier via the following statement:
-    data_map, uncertainty_map = [Map_u object].
+    data_map, uncertainty_map = Map_u.
     data_map and uncertainty_map would then be two Map objects.
     It is also possible to create a Map_u object from two Map objects using the from_map_objects method.
     """
 
     def __init__(self, fits_list):
         """
-        Initialize a Map_u object.
+        Initialize a Map_u object. 
 
         Arguments
         ---------
@@ -652,7 +689,7 @@ class Map_u(Map):
         Map_u object: map with the corresponding data and uncertainties.
         """
         return self(fits.HDUList([fits.PrimaryHDU(map_data.data, map_data.header),
-                                  fits.ImageHDU(map_uncertainty.data, None)]))
+                                  fits.ImageHDU(map_uncertainty.data, map_data.header)]))
 
     def __add__(self, other):
         if type(other) == Map_u:
@@ -894,3 +931,118 @@ class Map_u(Map):
         angstroms_FWHM = 2 * float(np.sqrt(2 * np.log(2))) * angstroms_center * (self * k / (c**2 * m))**0.5
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
+
+
+
+class Map_usnr(Map_u):
+    """
+    Encapsulate the methods specific to maps with uncertainties and signal to noise ratios.
+    Note that a Map_usnr is essentially three Map objects into a single object, the first Map being the data, the second one
+    being its uncertainty and the third one being the signal to noise ratio. This makes conversion from Map_usnr -> Map easier
+    via the following statement: data_map, uncertainty_map, snr_map = Map_usnr.
+    data_map, uncertainty_map and snr_map would then be three Map objects.
+    It is also possible to create a Map_usnr object from three Map objects using the from_map_objects method.
+    """
+    
+    def __init__(self, fits_list):
+        """
+        Initialize a Map_usnr object. 
+
+        Arguments
+        ---------
+        fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties, signal to
+        noise ratio and header of the map.
+        """
+        super().__init__(fits_list[:-1])
+        self.snr = fits_list[2].data
+
+    @classmethod
+    def from_Map_objects(self, map_data: Map, map_uncertainty: Map, map_snr: Map) -> Map_usnr:
+        """
+        Create a Map_usnr object using three Map objects. An object may be created using the following
+        statement: new_map = Map_usnr.from_Map_objects(data_map, uncertainties_map, snr_map),
+        where data_map, uncertainties_map and snr_map are three Map objects.
+
+        Arguments
+        ---------
+        map_data: Map object. Serves as the Map_usnr's data.
+        map_uncertainty: Map object. Serves as the Map_usnr's uncertainties.
+        map_snr: Map object. Serves as the Map_usnr's signal to noise ratio.
+
+        Returns
+        -------
+        Map_usnr object: map with the corresponding data and uncertainties.
+        """
+        return self(fits.HDUList([fits.PrimaryHDU(map_data.data, map_data.header),
+                                  fits.ImageHDU(map_uncertainty.data, map_data.header),
+                                  fits.ImageHDU(map_snr.data, map_data.header)]))
+    
+    @classmethod
+    def from_Map_u_object(self, map_values: Map_u, map_snr: Map) -> Map_usnr:
+        """
+        Create a Map_usnr object using a Map_u object and a Map object. An object may be created
+        using the following statement: new_map = Map_usnr.from_Map_u_object(map_values, snr_map),
+        where map_values is a Map_u and snr_map is a Map object.
+
+        Arguments
+        ---------
+        map_values: Map_u object. Serves as the Map_usnr's data, uncertainties and header.
+        map_snr: Map object. Serves as the Map_usnr's signal to noise ratio.
+
+        Returns
+        -------
+        Map_usnr object: map with the corresponding data and uncertainties.
+        """
+        return self(fits.HDUList([fits.PrimaryHDU(map_values.data, map_values.header),
+                                  fits.ImageHDU(map_values.uncertainties, map_values.header),
+                                  fits.ImageHDU(map_snr.data, map_values.header)]))
+    
+    def __eq__(self, other):
+        return super().__eq__(other) and np.nansum(self.snr - other.snr) == 0.
+    
+    def copy(self):
+        return self.from_Map_u_object(super().copy(), self.snr)
+    
+    def save_as_fits_file(self, filename: str):
+        """
+        Write the Map_usnr as a fits file of the specified name with or without a header. If the object has a header, it will be
+        saved. The data uncertainty is saved as the [1] extension of the fits file and the signal to noise ratio is saved as the
+        [2] extension of the. To view the uncertainty and signal to noise ratio maps on DS9, simply open the file with the
+        following path: File -> Open as -> Multi Extension Cube. The data, its uncertainty and its snr will then be visible just
+        like in a data cube.
+        
+        Arguments
+        ---------
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
+        file can be overwritten.
+        """
+        # Check if the file already exists
+        try:
+            fits.open(filename)[0]
+            # The file already exists
+            while True:
+                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                if answer == "y":
+                    hdu_list = fits.HDUList([
+                        fits.PrimaryHDU(self.data, self.header),
+                        fits.ImageHDU(self.uncertainties, self.header),
+                        fits.ImageHDU(self.snr, self.header)
+                    ])
+
+                    hdu_list.writeto(filename, overwrite=True)
+                    print("File overwritten.")
+                    break
+
+                elif answer == "n":
+                    break
+                
+        except:
+            # The file does not yet exist
+            hdu_list = fits.HDUList([
+                fits.PrimaryHDU(self.data, self.header),
+                fits.ImageHDU(self.uncertainties, self.header),
+                fits.ImageHDU(self.snr, self.header)
+            ])
+
+            hdu_list.writeto(filename, overwrite=True)
+    

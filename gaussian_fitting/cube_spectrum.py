@@ -211,7 +211,7 @@ class Spectrum:
             while stddev_bump_count < 2 and len(stddevs) < 40:
                 # Set the self.fitted_gaussian variable to allow the calculation of the subtracted fit
                 new_gaussian = self.fit(params=initial_guesses, stddev_mins={ray: min_guess})
-                stddevs.append(float(self.get_stddev(self.get_subtracted_fit()/u.Jy)))
+                stddevs.append(float(self.get_residue_stddev()))
                 min_guess += stddev_increments
                 try:
                     if stddevs[-1] > stddevs[-2]:
@@ -327,22 +327,18 @@ class Spectrum:
             ordered_uncertainties[f"g{i}"] = {
                 "amplitude": uncertainty_matrix[3*i], "mean": uncertainty_matrix[3*i+1], "stddev": uncertainty_matrix[3*i+2]
             }
-        return ordered_uncertainties 
+        return ordered_uncertainties
     
-    def get_stddev(self, array: np.ndarray) -> float:
+    def get_residue_stddev(self) -> float:
         """
-        Get the standard deviation of any array. It is mainly used to find the subtracted fit's standard deviation.
-
-        Arguments
-        ---------
-        array: numpy array. Array from which the standard deviation needs to be calculated.
-
+        Get the standard deviation of the fit's residue.
+        
         Returns
         -------
-        float: value of the array's standard deviation.
+        float: value of the residue's standard deviation.
         """
-        return np.std(array)
-        
+        return np.std(self.get_subtracted_fit()/u.Jy)
+    
     def get_subtracted_fit(self) -> np.ndarray:
         """
         Get the values of the subtracted_fit.

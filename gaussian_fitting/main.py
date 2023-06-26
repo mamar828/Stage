@@ -1,7 +1,7 @@
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from fits_analyzer import Data_cube, Map, Map_u
+from fits_analyzer import Data_cube, Map, Map_u, Map_usnr
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,16 +33,16 @@ def get_smoothed_instr_f():
 
 def get_FWHM_maps():
     """
-    In this example, the FWHM_NII maps are obtained.
+    In this example, the FWHM_NII map is obtained.
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
-    nii_map = nii_cube.bin_cube(2).fit(4)
+    nii_map = nii_cube.bin_cube(2).fit(4, True)
     nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits")
 
 
-# if __name__ == "__main__":
-#     get_FWHM_maps()
+if __name__ == "__main__":
+    get_FWHM_maps()
 
 
 def get_region_widening_maps(fwhm_map=Map, fwhm_unc_map=Map):
@@ -250,14 +250,30 @@ def get_courtes_temperature_from_Halpha_and_OIII():
 
 
 def get_region_statistics():
+    """
+    In this example, the statistics of a region are obtained.
+    """
+    # Open the three possible regions
     regions = [
         pyregion.open("gaussian_fitting/regions/region_1.reg"),
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
     turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
-    stats = turbulence_map.get_region_statistics(regions[0], plot_histogram=True)
+    stats = turbulence_map.get_region_statistics(regions[1], plot_histogram=True)
     print(stats)
+    plt.show()
 
 
-get_region_statistics()
+# get_region_statistics()
+
+
+# test = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+# test_usnr = Map_usnr(fits.HDUList([fits.PrimaryHDU(test.data, test.header),
+#                                    fits.ImageHDU(test.uncertainties, test.header),
+#                                    fits.ImageHDU(np.ones(test.data.shape), test.header)]))
+# test_usnr.smooth_order_change()
+
+# copy1 = test_usnr.copy()
+# copy2 = test_usnr.copy()
+# print(copy1 == copy2)

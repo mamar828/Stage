@@ -1,2 +1,2 @@
-Calibration fitting progress /10
-10
+NII with snr fitting progress /4
+4
