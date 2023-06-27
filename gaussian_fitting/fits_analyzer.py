@@ -178,10 +178,10 @@ class Data_cube(Fits_file):
         cube_type = "NII"
         if calculate_snr:
             cube_type = "NII with snr"
-        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
+        pool = multiprocessing.Pool(processes=1)           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, cube_type) for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, cube_type) for y in range(226, data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -334,7 +334,7 @@ def worker_fit(args: tuple) -> list:
         Data_cube.give_update(None, f"NII fitting progress /{data.shape[2]}")
     
     elif cube_type == "NII with snr":
-        for x in range(data.shape[2]):
+        for x in range(282, data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
             spectrum_object.fit_data_cube(spectrum_object.get_initial_guesses())
             fwhm_values = spectrum_object.get_FWHM_speed(
@@ -342,6 +342,9 @@ def worker_fit(args: tuple) -> list:
                           spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"])
             line.append(np.concatenate((fwhm_values, np.array([(spectrum_object.get_fitted_gaussian_parameters()[targeted_ray].amplitude
                                                                 /u.Jy)/spectrum_object.get_residue_stddev()]))))
+            print(x+1,y+1)
+            print(f"NII: {line[-1]}, Ha: {spectrum_object.get_FWHM_speed(spectrum_object.get_fitted_gaussian_parameters()[5], spectrum_object.get_uncertainties()[f'g{targeted_ray}']['stddev'])}")
+            spectrum_object.plot_fit(plot_all=True)
         Data_cube.give_update(None, f"NII with snr fitting progress /{data.shape[2]}")
     return line
 
@@ -564,21 +567,22 @@ class Map(Fits_file):
 
         # The map's data is removed where a mask applies
         new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
-        # Every specific map has the same values than the global map, but the header is changed to fit a specific region
-        specific_maps = [
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[0]),
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[0])
+        # Every specific map needs to have the same values than the global map, but the header is changed to fit a specific region
+        # The right headers are first opened, then the values are changed
+        specific_headers = [
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[0]).header,
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[0]).header,
+            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[0]).header
         ]
-        # The calibration map's correction is applied
-        calib_map = Map(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)
-        modified_specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
+        # The real data is inserted
+        specific_maps = []
+        for header in specific_headers:
+            specific_maps.append(Map(fits.PrimaryHDU(np.copy(self.data), header)))
         # Alignment of the specific maps on the global WCS
-        modified_specific_maps = [specific_map.reproject_on(self) for specific_map in modified_specific_maps]
+        reprojected_specific_maps = [specific_map.reproject_on(self) for specific_map in specific_maps]
         # Only the data within the mask is kept
-        region_data = [specific_map * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
+        region_data = [specific_map * masks[i] for i, specific_map in enumerate(reprojected_specific_maps)]
         new_map += region_data[0] + region_data[1] + region_data[2]
-        
         return new_map
 
     def transfer_temperature_to_FWHM(self) -> Map:
@@ -890,19 +894,22 @@ class Map_u(Map):
 
         # The map's data is removed where a mask applies
         new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
-        # Every specific map has the same values than the global map, but the header is changed to fit a specific region
-        specific_maps = [
-            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")),
-            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")),
-            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits"))
+        # Every specific map needs to have the same values than the global map, but the header is changed to fit a specific region
+        # The right headers are first opened, then the values are changed
+        specific_headers = [
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")).header,
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")).header,
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")).header
         ]
-        # The calibration map's correction is applied
-        calib_map = Map_u(fits.open(f"gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)
-        modified_specific_maps = [specific_map**2 - calib_map**2 for specific_map in specific_maps]
+        # The real data is inserted
+        specific_maps = []
+        for header in specific_headers:
+            specific_maps.append(Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), header),
+                                                     fits.ImageHDU(np.copy(self.uncertainties), header)])))
         # Alignment of the specific maps on the global WCS
-        modified_specific_maps = [specific_map.reproject_on(self) for specific_map in modified_specific_maps]
+        reprojected_specific_maps = [specific_map.reproject_on(self) for specific_map in specific_maps]
         # Only the data within the mask is kept
-        region_data = [specific_map * masks[i] for i, specific_map in enumerate(modified_specific_maps)]
+        region_data = [specific_map * masks[i] for i, specific_map in enumerate(reprojected_specific_maps)]
         new_map += region_data[0] + region_data[1] + region_data[2]
         return new_map
 

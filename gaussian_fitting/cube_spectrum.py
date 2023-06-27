@@ -154,6 +154,7 @@ class Spectrum:
         astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 gaussian functions.
         """
         # Initialize the six gaussians using the params dict
+        print(params)
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
                                         bounds={"amplitude": (0,100)*u.Jy})
@@ -169,7 +170,17 @@ class Spectrum:
                                         bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um})
         g_init_OH1.mean.max = 3*u.um
         g_init_OH4.mean.min = 47*u.um
-        
+
+        # g_init_OH1.stddev.max = 2
+        # g_init_OH2.stddev.max = 3
+        # g_init_OH3.stddev.max = 3
+        # g_init_OH4.stddev.max = 2
+        # g_init_NII.stddev.max = 3
+        # g_init_Ha.stddev.max  = 3
+
+        for ray, guesses in params.items():
+            exec(f"g_init_{ray}.stddev.max = {guesses['a']}/3")
+
         # Set the standard deviation's minimum of the gaussians of the corresponding rays if the dict is present
         if stddev_mins:
             for ray, min_guess in stddev_mins.items():
@@ -388,23 +399,22 @@ class Spectrum:
         speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
 
-""" 
+
 def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 600
-    for y in range(459, 1013):
+    x = 283
+    for y in range(227, 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
         spectrum.fit_data_cube(spectrum.get_initial_guesses())
         # spectrum.fit_iteratively()
         print("FWHM:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
-        print(spectrum.get_residue_stddev())
-        print((spectrum.get_fitted_gaussian_parameters()[4].amplitude/u.Jy)/spectrum.get_residue_stddev())
+        print("FWHM:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
+        print("standard deviation:", spectrum.get_residue_stddev())
+        print(spectrum.get_fitted_gaussian_parameters())
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
-        # raise ArithmeticError
-loop_di_loop("gaussian_fitting/data_cubes/night_34_wcs.fits")
+loop_di_loop("night_34_binned.fits")
 # loop_di_loop("calibration.fits")
-"""

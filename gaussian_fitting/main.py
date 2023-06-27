@@ -41,8 +41,8 @@ def get_FWHM_maps():
     nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits")
 
 
-# if __name__ == "__main__":
-#     get_FWHM_maps()
+if __name__ == "__main__":
+    get_FWHM_maps()
 
 
 def get_region_widening_maps(base_map: Map_usnr):
@@ -128,7 +128,7 @@ def get_turbulence_map(temp_map):
     # The pixels that have a snr inferior to 6 are masked
     global_FWHM_map = global_FWHM_map.filter_snr(snr_threshold=6)
     instrumental_function = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)
-    # The aligned maps are the result of the subtraction of the instrumental_function map squared to the global map squared
+    # The aligned map is the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map = (global_FWHM_map**2 - instrumental_function**2).align_regions()
     (aligned_map**0.5).save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII-calib.fits")
     # The temperature maps are adjusted at the same WCS than the global maps
@@ -227,11 +227,11 @@ def get_courtes_temperature_from_NII_and_Halpha2():
     # The two maps are used to compute a temperature map
     temperature_map = 4.73 * 10**4 * (halpha_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2 - 
                        nii_sigma_with_temperature_AA**2)
-    (halpha_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA) - nii_sigma_with_temperature_AA).plot_map((0,1))
+    temperature_map.plot_map((0,10000))
     temperature_map.save_as_fits_file("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")
 
 
-get_courtes_temperature_from_NII_and_Halpha2()
+# get_courtes_temperature_from_NII_and_Halpha2()
 
 
 def get_courtes_temperature_from_Halpha_and_OIII():
@@ -267,7 +267,7 @@ def get_courtes_temperature_from_Halpha_and_OIII():
 # get_courtes_temperature_from_Halpha_and_OIII()
 
 
-def get_region_statistics(map, region_number: int, write=False):
+def get_region_statistics(map, write=False):
     """
     In this example, the statistics of a region are obtained and stored in the turbulence_stats.txt file.
     """
@@ -277,20 +277,20 @@ def get_region_statistics(map, region_number: int, write=False):
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
-    # The region number int specifies from which region the stats are taken
-    # A histogram may be shown if the plot_histogram bool is set to True
-    stats = map.get_region_statistics(regions[region_number], plot_histogram=False)
-    print(stats)
-    plt.show()
-    # The write bool must be set to True if the statistics need to be put in the file
-    if write:
-        file = open("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.txt", "a")
-        file.write(f"Region {region_number+1}:\n")
-        for key, value in stats.items():
-            file.write(f"{key}: {value}\n")
-        file.write("\n")
-        file.close()
+    for i, region in enumerate(regions):
+        # A histogram may be shown if the plot_histogram bool is set to True
+        stats = map.get_region_statistics(region, plot_histogram=False)
+        print(stats)
+        plt.show()
+        # The write bool must be set to True if the statistics need to be put in the file
+        if write:
+            file = open("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.txt", "a")
+            file.write(f"Region {i+1}:\n")
+            for key, value in stats.items():
+                file.write(f"{key}: {value}\n")
+            file.write("\n")
+            file.close()
 
 
-get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")[0]), 0, write=True)
+# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")[0]), write=True)
 

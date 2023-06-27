@@ -376,3 +376,12 @@ angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(2000 * 
 speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
 print(speed_FWHM)
 
+channels_FWHM = 0.3917525773*10
+spectral_length = 8.60626405229
+wavelength_channel_1 = 6579.48886797
+angstroms_FWHM = channels_FWHM * spectral_length / 48
+angstroms_center = 42.5 * spectral_length / 48 + wavelength_channel_1
+speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
+print(speed_FWHM)
+
+print(0.14376 / 6583.41 * scipy.constants.c)
