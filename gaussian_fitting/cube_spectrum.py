@@ -46,8 +46,8 @@ class Spectrum:
 
         else:
             # All y values are shifted downwards by the mean calculated in the channels 25 to 35
-            mean = np.sum(self.y_values[24:34]) / 10
-            self.y_values -= mean
+            self.downwards_shift = np.sum(self.y_values[24:34]) / 10
+            self.y_values -= self.downwards_shift
         
     def plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
         """
@@ -57,7 +57,7 @@ class Spectrum:
         ---------
         coords: tuple of ints, optional. x and y coordinates of the evaluated point. Serves as a landmark in the cube
         and will appear on screen.
-        fullscreen: bool. Specifies if the graph must be opened in fullscreen.
+        fullscreen: bool, default=False. Specifies if the graph must be opened in fullscreen.
         other_values: optional. This argument may take any distribution to be plotted and is used to plot all the gaussian
         fits on the same plot.
         """
@@ -99,8 +99,8 @@ class Spectrum:
         ---------
         coord: tuple of ints, optional. x and y coordinates of the evaluated point. Serves as a landmark in the cube
         and will appear on screen.
-        fullscreen: bool. Specifies if the graph must be opened in fullscreen.
-        plot_all: bool. Specifies if all gaussian functions contributing to the main fit must be plotted.
+        fullscreen: bool, default=False. Specifies if the graph must be opened in fullscreen.
+        plot_all: bool, default=False. Specifies if all gaussian functions contributing to the main fit must be plotted.
         """
         if plot_all and not self.calibration:
             g = self.fitted_gaussian
@@ -137,15 +137,13 @@ class Spectrum:
             # Fit unsuccessful
             pass
 
-    def fit_data_cube(self, params: dict, stddev_mins: dict=None) -> models:
+    def fit_data_cube(self, stddev_mins: dict=None) -> models:
         """
-        Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the variable
-        self.fitted_gaussian.
+        Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the
+        variable self.fitted_gaussian.
 
         Arguments
         ---------
-        params: dict. Contains the initial guesses for the amplitude and mean of each gaussian
-        component.
         stddev_mins: dict, optional. Specifies the standard deviation's minimum value of every gaussian component.
         This is used in the fit_iteratively method to increase the fit's accuracy.
 
@@ -154,32 +152,54 @@ class Spectrum:
         astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 gaussian functions.
         """
         # Initialize the six gaussians using the params dict
+        params = self.get_initial_guesses()
         print(params)
+        parameter_bounds_attempt = {
+            "OH1": {"amplitude": (0, 9-self.downwards_shift)*u.Jy,
+                    "stddev": (params["OH1"]["a"]/10, params["OH1"]["a"]/5)*u.um},
+            "OH2": {"amplitude": (7-self.downwards_shift, 12-self.downwards_shift)*u.Jy,
+                    "stddev": (params["OH2"]["a"]/10, params["OH2"]["a"]/5)*u.um,
+                    "mean": (17,21)*u.um},
+            "OH3": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
+                    "stddev": (params["OH3"]["a"]/10, params["OH3"]["a"]/5)*u.um,
+                    "mean": (36,40)*u.um},
+            "OH4": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
+                    "stddev": (params["OH4"]["a"]/10, params["OH4"]["a"]/5)*u.um},
+            "NII": {"amplitude": (0,100)*u.Jy,
+                    "stddev": (params["NII"]["a"]/10, params["NII"]["a"]/5)*u.um,
+                    "mean": (12,16)*u.um},
+            "Ha" : {"amplitude": (0,100)*u.Jy,
+                    "stddev": (params["Ha"]["a"]/10,  params["Ha"]["a"]/5)*u.um,
+                    "mean": (41,45)*u.um},
+        }
+        parameter_bounds = {
+            "OH1": {"amplitude": (0, 100)*u.Jy},
+            "OH2": {"amplitude": (0, 100)*u.Jy,
+                    "mean": (17,21)*u.um},
+            "OH3": {"amplitude": (0, 100)*u.Jy,
+                    "mean": (36,40)*u.um},
+            "OH4": {"amplitude": (0, 100)*u.Jy},
+            "NII": {"amplitude": (0,100)*u.Jy,
+                    "mean": (12,16)*u.um},
+            "Ha" : {"amplitude": (0,100)*u.Jy,
+                    "mean": (41,45)*u.um}
+        }
+        # Maybe try to give the amplitude initial guess the mean value between the bounds
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
-                                        bounds={"amplitude": (0,100)*u.Jy})
+                                        bounds=parameter_bounds["OH1"])
         g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
-                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (17,21)*u.um})
+                                        bounds=parameter_bounds["OH2"])
         g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
-                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (36,40)*u.um})
+                                        bounds=parameter_bounds["OH3"])
         g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
-                                        bounds={"amplitude": (0,100)*u.Jy})
+                                        bounds=parameter_bounds["OH4"])
         g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
-                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um})
+                                        bounds=parameter_bounds["NII"])
         g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"] *u.Jy, mean=params["Ha"]["x0"] *u.um,
-                                        bounds={"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um})
+                                        bounds=parameter_bounds["Ha"])
         g_init_OH1.mean.max = 3*u.um
         g_init_OH4.mean.min = 47*u.um
-
-        # g_init_OH1.stddev.max = 2
-        # g_init_OH2.stddev.max = 3
-        # g_init_OH3.stddev.max = 3
-        # g_init_OH4.stddev.max = 2
-        # g_init_NII.stddev.max = 3
-        # g_init_Ha.stddev.max  = 3
-
-        for ray, guesses in params.items():
-            exec(f"g_init_{ray}.stddev.max = {guesses['a']}/3")
 
         # Set the standard deviation's minimum of the gaussians of the corresponding rays if the dict is present
         if stddev_mins:
@@ -264,7 +284,9 @@ class Spectrum:
         # Note that the first element of the list is the derivative difference between channels 2 and 3 and channels 1 and 2
         
         x_peaks = {}
-        for ray, bounds in [("OH1", (1,5)), ("OH2", (18,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,16)), ("Ha", (42,45))]:
+        for ray, bounds in [("OH1", (1,5)), ("OH2", (18,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
+            if ray == "NII":
+
             # Initial x value of the peak
             x_peak = 0
             # Separate value for the OH3 ray that predominates on x_peak if a distinct peak is found
@@ -310,6 +332,10 @@ class Spectrum:
         for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
             params[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
         return params
+    
+    def get_parameter_bounds(self) -> dict:
+        pass
+
     
     def get_fitted_gaussian_parameters(self) -> models:
         """
@@ -409,11 +435,12 @@ def loop_di_loop(filename):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        spectrum.fit_data_cube(spectrum.get_initial_guesses())
+        spectrum.fit_data_cube()
         # spectrum.fit_iteratively()
-        print("FWHM:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
-        print("FWHM:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
+        # print("FWHM NII:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        # print("FWHM Ha:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
         print("standard deviation:", spectrum.get_residue_stddev())
+        print("downwards shift:", spectrum.downwards_shift)
         print(spectrum.get_fitted_gaussian_parameters())
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
 loop_di_loop("night_34_binned.fits")
