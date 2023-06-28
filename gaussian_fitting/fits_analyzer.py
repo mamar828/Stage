@@ -173,10 +173,10 @@ class Data_cube(Fits_file):
         cube_type = "NII"
         if calculate_snr:
             cube_type = "NII with snr"
-        pool = multiprocessing.Pool(processes=1)           # This automatically generates an optimal number of workers
+        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, cube_type) for y in range(226, data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, cube_type) for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -326,14 +326,12 @@ def worker_fit(args: tuple) -> list:
         Data_cube.give_update(None, f"NII fitting progress /{data.shape[2]}")
     
     elif cube_type == "NII with snr":
-        for x in range(282, data.shape[2]):
+        for x in range(data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
             spectrum_object.fit_NII_cube()
             fwhm_values = spectrum_object.get_FWHM_speed(targeted_ray)
             line.append(np.concatenate((fwhm_values, np.array([(spectrum_object.get_fitted_gaussian_parameters(targeted_ray).amplitude
                                                                 /u.Jy)/spectrum_object.get_residue_stddev()]))))
-            print(x+1,y+1)
-            spectrum_object.plot_fit(plot_all=True)
         Data_cube.give_update(None, f"NII with snr fitting progress /{data.shape[2]}")
     return line
 

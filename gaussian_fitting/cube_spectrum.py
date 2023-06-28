@@ -163,7 +163,7 @@ class Spectrum:
         """
         # Initialize the six gaussians using the params dict
         params = self.get_initial_guesses(number_of_components)
-        # print(params)
+        # The parameter bounds dictionary allows for greater accuracy
         parameter_bounds = {
             "OH1": {"amplitude": (0, 100)*u.Jy,
                     "stddev": (np.sqrt(params["OH1"]["a"])/5, np.sqrt(params["OH1"]["a"])/2)*u.um},
@@ -180,7 +180,6 @@ class Spectrum:
             parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um}
             parameter_bounds["Ha"]  = {"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um}
         else:
-            # if self.check_wide_double_peak():
             amplitude_mean = np.mean((params["NII"]["a"], params["NII_2"]["a"]))
             parameter_bounds["NII"]   = {"amplitude": (amplitude_mean/1.6, amplitude_mean*1.6)*u.Jy,
                                          "stddev": (np.sqrt(params["NII"]["a"])/6, np.sqrt(params["NII"]["a"])/2)*u.um,
@@ -188,37 +187,9 @@ class Spectrum:
             parameter_bounds["NII_2"] = {"amplitude": (amplitude_mean/1.6, amplitude_mean*1.6)*u.Jy,
                                          "stddev": (np.sqrt(params["NII_2"]["a"])/6, np.sqrt(params["NII_2"]["a"])/2)*u.um,
                                          "mean": (14.5,17)*u.um}
-            # else:
-            #     parameter_bounds["NII"]   = {"amplitude": (params["NII"]["a"]/2.5, 100)*u.Jy,
-            #                                  "stddev": (np.sqrt(params["NII"]["a"])/5, np.sqrt(params["NII"]["a"])/2),
-            #                                  "mean": (12,15.5)*u.um}
-            #     parameter_bounds["NII_2"] = {"amplitude": (params["NII_2"]["a"]/2.5, 100)*u.Jy,
-            #                                  "stddev": (np.sqrt(params["NII_2"]["a"])/5, np.sqrt(params["NII_2"]["a"])/1.5),
-            #                                  "mean": (15.5,17)*u.um}
-
             parameter_bounds["Ha"]    = {"amplitude": (0,100)*u.Jy,
                                          "stddev": (np.sqrt(params["Ha"]["a"])/10, np.sqrt(params["Ha"]["a"])/1.6),
                                          "mean": (41,45)*u.um}
-        print(parameter_bounds)
-        #     parameter_bounds = {
-        #         "OH1": {"amplitude": (0, 9-self.downwards_shift)*u.Jy,
-        #                 "stddev": (params["OH1"]["a"]/10, params["OH1"]["a"]/5)*u.um},
-        #         "OH2": {"amplitude": (7-self.downwards_shift, 12-self.downwards_shift)*u.Jy,
-        #                 "stddev": (params["OH2"]["a"]/10, params["OH2"]["a"]/5)*u.um,
-        #                 "mean": (17,21)*u.um},
-        #         "OH3": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
-        #                 "stddev": (params["OH3"]["a"]/10, params["OH3"]["a"]/5)*u.um,
-        #                 "mean": (36,40)*u.um},
-        #         "OH4": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
-        #                 "stddev": (params["OH4"]["a"]/10, params["OH4"]["a"]/5)*u.um},
-        #         "NII": {"amplitude": (0,100)*u.Jy,
-        #                 "stddev": (params["NII"]["a"]/10, params["NII"]["a"]/5)*u.um,
-        #                 "mean": (12,16)*u.um},
-        #         "Ha" : {"amplitude": (0,100)*u.Jy,
-        #                 "stddev": (params["Ha"]["a"]/10,  params["Ha"]["a"]/5)*u.um,
-        #                 "mean": (41,45)*u.um},
-        #     }
-        # Maybe try to give the amplitude initial guess the mean value between the bounds
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         gi_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
                                    bounds=parameter_bounds["OH1"])
@@ -239,6 +210,7 @@ class Spectrum:
         if stddev_mins:
             for ray, min_guess in stddev_mins.items():
                 exec(f"gi_{ray}.stddev.min = {min_guess}*u.um")
+        
         if number_of_components == 6:
             self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
                                              fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
@@ -300,11 +272,6 @@ class Spectrum:
         # Fit the data with the standard deviation minimums found
         return self.fit(initial_guesses, stddev_mins)
     
-    def check_wide_double_peak(self) -> bool:
-        left_peak_mean = np.mean(self.y_values[13-1:15-1])
-        right_peak_mean = np.mean(self.y_values[16-1:18-1])
-        return np.abs((left_peak_mean + right_peak_mean) / 2 - left_peak_mean) / left_peak_mean < 0.21
-
     def get_initial_guesses(self, number_of_components: int=6) -> dict:
         """
         Find the most plausible initial guess for the amplitude and mean value of every gaussian function with the NII data cube.
@@ -489,14 +456,17 @@ class Spectrum:
         -------
         numpy array: array of the FWHM and its uncertainty measured in km/s.
         """
+        # The two following values are provided in the cube's header
         spectral_length = 8.60626405229
         wavelength_channel_1 = 6579.48886797
         if peak_name is not None:
+            # A multi-gaussian fit was done
             params = self.get_fitted_gaussian_parameters(peak_name)
             uncertainties = self.get_uncertainties()[peak_name]
             channels_FWHM = self.get_FWHM_channels(params, uncertainties["stddev"])
             angstroms_center = (np.array((params.mean.value, uncertainties["mean"])) * spectral_length / 48)
         else:
+            # A single gaussian fit was done
             params = self.get_fitted_gaussian_parameters()
             uncertainties = self.get_uncertainties()["calibration"]
             channels_FWHM = self.get_FWHM_channels(params, uncertainties["stddev"])
@@ -515,7 +485,7 @@ class Spectrum:
                 pass
         return speed_array
 
-
+""" 
 def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
@@ -543,3 +513,4 @@ def loop_di_loop(filename):
         file.close()
 loop_di_loop("night_34_binned.fits")
 # loop_di_loop("calibration.fits")
+ """
