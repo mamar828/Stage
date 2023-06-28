@@ -396,4 +396,7 @@ plt.show()
 def calc_temp(halpha_width_kms, nii_width_kms):
     return 4.73*10**4 * ((halpha_width_kms * 1000 * 6562.78 / scipy.constants.c)**2 - (nii_width_kms * 1000 * 6583.41 / scipy.constants.c)**2)
 
-print(calc_temp(33.927336320324216, 30.524020241208408))
+# print(calc_temp(33.927336320324216, 30.524020241208408))
+
+
+print(list(zip(range(int(7)), (["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]))))

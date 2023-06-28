@@ -147,7 +147,7 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension()),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], None)]))
 
-    def fit(self, targeted_ray: int, calculate_snr: bool=False) -> object:
+    def fit(self, targeted_ray: str, calculate_snr: bool=False) -> object:
         """
         Fit the whole data cube to extract a gaussian's FWHM. This method presupposes that four OH peaks and one Halpha
         peak are present in the cube's spectrum in addition to the NII peak.
@@ -158,13 +158,8 @@ class Data_cube(Fits_file):
 
         Arguments
         ---------
-        targeted_ray: int. Specifies the ray whose FWHM needs to be extracted. The following legend is used:
-        0 : First OH peak
-        1 : Second OH peak
-        2 : Third OH peak
-        3 : Fourth OH peak
-        4 : NII peak
-        5 : Halpha peak
+        targeted_ray: str. Specifies the ray whose FWHM needs to be extracted. The supported peaks are:
+        "OH1", "OH2", "OH3", "OH4", "NII" and "Ha".
         calculate_snr: bool, default=False. Determines whether the signal to noise ratio must also be calculated and
         stored as Map_usnr object.
 
@@ -318,8 +313,7 @@ def worker_fit(args: tuple) -> list:
             spectrum_object = Spectrum(data[:,y,x], calibration=True)
             spectrum_object.fit_calibration()
             try:
-                line.append(spectrum_object.get_FWHM_speed(
-                            spectrum_object.get_fitted_gaussian_parameters(), spectrum_object.get_uncertainties()["g0"]["stddev"]))
+                line.append(spectrum_object.get_FWHM_speed())
             except:
                 line.append([np.NAN, np.NAN])
         Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
@@ -328,22 +322,17 @@ def worker_fit(args: tuple) -> list:
         for x in range(data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
             spectrum_object.fit_NII_cube()
-            line.append(spectrum_object.get_FWHM_speed(
-                        spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
-                        spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"]))
+            line.append(spectrum_object.get_FWHM_speed(targeted_ray))
         Data_cube.give_update(None, f"NII fitting progress /{data.shape[2]}")
     
     elif cube_type == "NII with snr":
         for x in range(282, data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
             spectrum_object.fit_NII_cube()
-            fwhm_values = spectrum_object.get_FWHM_speed(
-                          spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
-                          spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"])
-            line.append(np.concatenate((fwhm_values, np.array([(spectrum_object.get_fitted_gaussian_parameters()[targeted_ray].amplitude
+            fwhm_values = spectrum_object.get_FWHM_speed(targeted_ray)
+            line.append(np.concatenate((fwhm_values, np.array([(spectrum_object.get_fitted_gaussian_parameters(targeted_ray).amplitude
                                                                 /u.Jy)/spectrum_object.get_residue_stddev()]))))
             print(x+1,y+1)
-            print(f"NII: {line[-1]}, Ha: {spectrum_object.get_FWHM_speed(spectrum_object.get_fitted_gaussian_parameters()[5], spectrum_object.get_uncertainties()[f'g{targeted_ray}']['stddev'])}")
             spectrum_object.plot_fit(plot_all=True)
         Data_cube.give_update(None, f"NII with snr fitting progress /{data.shape[2]}")
     return line
