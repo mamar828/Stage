@@ -3,6 +3,7 @@ import numpy as np
 from astropy.modeling import models, fitting
 import os
 from astropy.io import fits
+import scipy
 
 
 """x = np.array([x for x in range(101)])
@@ -367,21 +368,32 @@ plt.show()
 # from gaussian_fitting.fits_analyzer import Map_u
 
 
-import scipy
-angstroms_center = 6583.41              # Emission wavelength of NII 
-m = 14.0067 * scipy.constants.u         # Nitrogen mass
-c = scipy.constants.c                   # Light speed
-k = scipy.constants.k                   # Boltzmann constant
-angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(2000 * k / (c**2 * m))
-speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
-print(speed_FWHM)
+# import scipy
+# angstroms_center = 6583.41              # Emission wavelength of NII 
+# m = 14.0067 * scipy.constants.u         # Nitrogen mass
+# c = scipy.constants.c                   # Light speed
+# k = scipy.constants.k                   # Boltzmann constant
+# angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(2000 * k / (c**2 * m))
+# speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
+# print(speed_FWHM)
 
-channels_FWHM = 0.3917525773*10
-spectral_length = 8.60626405229
-wavelength_channel_1 = 6579.48886797
-angstroms_FWHM = channels_FWHM * spectral_length / 48
-angstroms_center = 42.5 * spectral_length / 48 + wavelength_channel_1
-speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
-print(speed_FWHM)
+# channels_FWHM = 0.3917525773*10
+# spectral_length = 8.60626405229
+# wavelength_channel_1 = 6579.48886797
+# angstroms_FWHM = channels_FWHM * spectral_length / 48
+# angstroms_center = 42.5 * spectral_length / 48 + wavelength_channel_1
+# speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
+# print(speed_FWHM)
 
-print(0.14376 / 6583.41 * scipy.constants.c)
+# print(0.14376 / 6583.41 * scipy.constants.c)
+
+# a = {"lol": 2}
+# a = {"Ploc": 3}
+# print(a)
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+def calc_temp(halpha_width_kms, nii_width_kms):
+    return 4.73*10**4 * ((halpha_width_kms * 1000 * 6562.78 / scipy.constants.c)**2 - (nii_width_kms * 1000 * 6583.41 / scipy.constants.c)**2)
+
+print(calc_temp(33.927336320324216, 30.524020241208408))

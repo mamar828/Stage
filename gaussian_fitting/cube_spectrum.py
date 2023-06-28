@@ -75,6 +75,9 @@ class Spectrum:
             elif name == "NII":
                 # NII gaussian
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=name, linewidth="1")
+            elif name == "NII_2":
+                # Second NII gaussian
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=name, linewidth="1")
             else:
                 # Fitted individual gaussians
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=name, linewidth="1")
@@ -111,8 +114,13 @@ class Spectrum:
             oh4 = models.Gaussian1D(amplitude=g.amplitude_3.value, mean=g.mean_3.value, stddev=g.stddev_3.value)
             nii = models.Gaussian1D(amplitude=g.amplitude_4.value, mean=g.mean_4.value, stddev=g.stddev_4.value)
             ha  = models.Gaussian1D(amplitude=g.amplitude_5.value, mean=g.mean_5.value, stddev=g.stddev_5.value)
-            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
-                      OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
+            try:
+                nii_2 = models.Gaussian1D(amplitude=g.amplitude_6.value, mean=g.mean_6.value, stddev=g.stddev_6.value)
+                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                          OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha, NII_2=nii_2)
+            except:
+                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                        OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
         
         else:
             self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
@@ -137,7 +145,7 @@ class Spectrum:
             # Fit unsuccessful
             pass
 
-    def fit_data_cube(self, stddev_mins: dict=None) -> models:
+    def fit_NII_cube(self, stddev_mins: dict=None, number_of_components: int=6) -> models:
         """
         Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the
         variable self.fitted_gaussian.
@@ -146,69 +154,111 @@ class Spectrum:
         ---------
         stddev_mins: dict, optional. Specifies the standard deviation's minimum value of every gaussian component.
         This is used in the fit_iteratively method to increase the fit's accuracy.
+        number_of_components: int, default=6. Number of initial guesses that need to be returned. This integer may be 6 or 7
+        depending on if a double NII peak is visible.
 
         Returns
         -------
         astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 gaussian functions.
         """
         # Initialize the six gaussians using the params dict
-        params = self.get_initial_guesses()
-        print(params)
-        parameter_bounds_attempt = {
-            "OH1": {"amplitude": (0, 9-self.downwards_shift)*u.Jy,
-                    "stddev": (params["OH1"]["a"]/10, params["OH1"]["a"]/5)*u.um},
-            "OH2": {"amplitude": (7-self.downwards_shift, 12-self.downwards_shift)*u.Jy,
-                    "stddev": (params["OH2"]["a"]/10, params["OH2"]["a"]/5)*u.um,
-                    "mean": (17,21)*u.um},
-            "OH3": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
-                    "stddev": (params["OH3"]["a"]/10, params["OH3"]["a"]/5)*u.um,
-                    "mean": (36,40)*u.um},
-            "OH4": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
-                    "stddev": (params["OH4"]["a"]/10, params["OH4"]["a"]/5)*u.um},
-            "NII": {"amplitude": (0,100)*u.Jy,
-                    "stddev": (params["NII"]["a"]/10, params["NII"]["a"]/5)*u.um,
-                    "mean": (12,16)*u.um},
-            "Ha" : {"amplitude": (0,100)*u.Jy,
-                    "stddev": (params["Ha"]["a"]/10,  params["Ha"]["a"]/5)*u.um,
-                    "mean": (41,45)*u.um},
-        }
+        params = self.get_initial_guesses(number_of_components=number_of_components)
+        # print(params)
         parameter_bounds = {
-            "OH1": {"amplitude": (0, 100)*u.Jy},
+            "OH1": {"amplitude": (0, 100)*u.Jy,
+                    "stddev": (np.sqrt(params["OH1"]["a"])/5, np.sqrt(params["OH1"]["a"])/2)},
             "OH2": {"amplitude": (0, 100)*u.Jy,
-                    "mean": (17,21)*u.um},
+                    "stddev": (np.sqrt(params["OH2"]["a"])/5, np.sqrt(params["OH2"]["a"])/2),
+                    "mean": (18,21)*u.um},
             "OH3": {"amplitude": (0, 100)*u.Jy,
+                    "stddev": (np.sqrt(params["OH3"]["a"])/5, np.sqrt(params["OH3"]["a"])/2),
                     "mean": (36,40)*u.um},
-            "OH4": {"amplitude": (0, 100)*u.Jy},
-            "NII": {"amplitude": (0,100)*u.Jy,
-                    "mean": (12,16)*u.um},
-            "Ha" : {"amplitude": (0,100)*u.Jy,
-                    "mean": (41,45)*u.um}
+            "OH4": {"amplitude": (0, 100)*u.Jy,
+                    "stddev": (np.sqrt(params["OH4"]["a"])/5, np.sqrt(params["OH4"]["a"])/2)},
         }
+        if number_of_components == 6:
+            parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um}
+            parameter_bounds["Ha"]  = {"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um}
+        else:
+            parameter_bounds["NII"]   = {"amplitude": (params["NII_2"]["a"]/1.5, 100)*u.Jy,
+                                         "stddev": (np.sqrt(params["NII"]["a"])/5, np.sqrt(params["NII"]["a"])/2),
+                                         "mean": (12,15.5)*u.um}
+            # if self.check_wide_double_peak():
+            amplitude_mean = np.mean((params["NII"]["a"], params["NII_2"]["a"]))
+            parameter_bounds["NII"]   = {"amplitude": (amplitude_mean/1.35, amplitude_mean*1.35)*u.Jy,
+                                         "stddev": (np.sqrt(params["NII"]["a"])/5, np.sqrt(params["NII"]["a"])/2),
+                                         "mean": (12,15.5)*u.um}
+            parameter_bounds["NII_2"] = {"amplitude": (amplitude_mean/1.35, amplitude_mean*1.35)*u.Jy,
+                                         "stddev": (np.sqrt(params["NII_2"]["a"])/5, np.sqrt(params["NII_2"]["a"])/3),
+                                         "mean": (15.5,17)*u.um}
+            # else:
+            #     parameter_bounds["NII"]   = {"amplitude": (params["NII"]["a"]/2.5, 100)*u.Jy,
+            #                                  "stddev": (np.sqrt(params["NII"]["a"])/5, np.sqrt(params["NII"]["a"])/2),
+            #                                  "mean": (12,15.5)*u.um}
+            #     parameter_bounds["NII_2"] = {"amplitude": (params["NII_2"]["a"]/2.5, 100)*u.Jy,
+            #                                  "stddev": (np.sqrt(params["NII_2"]["a"])/5, np.sqrt(params["NII_2"]["a"])/1.5),
+            #                                  "mean": (15.5,17)*u.um}
+
+            parameter_bounds["Ha"]    = {"amplitude": (0,100)*u.Jy,
+                                         "stddev": (np.sqrt(params["Ha"]["a"])/10, np.sqrt(params["Ha"]["a"])/2),
+                                         "mean": (41,45)*u.um}
+        # print(parameter_bounds)
+        #     parameter_bounds = {
+        #         "OH1": {"amplitude": (0, 9-self.downwards_shift)*u.Jy,
+        #                 "stddev": (params["OH1"]["a"]/10, params["OH1"]["a"]/5)*u.um},
+        #         "OH2": {"amplitude": (7-self.downwards_shift, 12-self.downwards_shift)*u.Jy,
+        #                 "stddev": (params["OH2"]["a"]/10, params["OH2"]["a"]/5)*u.um,
+        #                 "mean": (17,21)*u.um},
+        #         "OH3": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
+        #                 "stddev": (params["OH3"]["a"]/10, params["OH3"]["a"]/5)*u.um,
+        #                 "mean": (36,40)*u.um},
+        #         "OH4": {"amplitude": (6-self.downwards_shift, 10-self.downwards_shift)*u.Jy,
+        #                 "stddev": (params["OH4"]["a"]/10, params["OH4"]["a"]/5)*u.um},
+        #         "NII": {"amplitude": (0,100)*u.Jy,
+        #                 "stddev": (params["NII"]["a"]/10, params["NII"]["a"]/5)*u.um,
+        #                 "mean": (12,16)*u.um},
+        #         "Ha" : {"amplitude": (0,100)*u.Jy,
+        #                 "stddev": (params["Ha"]["a"]/10,  params["Ha"]["a"]/5)*u.um,
+        #                 "mean": (41,45)*u.um},
+        #     }
         # Maybe try to give the amplitude initial guess the mean value between the bounds
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
-        g_init_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
-                                        bounds=parameter_bounds["OH1"])
-        g_init_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
-                                        bounds=parameter_bounds["OH2"])
-        g_init_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
-                                        bounds=parameter_bounds["OH3"])
-        g_init_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
-                                        bounds=parameter_bounds["OH4"])
-        g_init_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
-                                        bounds=parameter_bounds["NII"])
-        g_init_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"] *u.Jy, mean=params["Ha"]["x0"] *u.um,
-                                        bounds=parameter_bounds["Ha"])
-        g_init_OH1.mean.max = 3*u.um
-        g_init_OH4.mean.min = 47*u.um
+        gi_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
+                                   bounds=parameter_bounds["OH1"])
+        gi_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
+                                   bounds=parameter_bounds["OH2"])
+        gi_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
+                                   bounds=parameter_bounds["OH3"])
+        gi_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
+                                   bounds=parameter_bounds["OH4"])
+        gi_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
+                                   bounds=parameter_bounds["NII"])
+        gi_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"] *u.Jy, mean=params["Ha"]["x0"] *u.um,
+                                   bounds=parameter_bounds["Ha"])
+        gi_OH1.mean.max = 3*u.um
+        gi_OH4.mean.min = 47*u.um
 
         # Set the standard deviation's minimum of the gaussians of the corresponding rays if the dict is present
         if stddev_mins:
             for ray, min_guess in stddev_mins.items():
-                exec(f"g_init_{ray}.stddev.min = {min_guess}*u.um")
-
-        self.fitted_gaussian = fit_lines(spectrum, g_init_OH1 + g_init_OH2 + g_init_OH3 + g_init_OH4 + g_init_NII + g_init_Ha,
-                                            fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
-        return self.fitted_gaussian
+                exec(f"gi_{ray}.stddev.min = {min_guess}*u.um")
+        if number_of_components == 6:
+            self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
+                                             fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
+            # Check the possibility of a double-component NII peak
+            nii_FWHM = self.get_FWHM_speed(4)[0]
+            ha_FWHM  = self.get_FWHM_speed(5)[0]
+            if nii_FWHM > ha_FWHM or nii_FWHM > 30:
+                print(nii_FWHM, ha_FWHM)
+                return self.fit_NII_cube(number_of_components=7)
+            else:
+                return self.fitted_gaussian
+        else:
+            gi_NII_2  = models.Gaussian1D(amplitude=params["NII_2"]["a"]*u.Jy, mean=params["NII_2"]["x0"]*u.um,
+                                              bounds=parameter_bounds["NII_2"])
+            self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha + gi_NII_2,
+                                             fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
+            return self.fitted_gaussian
 
     def fit_iteratively(self, stddev_increments: float=0.2) -> models:
         """
@@ -253,10 +303,20 @@ class Spectrum:
             stddev_mins[ray] = (stddevs.index(min(stddevs)))*stddev_increments + 10 ** (-10)
         # Fit the data with the standard deviation minimums found
         return self.fit(initial_guesses, stddev_mins)
+    
+    def check_wide_double_peak(self) -> bool:
+        left_peak_mean = np.mean(self.y_values[13-1:15-1])
+        right_peak_mean = np.mean(self.y_values[16-1:18-1])
+        return np.abs((left_peak_mean + right_peak_mean) / 2 - left_peak_mean) / left_peak_mean < 0.21
 
-    def get_initial_guesses(self) -> dict:
+    def get_initial_guesses(self, number_of_components: int=6) -> dict:
         """
         Find the most plausible initial guess for the amplitude and mean value of every gaussian function with the NII data cube.
+
+        Arguments
+        ---------
+        number_of_components: int, default=6. Number of initial guesses that need to be returned. This integer may be 6 or 7
+        depending on if a double NII peak is visible.
 
         Returns
         -------
@@ -285,8 +345,9 @@ class Spectrum:
         
         x_peaks = {}
         for ray, bounds in [("OH1", (1,5)), ("OH2", (18,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
-            if ray == "NII":
-
+            if ray == "NII" and number_of_components == 7:
+                x_peaks["NII"], x_peaks["NII_2"] = 13, 16
+                continue
             # Initial x value of the peak
             x_peak = 0
             # Separate value for the OH3 ray that predominates on x_peak if a distinct peak is found
@@ -300,7 +361,7 @@ class Spectrum:
                     x_list_deriv = x - 2
                     x_list = x - 1
                     if ray == "OH3":
-                        # First condition checks if a significant change in dervative is noticed which could indicate a peak
+                        # First condition checks if a significant change in derivative is noticed which could indicate a peak
                         # Also makes sure that the peak is higher than any peak that might have been found previously
                         if derivatives_diff[x_list_deriv] < diff_threshold and (
                             self.y_values[x_list] > self.y_values[x_peak_OH3-1] or x_peak_OH3 == 0):
@@ -331,15 +392,13 @@ class Spectrum:
         
         for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
             params[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
+        if number_of_components == 7:
+            params["NII_2"] = {"x0": x_peaks["NII_2"], "a": self.y_values[x_peaks["NII_2"]-1]}
         return params
-    
-    def get_parameter_bounds(self) -> dict:
-        pass
-
-    
+        
     def get_fitted_gaussian_parameters(self) -> models:
         """
-        Get the parameters of every gaussian component of the complete fit.
+        Get the parameters of every gaussian component of the complete fit. Each component is an index of the returned object.
 
         Returns
         -------
@@ -353,17 +412,18 @@ class Spectrum:
 
         Returns
         -------
-        dict: every key is a function ("g0", "g1", ...) and the value is another dict with the uncertainty values linked to the
-        keys "amplitude", "mean" and "stddev". Note that the gaussian representing the NII peak is labeled 'g4'.
+        dict: every key is a function ("0", "1", ...) and the value is another dict with the uncertainty values linked to the
+        keys "amplitude", "mean" and "stddev". Note that the gaussian representing the NII peak is labeled "4".
         """
         cov_matrix = self.fitted_gaussian.meta["fit_info"]["param_cov"]
         uncertainty_matrix = np.sqrt(np.diag(cov_matrix))
         # The uncertainty matrix is stored as a_0, x0_0, sigma_0, a_1, x0_1, sigma_1, ...
-        ordered_uncertainties = {}
+        ordered_uncertainties = []
         for i in range(int(len(uncertainty_matrix)/3)):
-            ordered_uncertainties[f"g{i}"] = {
+            ordered_uncertainties.append({
                 "amplitude": uncertainty_matrix[3*i], "mean": uncertainty_matrix[3*i+1], "stddev": uncertainty_matrix[3*i+2]
-            }
+            })
+        print(ordered_uncertainties)
         return ordered_uncertainties
     
     def get_residue_stddev(self) -> float:
@@ -404,7 +464,30 @@ class Spectrum:
         fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*stddev_uncertainty
         return np.array((fwhm, fwhm_uncertainty))
 
-    def get_FWHM_speed(self, function, stddev_uncertainty: float) -> np.ndarray:
+    def get_FWHM_speed(self, function_index: int) -> np.ndarray:
+        """
+        Get the full width at half max of a function along with its uncertainty in km/s.
+
+        Arguments
+        ---------
+        function_index: int. Index of the function whose FWHM in km/s is desired.
+
+        Returns
+        -------
+        numpy array: array of the FWHM and its uncertainty measured in km/s.
+        """
+        spectral_length = 8.60626405229
+        wavelength_channel_1 = 6579.48886797
+        channels_FWHM = self.get_FWHM_channels(self.get_fitted_gaussian_parameters()[function_index],
+                                               self.get_uncertainties()[function_index]["stddev"])
+        print(f"ch: {channels_FWHM}")
+        angstroms_FWHM = channels_FWHM * spectral_length / 48
+        angstroms_center = (self.get_fitted_gaussian_parameters()[function_index].mean.value * spectral_length / 48 
+                            + wavelength_channel_1)
+        speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
+        return speed_FWHM
+    
+    def get_FWHM_speed2(self, function, stddev_uncertainty: float) -> np.ndarray:
         """
         Get the full width at half max of a function along with its uncertainty in km/s.
 
@@ -420,9 +503,11 @@ class Spectrum:
         spectral_length = 8.60626405229
         wavelength_channel_1 = 6579.48886797
         channels_FWHM = self.get_FWHM_channels(function, stddev_uncertainty)
+        print(f"ch2: {channels_FWHM}")
         angstroms_FWHM = channels_FWHM * spectral_length / 48
         angstroms_center = function.mean.value * spectral_length / 48 + wavelength_channel_1
         speed_FWHM = scipy.constants.c * angstroms_FWHM / angstroms_center / 1000
+        # print("a", angstroms_FWHM)
         return speed_FWHM
 
 
@@ -431,17 +516,26 @@ def loop_di_loop(filename):
     if filename == "calibration.fits":
         calib = True
     x = 283
-    for y in range(227, 1013):
+    iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
+    for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
-        spectrum.fit_data_cube()
+        spectrum.fit_NII_cube()
         # spectrum.fit_iteratively()
         # print("FWHM NII:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
         # print("FWHM Ha:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
         print("standard deviation:", spectrum.get_residue_stddev())
         print("downwards shift:", spectrum.downwards_shift)
         print(spectrum.get_fitted_gaussian_parameters())
+        print("FWHM NII:", spectrum.get_FWHM_speed(4), spectrum.get_FWHM_speed(6))
+        try:
+            print("mean FWHM:", np.mean((spectrum.get_FWHM_speed(4), spectrum.get_FWHM_speed(6))))
+        except:
+            pass
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        file = open("gaussian_fitting/other/iter_number.txt", "w")
+        file.write(str(y+1))
+        file.close()
 loop_di_loop("night_34_binned.fits")
 # loop_di_loop("calibration.fits")

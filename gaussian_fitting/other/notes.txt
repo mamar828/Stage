@@ -60,3 +60,6 @@ TODOLIST
 - 1. RSB >= 6       RSB: gaussian_amplitude/sigma_residue
 - 2. Stats
 - 3. Temperature maps
+
+
+Change the method to extract maps to allow for multi map extraction in a single data cube fit

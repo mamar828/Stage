@@ -327,7 +327,7 @@ def worker_fit(args: tuple) -> list:
     elif cube_type == "NII":
         for x in range(data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
-            spectrum_object.fit_data_cube()
+            spectrum_object.fit_NII_cube()
             line.append(spectrum_object.get_FWHM_speed(
                         spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
                         spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"]))
@@ -336,7 +336,7 @@ def worker_fit(args: tuple) -> list:
     elif cube_type == "NII with snr":
         for x in range(282, data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
-            spectrum_object.fit_data_cube()
+            spectrum_object.fit_NII_cube()
             fwhm_values = spectrum_object.get_FWHM_speed(
                           spectrum_object.get_fitted_gaussian_parameters()[targeted_ray],
                           spectrum_object.get_uncertainties()[f"g{targeted_ray}"]["stddev"])
