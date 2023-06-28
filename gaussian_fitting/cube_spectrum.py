@@ -167,10 +167,10 @@ class Spectrum:
         parameter_bounds = {
             "OH1": {"amplitude": (0, 100)*u.Jy,
                     "stddev": (np.sqrt(params["OH1"]["a"])/5, np.sqrt(params["OH1"]["a"])/2)*u.um},
-            "OH2": {"amplitude": (0, 100)*u.Jy,
+            "OH2": {"amplitude": (0, 15-self.downwards_shift)*u.Jy,
                     "stddev": (np.sqrt(params["OH2"]["a"])/5, np.sqrt(params["OH2"]["a"])/2)*u.um,
-                    "mean": (18,21)*u.um},
-            "OH3": {"amplitude": (0, 100)*u.Jy,
+                    "mean": (19,21)*u.um},
+            "OH3": {"amplitude": (0, 13-self.downwards_shift)*u.Jy,
                     "stddev": (np.sqrt(params["OH3"]["a"])/5, np.sqrt(params["OH3"]["a"])/2)*u.um,
                     "mean": (36,40)*u.um},
             "OH4": {"amplitude": (0, 100)*u.Jy,
@@ -180,17 +180,14 @@ class Spectrum:
             parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um}
             parameter_bounds["Ha"]  = {"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um}
         else:
-            parameter_bounds["NII"]   = {"amplitude": (params["NII_2"]["a"]/1.5, 100)*u.Jy,
-                                         "stddev": (np.sqrt(params["NII"]["a"])/5, np.sqrt(params["NII"]["a"])/2)*u.um,
-                                         "mean": (12,15.5)*u.um}
             # if self.check_wide_double_peak():
             amplitude_mean = np.mean((params["NII"]["a"], params["NII_2"]["a"]))
-            parameter_bounds["NII"]   = {"amplitude": (amplitude_mean/1.35, amplitude_mean*1.35)*u.Jy,
+            parameter_bounds["NII"]   = {"amplitude": (amplitude_mean/1.6, amplitude_mean*1.6)*u.Jy,
                                          "stddev": (np.sqrt(params["NII"]["a"])/6, np.sqrt(params["NII"]["a"])/2)*u.um,
-                                         "mean": (12,15.5)*u.um}
-            parameter_bounds["NII_2"] = {"amplitude": (amplitude_mean/1.35, amplitude_mean*1.35)*u.Jy,
+                                         "mean": (12,14.5)*u.um}
+            parameter_bounds["NII_2"] = {"amplitude": (amplitude_mean/1.6, amplitude_mean*1.6)*u.Jy,
                                          "stddev": (np.sqrt(params["NII_2"]["a"])/6, np.sqrt(params["NII_2"]["a"])/2)*u.um,
-                                         "mean": (15.5,17)*u.um}
+                                         "mean": (14.5,17)*u.um}
             # else:
             #     parameter_bounds["NII"]   = {"amplitude": (params["NII"]["a"]/2.5, 100)*u.Jy,
             #                                  "stddev": (np.sqrt(params["NII"]["a"])/5, np.sqrt(params["NII"]["a"])/2),
@@ -200,9 +197,9 @@ class Spectrum:
             #                                  "mean": (15.5,17)*u.um}
 
             parameter_bounds["Ha"]    = {"amplitude": (0,100)*u.Jy,
-                                         "stddev": (np.sqrt(params["Ha"]["a"])/10, np.sqrt(params["Ha"]["a"])/2),
+                                         "stddev": (np.sqrt(params["Ha"]["a"])/10, np.sqrt(params["Ha"]["a"])/1.6),
                                          "mean": (41,45)*u.um}
-        # print(parameter_bounds)
+        print(parameter_bounds)
         #     parameter_bounds = {
         #         "OH1": {"amplitude": (0, 9-self.downwards_shift)*u.Jy,
         #                 "stddev": (params["OH1"]["a"]/10, params["OH1"]["a"]/5)*u.um},
@@ -248,8 +245,7 @@ class Spectrum:
             # Check the possibility of a double-component NII peak
             nii_FWHM = self.get_FWHM_speed("NII")[0]
             ha_FWHM  = self.get_FWHM_speed("Ha")[0]
-            if nii_FWHM > ha_FWHM or nii_FWHM > 30:
-                print(nii_FWHM, ha_FWHM)
+            if nii_FWHM > ha_FWHM or nii_FWHM > 40:
                 return self.fit_NII_cube(number_of_components=7)
             else:
                 return self.fitted_gaussian
@@ -344,7 +340,7 @@ class Spectrum:
         # Note that the first element of the list is the derivative difference between channels 2 and 3 and channels 1 and 2
         
         x_peaks = {}
-        for ray, bounds in [("OH1", (1,5)), ("OH2", (18,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
+        for ray, bounds in [("OH1", (1,5)), ("OH2", (19,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
             if ray == "NII" and number_of_components == 7:
                 x_peaks["NII"], x_peaks["NII_2"] = 13, 16
                 continue
@@ -524,7 +520,7 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 283
+    x = 280
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")
@@ -535,11 +531,10 @@ def loop_di_loop(filename):
         # print("FWHM NII:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
         # print("FWHM Ha:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
         # print("standard deviation:", spectrum.get_residue_stddev())
-        # print("downwards shift:", spectrum.downwards_shift)
+        print("downwards shift:", spectrum.downwards_shift)
         print(spectrum.fitted_gaussian)
-        print("FWHM NII:", spectrum.get_FWHM_speed("NII"))
         try:
-            print("mean FWHM:", np.mean((spectrum.get_FWHM_speed(4), spectrum.get_FWHM_speed(6))))
+            print("mean FWHM:", (spectrum.get_FWHM_speed("NII"), spectrum.get_FWHM_speed("Ha")))
         except:
             pass
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)

@@ -63,3 +63,5 @@ TODOLIST
 
 
 Change the method to extract maps to allow for multi map extraction in a single data cube fit
+
+Double Halpha: (280, 202)
