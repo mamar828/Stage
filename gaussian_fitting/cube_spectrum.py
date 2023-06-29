@@ -32,6 +32,7 @@ class Spectrum:
         self.x_values, self.y_values = np.arange(48) + 1, data
         self.calibration = calibration
         self.data = data
+        self.seven_components_fit = 0
 
         if calibration:
             # Application of a translation in the case of the calibration cube
@@ -218,6 +219,7 @@ class Spectrum:
             nii_FWHM = self.get_FWHM_speed("NII")[0]
             ha_FWHM  = self.get_FWHM_speed("Ha")[0]
             if nii_FWHM > ha_FWHM or nii_FWHM > 40:
+                self.seven_components_fit = 1
                 return self.fit_NII_cube(number_of_components=7)
             else:
                 return self.fitted_gaussian
@@ -450,7 +452,7 @@ class Spectrum:
         Arguments
         ---------
         peak_name: str default=None. Name of the peak whose FWHM in km/s is desired. The supported peaks are:
-        "OH1", "OH2", "OH3", "OH4", "NII", "Ha" and "NII_2". In the case of the calibration cube, no peak needs to be provided.
+        "OH1", "OH2", "OH3", "OH4", "NII" and "Ha". In the case of the calibration cube, no peak needs to be provided.
 
         Returns
         -------
@@ -484,13 +486,16 @@ class Spectrum:
             except:
                 pass
         return speed_array
+    
+    def get_snr(self, peak_name: str) -> float:
+        return (self.get_fitted_gaussian_parameters(peak_name).amplitude/u.Jy)/self.get_residue_stddev()
 
 """ 
 def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 280
+    x = 3
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")

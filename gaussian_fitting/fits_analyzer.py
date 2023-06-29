@@ -16,6 +16,7 @@ from cube_spectrum import Spectrum
 
 import multiprocessing
 import time
+import os
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -120,6 +121,7 @@ class Data_cube(Fits_file):
         self.object = fits_object
         self.data = fits_object.data
         self.header = fits_object.header
+        # self.data = self.data[:,260:270,260:270]
 
     def fit_calibration(self) -> Map_u:
         """
@@ -138,7 +140,7 @@ class Data_cube(Fits_file):
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, None, "calibration") for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration") for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -147,7 +149,7 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension()),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], None)]))
 
-    def fit(self, targeted_ray: str, calculate_snr: bool=False) -> object:
+    def fit(self) -> Maps:
         """
         Fit the whole data cube to extract a gaussian's FWHM. This method presupposes that four OH peaks and one Halpha
         peak are present in the cube's spectrum in addition to the NII peak.
@@ -160,35 +162,55 @@ class Data_cube(Fits_file):
         ---------
         targeted_ray: str. Specifies the ray whose FWHM needs to be extracted. The supported peaks are:
         "OH1", "OH2", "OH3", "OH4", "NII" and "Ha".
-        calculate_snr: bool, default=False. Determines whether the signal to noise ratio must also be calculated and
-        stored as Map_usnr object.
 
         Returns
         -------
-        object: depending on the calculate_snr boolean, the output may be a Map_u or a Map_usnr. It represents the FWHM value,
-        its associated uncertainty and it may also have a signal to noise ratio map.
+        Maps object: maps of every ray's FWHM present in the provided data cube. Note that each map is Map_usnr object.
         """
         data = np.copy(self.data)
         fit_fwhm_list = []
-        cube_type = "NII"
-        if calculate_snr:
-            cube_type = "NII with snr"
+        # cube_type = "NII"
+        # if calculate_snr:
+        #     cube_type = "NII with snr"
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, targeted_ray, cube_type) for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII") for y in range(data.shape[1]))))) # calculate_snr & cube_type removed
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
+        fit_fwhm_array = np.squeeze(np.array(fit_fwhm_list))
+        map_list = Maps([
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,2])]), name="OH1_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,1,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,1,2])]), name="OH2_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,2,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,2,2])]), name="OH3_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,3,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,3,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,3,2])]), name="OH4_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,4,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,4,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,4,2])]), name="NII_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,5,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,5,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,5,2])]), name="Ha_fwhm"),
+            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,6,0], new_header), name="7_component_fit")
+        ])
+        return map_list
         # The map is temporarily stored in a simple format to facilitate extraction
-        fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
-        if calculate_snr:
-            return Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
-                                       fits.ImageHDU(fit_fwhm_map[:,:,1], new_header),
-                                       fits.ImageHDU(fit_fwhm_map[:,:,2], new_header)]))
-        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
+        # fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
+        # if calculate_snr:
+        #     return Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
+        #                                fits.ImageHDU(fit_fwhm_map[:,:,1], new_header),
+        #                                fits.ImageHDU(fit_fwhm_map[:,:,2], new_header)]))
+        # return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
+        #                            fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
         
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
@@ -306,7 +328,7 @@ def worker_fit(args: tuple) -> list:
     list: FWHM value of the fitted gaussian on the studied peak along the specified line. Each coordinates has two values:
     the former being the FWHM value whilst the latter being its uncertainty.
     """
-    y, data, targeted_ray, cube_type = args
+    y, data, cube_type = args
     line = []
     if cube_type == "calibration":
         for x in range(data.shape[2]):
@@ -317,6 +339,23 @@ def worker_fit(args: tuple) -> list:
             except:
                 line.append([np.NAN, np.NAN])
         Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
+
+    elif cube_type == "NII":
+        for x in range(data.shape[2]):
+            spectrum_object = Spectrum(data[:,y,x], calibration=False)
+            spectrum_object.fit_NII_cube()
+            a = np.array([spectrum_object.get_snr("OH1")])
+            line.append(np.array((
+                np.concatenate((spectrum_object.get_FWHM_speed("OH1"), np.array([spectrum_object.get_snr("OH1")]))),
+                np.concatenate((spectrum_object.get_FWHM_speed("OH2"), np.array([spectrum_object.get_snr("OH2")]))),
+                np.concatenate((spectrum_object.get_FWHM_speed("OH3"), np.array([spectrum_object.get_snr("OH3")]))),
+                np.concatenate((spectrum_object.get_FWHM_speed("OH4"), np.array([spectrum_object.get_snr("OH4")]))),
+                np.concatenate((spectrum_object.get_FWHM_speed("NII"), np.array([spectrum_object.get_snr("NII")]))),
+                np.concatenate((spectrum_object.get_FWHM_speed("Ha"), np.array([spectrum_object.get_snr("Ha")]))),
+                np.array([spectrum_object.seven_components_fit, False, False])
+            )))
+        Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
+
 
     elif cube_type == "NII":
         for x in range(data.shape[2]):
@@ -342,17 +381,20 @@ class Map(Fits_file):
     Encapsulate the necessary methods to compare and treat maps.
     """
 
-    def __init__(self, fits_object):
+    def __init__(self, fits_object, name: str=None):
         """
         Initialize a Map object.
 
         Arguments
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the map.
+        name: str, default=None. Name of the Map. This is primarily used with the Maps object.
         """
         self.object = fits_object
         self.data = fits_object.data
         self.header = fits_object.header
+        if name is not None:
+            self.name = name
 
     def __add__(self, other):
         if type(other) == Map:
@@ -638,7 +680,7 @@ class Map_u(Map):
     It is also possible to create a Map_u object from two Map objects using the from_map_objects method.
     """
 
-    def __init__(self, fits_list):
+    def __init__(self, fits_list, name: str=None):
         """
         Initialize a Map_u object. 
 
@@ -646,12 +688,15 @@ class Map_u(Map):
         ---------
         fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties and header
         of the map.
+        name: str, default=None. Name of the Map_u. This is primarily used with the Maps object.
         """
         self.object = fits_list
         self.data = fits_list[0].data
         self.uncertainties = fits_list[1].data
         self.header = fits_list[0].header
         assert self.data.shape == self.uncertainties.shape, "The data and uncertainties sizes do not match."
+        if name is not None:
+            self.name = name
     
     @classmethod
     def from_Map_objects(self, map_data: Map, map_uncertainty: Map) -> Map_u:
@@ -929,7 +974,7 @@ class Map_usnr(Map_u):
     It is also possible to create a Map_usnr object from three Map objects using the from_map_objects method.
     """
     
-    def __init__(self, fits_list):
+    def __init__(self, fits_list, name: str=None):
         """
         Initialize a Map_usnr object. 
 
@@ -937,8 +982,9 @@ class Map_usnr(Map_u):
         ---------
         fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties, signal to
         noise ratio and header of the map.
+        name: str, default=None. Name of the Map_u. This is primarily used with the Maps object.
         """
-        super().__init__(fits_list)
+        super().__init__(fits_list, name)
         self.snr = fits_list[2].data
         assert self.data.shape == self.snr.shape, "The data and signal to noise ratios sizes do not match."
 
@@ -1051,4 +1097,52 @@ class Map_usnr(Map_u):
                                       fits.ImageHDU(self.uncertainties * mask, self.header),
                                       fits.ImageHDU(self.snr * mask, self.header)]))
 
+
+
+class Maps():
+    """ 
+    Encapsulates the methods that are specific to a multitude of linked maps. This class is mainly used as the output of the
+    fit() method and allows for many convenient operations.
+    """
+
+    def __init__(self, maps: list):
+        self.content = {}
+        self.names = {}
+        for i, individual_map in enumerate(maps):
+            self.content[individual_map.name] = individual_map
+            self.names[i] = individual_map.name
+    
+    @classmethod
+    def open_from_folder(self, folder_path) -> Maps:
+        maps = []
+        files_in_folder = os.listdir(folder_path)
+        for file in files_in_folder:
+            if file[-5:] == ".fits":
+                name = file[:-5]
+                try:
+                    maps.append(Map_usnr(fits.open(f"{folder_path}/{file}"), name=name))
+                except:
+                    try:
+                        maps.append(Map_u(fits.open(f"{folder_path}/{file}"), name=name))
+                    except:
+                        maps.append(Map(fits.open(f"{folder_path}/{file}")[0], name=name))
+        return self(maps)
+
+    def __iter__(self):
+        self.n = -1
+        return self
+    
+    def __next__(self):
+        self.n += 1
+        if self.n > len(self.content) - 1:
+            raise StopIteration
+        else:
+            return self.content[self.names[self.n]]
+
+    def __getitem__(self, map_name):
+        return self.content[map_name]
+    
+    def save_as_fits_file(self, folder_path: str):
+        for name, element in self.content.items():
+            element.save_as_fits_file(f"{folder_path}/{name}.fits")
 

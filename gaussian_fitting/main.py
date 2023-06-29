@@ -1,7 +1,7 @@
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from fits_analyzer import Data_cube, Map, Map_u, Map_usnr
+from fits_analyzer import Data_cube, Map, Map_u, Map_usnr, Maps
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,12 +37,12 @@ def get_FWHM_maps():
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
-    nii_map = nii_cube.bin_cube(2).fit(4, True)
-    nii_map.save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII.fits")
+    fitted_map = nii_cube.bin_cube(2).fit()
+    fitted_map.save_as_fits_file("gaussian_fitting/maps/computed_data")
 
 
-if __name__ == "__main__":
-    get_FWHM_maps()
+# if __name__ == "__main__":
+#     get_FWHM_maps()
 
 
 def get_region_widening_maps(base_map: Map_usnr):
@@ -294,3 +294,12 @@ def get_region_statistics(map, write=False):
 
 # get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")[0]), write=True)
 
+
+
+# test_map_list = Maps([
+#     Map_usnr(fits.open("gaussian_fitting/maps/computed_data_v1/fwhm_NII.fits"), "fwhm_NII"),
+#     Map_u(fits.open("gaussian_fitting/maps/computed_data_v1/fwhm_Halpha.fits"), "fwhm_Ha"),
+#     Map_u(fits.open("gaussian_fitting/maps/computed_data_v1/turbulence.fits"), "turbulence_map")
+# ])
+
+# test_map_list["fwhm_Ha"][1].plot_map((0,40))
