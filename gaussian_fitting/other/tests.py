@@ -401,4 +401,7 @@ def calc_temp(halpha_width_kms, nii_width_kms):
 
 # print(list(zip(range(int(7)), (["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]))))
 
-print(list((y, [1,2,3,4], "NII") for y in range(10)))
+# print(list((y, [1,2,3,4], "NII") for y in range(10)))
+
+v = [np.array([1,2])]
+print(np.squeeze(np.array(v)))

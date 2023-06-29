@@ -32,6 +32,7 @@ class Spectrum:
         self.x_values, self.y_values = np.arange(48) + 1, data
         self.calibration = calibration
         self.data = data
+        # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
         self.seven_components_fit = 0
 
         if calibration:
@@ -50,7 +51,7 @@ class Spectrum:
             self.downwards_shift = np.sum(self.y_values[24:34]) / 10
             self.y_values -= self.downwards_shift
         
-    def plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
+    def __plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
         """
         Plot the data and the fits.
         
@@ -117,14 +118,14 @@ class Spectrum:
             ha  = models.Gaussian1D(amplitude=g.amplitude_5.value, mean=g.mean_5.value, stddev=g.stddev_5.value)
             try:
                 nii_2 = models.Gaussian1D(amplitude=g.amplitude_6.value, mean=g.mean_6.value, stddev=g.stddev_6.value)
-                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                self.__plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
                           OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha, NII_2=nii_2)
             except:
-                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                self.__plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
                         OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
         
         else:
-            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
+            self.__plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
     def fit_calibration(self) -> models:
         """
@@ -156,7 +157,8 @@ class Spectrum:
         stddev_mins: dict, optional. Specifies the standard deviation's minimum value of every gaussian component.
         This is used in the fit_iteratively method to increase the fit's accuracy.
         number_of_components: int, default=6. Number of initial guesses that need to be returned. This integer may be 6 or 7
-        depending on if a double NII peak is visible.
+        depending on if a double NII peak is detected. The user may leave the default value as it is as the program will
+        attempt a seven components fit if needed.
 
         Returns
         -------
@@ -164,7 +166,8 @@ class Spectrum:
         """
         # Initialize the six gaussians using the params dict
         params = self.get_initial_guesses(number_of_components)
-        # The parameter bounds dictionary allows for greater accuracy
+        # The parameter bounds dictionary allows for greater accuracy and limits each parameters with values found 
+        # by trial and error
         parameter_bounds = {
             "OH1": {"amplitude": (0, 100)*u.Jy,
                     "stddev": (np.sqrt(params["OH1"]["a"])/5, np.sqrt(params["OH1"]["a"])/2)*u.um},
@@ -175,7 +178,7 @@ class Spectrum:
                     "stddev": (np.sqrt(params["OH3"]["a"])/5, np.sqrt(params["OH3"]["a"])/2)*u.um,
                     "mean": (36,40)*u.um},
             "OH4": {"amplitude": (0, 100)*u.Jy,
-                    "stddev": (np.sqrt(params["OH4"]["a"])/5, np.sqrt(params["OH4"]["a"])/2)*u.um},
+                    "stddev": (np.sqrt(params["OH4"]["a"])/5, np.sqrt(params["OH4"]["a"])/2)*u.um}
         }
         if number_of_components == 6:
             parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um}
@@ -223,7 +226,7 @@ class Spectrum:
                 return self.fit_NII_cube(number_of_components=7)
             else:
                 return self.fitted_gaussian
-        else:
+        else:   # Seven components fit
             gi_NII_2 = models.Gaussian1D(amplitude=params["NII_2"]["a"]*u.Jy, mean=params["NII_2"]["x0"]*u.um,
                                          bounds=parameter_bounds["NII_2"])
             self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha + gi_NII_2,
@@ -311,6 +314,7 @@ class Spectrum:
         x_peaks = {}
         for ray, bounds in [("OH1", (1,5)), ("OH2", (19,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
             if ray == "NII" and number_of_components == 7:
+                # If a double peak was detected, the initial guesses are hard-coded to obtain better results
                 x_peaks["NII"], x_peaks["NII_2"] = 13, 16
                 continue
             # Initial x value of the peak
@@ -488,6 +492,18 @@ class Spectrum:
         return speed_array
     
     def get_snr(self, peak_name: str) -> float:
+        """
+        Get the signal to noise ratio of a peak. This is calculated as the amplitude of the peak divided by the residue's standard
+        deviation.
+
+        Arguments
+        ---------
+        peak_name: str. Name of the peak whose amplitude will be used to calculate the snr.
+
+        Returns
+        -------
+        float: value of the signal to noise ratio.
+        """
         return (self.get_fitted_gaussian_parameters(peak_name).amplitude/u.Jy)/self.get_residue_stddev()
 
 """ 

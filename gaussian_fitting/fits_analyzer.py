@@ -151,36 +151,30 @@ class Data_cube(Fits_file):
 
     def fit(self) -> Maps:
         """
-        Fit the whole data cube to extract a gaussian's FWHM. This method presupposes that four OH peaks and one Halpha
-        peak are present in the cube's spectrum in addition to the NII peak.
+        Fit the whole data cube to extract the peaks' FWHM. This method presupposes that four OH peaks, one Halpha peak and
+        one NII peak (sometimes two) are present.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
         state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
 
-        Arguments
-        ---------
-        targeted_ray: str. Specifies the ray whose FWHM needs to be extracted. The supported peaks are:
-        "OH1", "OH2", "OH3", "OH4", "NII" and "Ha".
-
         Returns
         -------
-        Maps object: maps of every ray's FWHM present in the provided data cube. Note that each map is Map_usnr object.
+        Maps object: maps of every ray's FWHM present in the provided data cube. Note that each peak map is Map_usnr object
+        and the last one is a Map object having the value 1 when a seven components fit was executed and 0 otherwise.
         """
         data = np.copy(self.data)
         fit_fwhm_list = []
-        # cube_type = "NII"
-        # if calculate_snr:
-        #     cube_type = "NII with snr"
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII") for y in range(data.shape[1]))))) # calculate_snr & cube_type removed
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII") for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
-        fit_fwhm_array = np.squeeze(np.array(fit_fwhm_list))
+        # The list containing the fit results is transformed into a numpy array to facilitate extraction
+        fit_fwhm_array = np.squeeze(fit_fwhm_list)
         map_list = Maps([
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0], new_header),
                                    fits.ImageHDU(fit_fwhm_array[:,:,0,1]),
@@ -200,17 +194,9 @@ class Data_cube(Fits_file):
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,5,0], new_header),
                                    fits.ImageHDU(fit_fwhm_array[:,:,5,1]),
                                    fits.ImageHDU(fit_fwhm_array[:,:,5,2])]), name="Ha_fwhm"),
-            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,6,0], new_header), name="7_component_fit")
+            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,6,0], new_header), name="7_components_fit")
         ])
         return map_list
-        # The map is temporarily stored in a simple format to facilitate extraction
-        # fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
-        # if calculate_snr:
-        #     return Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
-        #                                fits.ImageHDU(fit_fwhm_map[:,:,1], new_header),
-        #                                fits.ImageHDU(fit_fwhm_map[:,:,2], new_header)]))
-        # return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
-        #                            fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
         
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
@@ -318,15 +304,15 @@ def worker_fit(args: tuple) -> list:
 
     Arguments
     ---------
-    args: tuple. The first element is the y value of the line to be fitted, the second element is the Data_cube used, the third
-    element is the ray that needs to be extracted in the case of a multi-gaussian fit and the fourth element is a string
-    specifying if the cube is a calibration cube or a NII cube: "calibration" or "NII".
+    args: tuple. The first element is the y value of the line to be fitted, the second element is the data of theData_cube used
+    and the third element is a string specifying if the cube is a calibration cube or a NII cube: "calibration" or "NII".
     Note that arguments are given in tuple due to the way the multiprocessing library operates.
 
     Returns
     -------
-    list: FWHM value of the fitted gaussian on the studied peak along the specified line. Each coordinates has two values:
-    the former being the FWHM value whilst the latter being its uncertainty.
+    list: FWHM value of the fitted gaussians at every point along the specified line. Each coordinates has seven values: the first
+    six are the peaks' FWHM with their uncertainty and signal to noise ratio and the last one is a map indicating where fits with
+    sevent components were done. The last map outputs 0 for a six components fit and 1 for a seven components fit.
     """
     y, data, cube_type = args
     line = []
@@ -344,7 +330,6 @@ def worker_fit(args: tuple) -> list:
         for x in range(data.shape[2]):
             spectrum_object = Spectrum(data[:,y,x], calibration=False)
             spectrum_object.fit_NII_cube()
-            a = np.array([spectrum_object.get_snr("OH1")])
             line.append(np.array((
                 np.concatenate((spectrum_object.get_FWHM_speed("OH1"), np.array([spectrum_object.get_snr("OH1")]))),
                 np.concatenate((spectrum_object.get_FWHM_speed("OH2"), np.array([spectrum_object.get_snr("OH2")]))),
@@ -355,23 +340,6 @@ def worker_fit(args: tuple) -> list:
                 np.array([spectrum_object.seven_components_fit, False, False])
             )))
         Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
-
-
-    elif cube_type == "NII":
-        for x in range(data.shape[2]):
-            spectrum_object = Spectrum(data[:,y,x], calibration=False)
-            spectrum_object.fit_NII_cube()
-            line.append(spectrum_object.get_FWHM_speed(targeted_ray))
-        Data_cube.give_update(None, f"NII fitting progress /{data.shape[2]}")
-    
-    elif cube_type == "NII with snr":
-        for x in range(data.shape[2]):
-            spectrum_object = Spectrum(data[:,y,x], calibration=False)
-            spectrum_object.fit_NII_cube()
-            fwhm_values = spectrum_object.get_FWHM_speed(targeted_ray)
-            line.append(np.concatenate((fwhm_values, np.array([(spectrum_object.get_fitted_gaussian_parameters(targeted_ray).amplitude
-                                                                /u.Jy)/spectrum_object.get_residue_stddev()]))))
-        Data_cube.give_update(None, f"NII with snr fitting progress /{data.shape[2]}")
     return line
 
 
@@ -388,7 +356,8 @@ class Map(Fits_file):
         Arguments
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the map.
-        name: str, default=None. Name of the Map. This is primarily used with the Maps object.
+        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary to
+        provide one to work with this class.
         """
         self.object = fits_object
         self.data = fits_object.data
@@ -688,7 +657,8 @@ class Map_u(Map):
         ---------
         fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties and header
         of the map.
-        name: str, default=None. Name of the Map_u. This is primarily used with the Maps object.
+        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary to
+        provide one to work with this class.
         """
         self.object = fits_list
         self.data = fits_list[0].data
@@ -904,7 +874,7 @@ class Map_u(Map):
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]))
     
-    def align_regions(self) -> Map_u:
+    def align_regions(self) -> Map_u:    # This should be fused with the previous one
         """
         Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
         better the WCS.
@@ -982,7 +952,8 @@ class Map_usnr(Map_u):
         ---------
         fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties, signal to
         noise ratio and header of the map.
-        name: str, default=None. Name of the Map_u. This is primarily used with the Maps object.
+        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary to
+        provide one to work with this class.
         """
         super().__init__(fits_list, name)
         self.snr = fits_list[2].data
@@ -1106,6 +1077,13 @@ class Maps():
     """
 
     def __init__(self, maps: list):
+        """
+        Initialize a Maps object
+        
+        Arguments
+        ---------
+        maps: list. List of maps that may be of any type.
+        """
         self.content = {}
         self.names = {}
         for i, individual_map in enumerate(maps):

@@ -33,12 +33,14 @@ def get_smoothed_instr_f():
 
 def get_FWHM_maps():
     """
-    In this example, the FWHM_NII map is obtained.
+    In this example, the FWHM maps of the NII cube are obtained.
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
-    fitted_map = nii_cube.bin_cube(2).fit()
-    fitted_map.save_as_fits_file("gaussian_fitting/maps/computed_data")
+    fitted_maps = nii_cube.bin_cube(2).fit()
+    # In this case, the fit() method returns a Maps object which takes a directory to save into
+    # It saves every individual map using their map.name attribute
+    fitted_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
 
 
 # if __name__ == "__main__":
