@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+import os
 
 from astropy.modeling import models, fitting
 from astropy.io import fits
@@ -35,6 +36,19 @@ class Spectrum:
         # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
         self.seven_components_fit = 0
 
+        raw_data1 = np.fromfile(os.path.abspath("fab_ciel_test.dat"), sep=" ")
+        data1 = np.array(np.split(raw_data1, len(raw_data1)/2))
+        y_values1 = np.split(data1, 2, axis=1)[1]
+        raw_data2 = np.fromfile(os.path.abspath("fab_cielbd_test.dat"), sep=" ")
+        data2 = np.array(np.split(raw_data2, len(raw_data2)/2))
+        y_values2 = np.split(data2, 2, axis=1)[1]
+        raw_data3 = np.fromfile(os.path.abspath("fab_cielbg_test.dat"), sep=" ")
+        data3 = np.array(np.split(raw_data3, len(raw_data3)/2))
+        y_values3 = np.split(data3, 2, axis=1)[1]
+        raw_data4 = np.fromfile(os.path.abspath("fab_cielhd_test.dat"), sep=" ")
+        data4 = np.array(np.split(raw_data4, len(raw_data4)/2))
+        y_values4 = np.split(data4, 2, axis=1)[1]
+        self.y_values = self.y_values - np.ravel(np.nanmean((y_values1, y_values2, y_values3, y_values4), axis=0))
         if calibration:
             # Application of a translation in the case of the calibration cube
             # The distance between the desired peak and the current peak is calculated
@@ -51,7 +65,7 @@ class Spectrum:
             self.downwards_shift = np.sum(self.y_values[24:34]) / 10
             self.y_values -= self.downwards_shift
         
-    def __plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
+    def plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
         """
         Plot the data and the fits.
         
@@ -118,14 +132,14 @@ class Spectrum:
             ha  = models.Gaussian1D(amplitude=g.amplitude_5.value, mean=g.mean_5.value, stddev=g.stddev_5.value)
             try:
                 nii_2 = models.Gaussian1D(amplitude=g.amplitude_6.value, mean=g.mean_6.value, stddev=g.stddev_6.value)
-                self.__plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
                           OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha, NII_2=nii_2)
             except:
-                self.__plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
                         OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
         
         else:
-            self.__plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
+            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
     def fit_calibration(self) -> models:
         """
@@ -511,7 +525,7 @@ def loop_di_loop(filename):
     calib = False
     if filename == "calibration.fits":
         calib = True
-    x = 3
+    x = 311
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")
@@ -528,7 +542,8 @@ def loop_di_loop(filename):
             print("mean FWHM:", (spectrum.get_FWHM_speed("NII"), spectrum.get_FWHM_speed("Ha")))
         except:
             pass
-        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        # spectrum.plot(coords=(x,y))
+        spectrum.plot_fit(fullscreen=True, coords=(x,y), plot_all=True)
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()

@@ -126,20 +126,20 @@ def get_turbulence_map(temp_map):
     In this example, the turbulence map is obtained with the previously computed maps: all region widenings as well as
     smoothed_instr_f. Note that the region widenings maps are not opened directly but are used in the Map.align_regions() method.
     """
-    global_FWHM_map = Map_usnr(fits.open("gaussian_fitting/maps/reproject/global_widening.fits"))
+    global_FWHM_map = Map_usnr(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
     # The pixels that have a snr inferior to 6 are masked
     global_FWHM_map = global_FWHM_map.filter_snr(snr_threshold=6)
-    instrumental_function = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)
+    instrumental_function = Map_u(fits.open("gaussian_fitting/maps/computed_data_v1/smoothed_instr_f.fits")).bin_map(2)
     # The aligned map is the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map = (global_FWHM_map**2 - instrumental_function**2).align_regions()
-    (aligned_map**0.5).save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII-calib.fits")
+    # (aligned_map**0.5).save_as_fits_file("gaussian_fitting/maps/computed_data/fwhm_NII-calib.fits")
     # The temperature maps are adjusted at the same WCS than the global maps
     temperature_map = temp_map.transfer_temperature_to_FWHM().reproject_on(global_FWHM_map)
     turbulence_map = (aligned_map - temperature_map**2)**0.5
     # The standard deviation is the desired quantity
     turbulence_map /= 2 * np.sqrt(2 * np.log(2))
     turbulence_map.plot_map()
-    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
+    # turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
 
 
 # get_turbulence_map(Map_u(fits.HDUList([fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0],
@@ -212,11 +212,11 @@ def get_courtes_temperature_from_NII_and_Halpha2():
     In this example, we obtain a temperature map using Courtes's method with the NII and Halpha emission lines.
     """
     # Here the Halpha emission line sigma is obtained (includes the temperature's contribution)
-    halpha_FWHM_with_temperature = Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_Halpha.fits")[0])
+    halpha_FWHM_with_temperature = Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])
     halpha_sigma_with_temperature = halpha_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
 
     # The NII sigma map is acquired
-    nii_FWHM_with_temperature = Map(fits.open("gaussian_fitting/maps/computed_data/fwhm_NII.fits")[0])
+    nii_FWHM_with_temperature = Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0])
     nii_sigma_with_temperature = nii_FWHM_with_temperature / (2 * np.sqrt(2 * np.log(2)))
 
     # The FWHM maps are converted in Angstroms
@@ -230,7 +230,7 @@ def get_courtes_temperature_from_NII_and_Halpha2():
     temperature_map = 4.73 * 10**4 * (halpha_sigma_with_temperature_AA.reproject_on(nii_sigma_with_temperature_AA)**2 - 
                        nii_sigma_with_temperature_AA**2)
     temperature_map.plot_map((0,10000))
-    temperature_map.save_as_fits_file("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")
+    temperature_map.save_as_fits_file("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha3.fits")
 
 
 # get_courtes_temperature_from_NII_and_Halpha2()

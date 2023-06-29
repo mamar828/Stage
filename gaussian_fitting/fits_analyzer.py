@@ -121,7 +121,6 @@ class Data_cube(Fits_file):
         self.object = fits_object
         self.data = fits_object.data
         self.header = fits_object.header
-        # self.data = self.data[:,260:270,260:270]
 
     def fit_calibration(self) -> Map_u:
         """
@@ -144,10 +143,11 @@ class Data_cube(Fits_file):
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
+        new_header = self.get_header_without_third_dimension
         # The map is temporarily stored in a simple format to facilitate extraction
         fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
-        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], self.get_header_without_third_dimension()),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,1], None)]))
+        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
 
     def fit(self) -> Maps:
         """
