@@ -359,14 +359,19 @@ class Map(Fits_file):
         name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary to
         provide one to work with this class.
         """
-        self.object = fits_object
-        self.data = fits_object.data
-        self.header = fits_object.header
+        try:
+            self.object = fits_object
+            self.data = fits_object.data
+            self.header = fits_object.header
+        except:
+            self.object = fits_object[0]
+            self.data = fits_object[0].data
+            self.header = fits_object[0].header            
         if name is not None:
             self.name = name
 
     def __add__(self, other):
-        if type(other) == Map:
+        if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
             return Map(fits.PrimaryHDU(self.data + other.data, self.header))
         else:
@@ -543,14 +548,14 @@ class Map(Fits_file):
         reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
         return Map(fits.PrimaryHDU(reprojection, other.header))
     
-    def align_regions(self) -> Map:
+    def align_regions(self) -> Map | Map_u:
         """
         Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
         better the WCS.
 
         Returns
         -------
-        Map object: global map with the three aligned regions, result of the subtraction of the squared FWHM map and the squared
+        Map/Map_u object: global map with the three aligned regions, result of the subtraction of the squared FWHM map and the squared
         instrumental function map.
         """
         regions = [
@@ -560,22 +565,30 @@ class Map(Fits_file):
         ]
 
         # A mask of zeros and ones is created with the regions
-        masks = [region.get_mask(hdu=self.object) for region in regions]
+        try:
+            # If the object is derived from a Map_u object, this statement works
+            masks = [region.get_mask(hdu=self.object[0]) for region in regions]
+        except:
+            # If the object is a Map object, this statement works
+            masks = [region.get_mask(hdu=self.object) for region in regions]
         masks = [np.where(mask == False, 0, 1) for mask in masks]
 
         # The map's data is removed where a mask applies
         new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
+
         # Every specific map needs to have the same values than the global map, but the header is changed to fit a specific region
         # The right headers are first opened, then the values are changed
         specific_headers = [
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")[0]).header,
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")[0]).header,
-            Map(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")[0]).header
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")).header,
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")).header,
+            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")).header
         ]
         # The real data is inserted
         specific_maps = []
         for header in specific_headers:
-            specific_maps.append(Map(fits.PrimaryHDU(np.copy(self.data), header)))
+            specific_maps.append(self.copy())
+            specific_maps[-1].header = header
+
         # Alignment of the specific maps on the global WCS
         reprojected_specific_maps = [specific_map.reproject_on(self) for specific_map in specific_maps]
         # Only the data within the mask is kept
@@ -688,7 +701,7 @@ class Map_u(Map):
                                   fits.ImageHDU(map_uncertainty.data, map_data.header)]))
 
     def __add__(self, other):
-        if type(other) == Map_u:
+        if issubclass(type(other), Map_u):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other.data, self.header),
                                        fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]))
@@ -697,7 +710,7 @@ class Map_u(Map):
                                        fits.ImageHDU(self.uncertainties, self.header)]))
     
     def __sub__(self, other):
-        if type(other) == Map_u:
+        if issubclass(type(other), Map_u):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other.data, self.header),
                                        fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]))
@@ -874,46 +887,49 @@ class Map_u(Map):
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]))
     
-    def align_regions(self) -> Map_u:    # This should be fused with the previous one
-        """
-        Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
-        better the WCS.
+    # def align_regions(self) -> Map_u:    # This should be fused with the previous one
+    #     """
+    #     Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
+    #     better the WCS.
 
-        Returns
-        -------
-        Map_u object: global map with the three aligned regions, result of the subtraction of the squared FWHM map and the squared
-        instrumental function map.
-        """
-        regions = [
-            pyregion.open("gaussian_fitting/regions/region_1.reg"),
-            pyregion.open("gaussian_fitting/regions/region_2.reg"),
-            pyregion.open("gaussian_fitting/regions/region_3.reg")
-        ]
+    #     Returns
+    #     -------
+    #     Map_u object: global map with the three aligned regions, result of the subtraction of the squared FWHM map and the squared
+    #     instrumental function map.
+    #     """
+    #     regions = [
+    #         pyregion.open("gaussian_fitting/regions/region_1.reg"),
+    #         pyregion.open("gaussian_fitting/regions/region_2.reg"),
+    #         pyregion.open("gaussian_fitting/regions/region_3.reg")
+    #     ]
 
-        # A mask of zeros and ones is created with the regions
-        masks = [region.get_mask(hdu=self.object[0]) for region in regions]
-        masks = [np.where(mask == False, 0, 1) for mask in masks]
+    #     # A mask of zeros and ones is created with the regions
+    #     masks = [region.get_mask(hdu=self.object[0]) for region in regions]
+    #     masks = [np.where(mask == False, 0, 1) for mask in masks]
 
-        # The map's data is removed where a mask applies
-        new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
-        # Every specific map needs to have the same values than the global map, but the header is changed to fit a specific region
-        # The right headers are first opened, then the values are changed
-        specific_headers = [
-            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")).header,
-            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")).header,
-            Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")).header
-        ]
-        # The real data is inserted
-        specific_maps = []
-        for header in specific_headers:
-            specific_maps.append(Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), header),
-                                                     fits.ImageHDU(np.copy(self.uncertainties), header)])))
-        # Alignment of the specific maps on the global WCS
-        reprojected_specific_maps = [specific_map.reproject_on(self) for specific_map in specific_maps]
-        # Only the data within the mask is kept
-        region_data = [specific_map * masks[i] for i, specific_map in enumerate(reprojected_specific_maps)]
-        new_map += region_data[0] + region_data[1] + region_data[2]
-        return new_map
+    #     # The map's data is removed where a mask applies
+    #     new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
+
+    #     # Every specific map needs to have the same values than the global map, but the header is changed to fit a specific region
+    #     # The right headers are first opened, then the values are changed
+    #     specific_headers = [
+    #         Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")).header,
+    #         Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")).header,
+    #         Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")).header
+    #     ]
+    #     # The real data is inserted
+    #     specific_maps = []
+    #     for header in specific_headers:
+    #         specific_maps.append(Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), header),
+    #                                                          fits.ImageHDU(np.copy(self.uncertainties), header)])))
+        
+    #     # Alignment of the specific maps on the global WCS
+    #     reprojected_specific_maps = [specific_map.reproject_on(self) for specific_map in specific_maps]
+    #     # Only the data within the mask is kept
+    #     region_data = [specific_map * masks[i] for i, specific_map in enumerate(reprojected_specific_maps)]
+    #     new_map.plot_map((0,40))
+    #     new_map += region_data[0] + region_data[1] + region_data[2]
+    #     return new_map
 
     def transfer_temperature_to_FWHM(self) -> Map_u:
         """

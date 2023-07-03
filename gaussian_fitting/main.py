@@ -139,7 +139,7 @@ def get_turbulence_map(temp_map):
     # The standard deviation is the desired quantity
     turbulence_map /= 2 * np.sqrt(2 * np.log(2))
     turbulence_map.plot_map()
-    # turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
+    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence-2.fits")
 
 
 # get_turbulence_map(Map_u(fits.HDUList([fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0],
@@ -296,12 +296,3 @@ def get_region_statistics(map, write=False):
 
 # get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")[0]), write=True)
 
-
-
-# test_map_list = Maps([
-#     Map_usnr(fits.open("gaussian_fitting/maps/computed_data_v1/fwhm_NII.fits"), "fwhm_NII"),
-#     Map_u(fits.open("gaussian_fitting/maps/computed_data_v1/fwhm_Halpha.fits"), "fwhm_Ha"),
-#     Map_u(fits.open("gaussian_fitting/maps/computed_data_v1/turbulence.fits"), "turbulence_map")
-# ])
-
-# test_map_list["fwhm_Ha"][1].plot_map((0,40))
