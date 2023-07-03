@@ -269,6 +269,16 @@ def get_courtes_temperature_from_Halpha_and_OIII():
 # get_courtes_temperature_from_Halpha_and_OIII()
 
 
+def get_courtes_temperature(settings: dict):
+    """
+    In this example, the pre-rendered maps are used to calculate a temperature map using Courtes's method and suppositions.
+    """
+    pass
+
+
+
+
+
 def get_region_statistics(map, write=False):
     """
     In this example, the statistics of a region are obtained and stored in the turbulence_stats.txt file.

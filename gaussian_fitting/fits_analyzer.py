@@ -97,11 +97,15 @@ class Fits_file():
         ---------
         info: str. Beggining string to give information about the current running program.
         """
-        file = open("output.txt", "r")
-        number = int(file.readlines()[-1])
-        file = open("output.txt", "w")
-        file.write(f"{info}\n{str(number + 1)}")
-        file.close()
+        try:
+            file = open("output.txt", "r")
+            number = int(file.readlines()[-1])
+            file = open("output.txt", "w")
+            file.write(f"{info}\n{str(number + 1)}")
+            file.close()
+        except:
+            # Sometimes the read method is unsuccessful
+            pass
 
 
 
@@ -143,7 +147,7 @@ class Data_cube(Fits_file):
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
-        new_header = self.get_header_without_third_dimension
+        new_header = self.get_header_without_third_dimension()
         # The map is temporarily stored in a simple format to facilitate extraction
         fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
@@ -887,50 +891,6 @@ class Map_u(Map):
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]))
     
-    # def align_regions(self) -> Map_u:    # This should be fused with the previous one
-    #     """
-    #     Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
-    #     better the WCS.
-
-    #     Returns
-    #     -------
-    #     Map_u object: global map with the three aligned regions, result of the subtraction of the squared FWHM map and the squared
-    #     instrumental function map.
-    #     """
-    #     regions = [
-    #         pyregion.open("gaussian_fitting/regions/region_1.reg"),
-    #         pyregion.open("gaussian_fitting/regions/region_2.reg"),
-    #         pyregion.open("gaussian_fitting/regions/region_3.reg")
-    #     ]
-
-    #     # A mask of zeros and ones is created with the regions
-    #     masks = [region.get_mask(hdu=self.object[0]) for region in regions]
-    #     masks = [np.where(mask == False, 0, 1) for mask in masks]
-
-    #     # The map's data is removed where a mask applies
-    #     new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
-
-    #     # Every specific map needs to have the same values than the global map, but the header is changed to fit a specific region
-    #     # The right headers are first opened, then the values are changed
-    #     specific_headers = [
-    #         Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")).header,
-    #         Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_2_widening.fits")).header,
-    #         Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_3_widening.fits")).header
-    #     ]
-    #     # The real data is inserted
-    #     specific_maps = []
-    #     for header in specific_headers:
-    #         specific_maps.append(Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), header),
-    #                                                          fits.ImageHDU(np.copy(self.uncertainties), header)])))
-        
-    #     # Alignment of the specific maps on the global WCS
-    #     reprojected_specific_maps = [specific_map.reproject_on(self) for specific_map in specific_maps]
-    #     # Only the data within the mask is kept
-    #     region_data = [specific_map * masks[i] for i, specific_map in enumerate(reprojected_specific_maps)]
-    #     new_map.plot_map((0,40))
-    #     new_map += region_data[0] + region_data[1] + region_data[2]
-    #     return new_map
-
     def transfer_temperature_to_FWHM(self) -> Map_u:
         """
         Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
@@ -1107,7 +1067,18 @@ class Maps():
             self.names[i] = individual_map.name
     
     @classmethod
-    def open_from_folder(self, folder_path) -> Maps:
+    def open_from_folder(self, folder_path: str) -> Maps:
+        """
+        Create a Maps object from the files present in a specific folder. Every file is opened as a map.
+        
+        Arguments
+        ---------
+        folder_path: str. Path of the folder in which the maps are contained.
+        
+        Returns
+        -------
+        Maps object: the name attribute of each map is the name of the file from which it originated.
+        """
         maps = []
         files_in_folder = os.listdir(folder_path)
         for file in files_in_folder:
@@ -1137,6 +1108,13 @@ class Maps():
         return self.content[map_name]
     
     def save_as_fits_file(self, folder_path: str):
+        """
+        Write every map of the Maps object into a folder. This makes use of each map's save_as_fits_file() method.
+        
+        Arguments
+        ---------
+        folder_path: str. Indicates the path of the folder in which to create the files.
+        """
         for name, element in self.content.items():
             element.save_as_fits_file(f"{folder_path}/{name}.fits")
 

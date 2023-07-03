@@ -36,19 +36,6 @@ class Spectrum:
         # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
         self.seven_components_fit = 0
 
-        raw_data1 = np.fromfile(os.path.abspath("fab_ciel_test.dat"), sep=" ")
-        data1 = np.array(np.split(raw_data1, len(raw_data1)/2))
-        y_values1 = np.split(data1, 2, axis=1)[1]
-        raw_data2 = np.fromfile(os.path.abspath("fab_cielbd_test.dat"), sep=" ")
-        data2 = np.array(np.split(raw_data2, len(raw_data2)/2))
-        y_values2 = np.split(data2, 2, axis=1)[1]
-        raw_data3 = np.fromfile(os.path.abspath("fab_cielbg_test.dat"), sep=" ")
-        data3 = np.array(np.split(raw_data3, len(raw_data3)/2))
-        y_values3 = np.split(data3, 2, axis=1)[1]
-        raw_data4 = np.fromfile(os.path.abspath("fab_cielhd_test.dat"), sep=" ")
-        data4 = np.array(np.split(raw_data4, len(raw_data4)/2))
-        y_values4 = np.split(data4, 2, axis=1)[1]
-        self.y_values = self.y_values - np.ravel(np.nanmean((y_values1, y_values2, y_values3, y_values4), axis=0))
         if calibration:
             # Application of a translation in the case of the calibration cube
             # The distance between the desired peak and the current peak is calculated
@@ -190,12 +177,12 @@ class Spectrum:
                     "mean": (19,21)*u.um},
             "OH3": {"amplitude": (0, 13-self.downwards_shift)*u.Jy,
                     "stddev": (np.sqrt(params["OH3"]["a"])/5, np.sqrt(params["OH3"]["a"])/2)*u.um,
-                    "mean": (36,40)*u.um},
+                    "mean": (36,39)*u.um},
             "OH4": {"amplitude": (0, 100)*u.Jy,
                     "stddev": (np.sqrt(params["OH4"]["a"])/5, np.sqrt(params["OH4"]["a"])/2)*u.um}
         }
         if number_of_components == 6:
-            parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,16)*u.um}
+            parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,17)*u.um}
             parameter_bounds["Ha"]  = {"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um}
         else:
             amplitude_mean = np.mean((params["NII"]["a"], params["NII_2"]["a"]))
@@ -208,6 +195,8 @@ class Spectrum:
             parameter_bounds["Ha"]    = {"amplitude": (0,100)*u.Jy,
                                          "stddev": (np.sqrt(params["Ha"]["a"])/10, np.sqrt(params["Ha"]["a"])/1.6),
                                          "mean": (41,45)*u.um}
+        print(params)
+        print(parameter_bounds)
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         gi_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
                                    bounds=parameter_bounds["OH1"])
@@ -232,6 +221,8 @@ class Spectrum:
         if number_of_components == 6:
             self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
                                              fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
+            # The following line must be erased for the double peak fit method.
+            return self.fitted_gaussian
             # Check the possibility of a double-component NII peak
             nii_FWHM = self.get_FWHM_speed("NII")[0]
             ha_FWHM  = self.get_FWHM_speed("Ha")[0]
@@ -326,7 +317,7 @@ class Spectrum:
         # Note that the first element of the list is the derivative difference between channels 2 and 3 and channels 1 and 2
         
         x_peaks = {}
-        for ray, bounds in [("OH1", (1,5)), ("OH2", (19,21)), ("OH3", (36,40)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
+        for ray, bounds in [("OH1", (1,5)), ("OH2", (19,21)), ("OH3", (36,39)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
             if ray == "NII" and number_of_components == 7:
                 # If a double peak was detected, the initial guesses are hard-coded to obtain better results
                 x_peaks["NII"], x_peaks["NII_2"] = 13, 16
@@ -394,7 +385,7 @@ class Spectrum:
         """
         peak_numbers = {"OH1": 0, "OH2": 1, "OH3": 2, "OH4": 3, "NII": 4, "Ha": 5, "NII_2": 6}
         if peak_name is None:
-            return self.fitted_gaussian[0]
+            return self.fitted_gaussian
         return self.fitted_gaussian[peak_numbers[peak_name]]
     
     def get_uncertainties(self) -> dict:
@@ -543,7 +534,7 @@ def loop_di_loop(filename):
         except:
             pass
         # spectrum.plot(coords=(x,y))
-        spectrum.plot_fit(fullscreen=True, coords=(x,y), plot_all=True)
+        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()
