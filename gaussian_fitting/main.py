@@ -147,8 +147,8 @@ def get_turbulence_map(temp_map):
 def get_courtes_temperature(settings: dict):
     """
     In this example, the pre-rendered maps are used to calculate a temperature map using Courtes's method and suppositions.
-    Note that the Map_1 is always reprojected onto the Map_2. Which Map is subtracted to which is determined by the subtraction
-    key.
+    Note that the Map_1 is always reprojected onto the Map_2. Which Map is subtracted to which is determined by the value of
+    the subtraction key.
     """
     if settings["Map_1"]["global_temperature_was_substracted"]:
         map_1_FWHM = settings["Map_1"]["fwhm_map"]
@@ -223,10 +223,10 @@ settings_NII_SII = {
 }
 
 
-get_courtes_temperature(settings_NII_SII)
+# get_courtes_temperature(settings_NII_SII)
 
 
-def get_region_statistics(map, write=False):
+def get_region_statistics(map, write=False, plot_histogram=False):
     """
     In this example, the statistics of a region are obtained and stored in the turbulence_stats.txt file.
     """
@@ -238,7 +238,7 @@ def get_region_statistics(map, write=False):
     ]
     for i, region in enumerate(regions):
         # A histogram may be shown if the plot_histogram bool is set to True
-        stats = map.get_region_statistics(region, plot_histogram=False)
+        stats = map.get_region_statistics(region, plot_histogram=plot_histogram)
         print(stats)
         plt.show()
         # The write bool must be set to True if the statistics need to be put in the file
@@ -251,5 +251,5 @@ def get_region_statistics(map, write=False):
             file.close()
 
 
-# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.fits")[0]), write=True)
+get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Ha.fits")[0]), write=True, plot_histogram=True)
 
