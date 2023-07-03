@@ -195,8 +195,7 @@ class Spectrum:
             parameter_bounds["Ha"]    = {"amplitude": (0,100)*u.Jy,
                                          "stddev": (np.sqrt(params["Ha"]["a"])/10, np.sqrt(params["Ha"]["a"])/1.6),
                                          "mean": (41,45)*u.um}
-        print(params)
-        print(parameter_bounds)
+        
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         gi_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
                                    bounds=parameter_bounds["OH1"])
