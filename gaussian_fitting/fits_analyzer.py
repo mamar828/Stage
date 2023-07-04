@@ -617,7 +617,7 @@ class Map(Fits_file):
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
     
-    def get_region_statistics(self, region: pyregion.core.ShapeList, plot_histogram: bool=False) -> dict:
+    def get_region_statistics(self, region: pyregion.core.ShapeList) -> dict:
         """
         Get the statistics of a region along with a histogram. The supported statistic measures are: median, mean, standard
         deviation, skewness and kurtosis.
@@ -649,10 +649,37 @@ class Map(Fits_file):
         }
         # The NANs are removed from the data from which the statistics are computed
         map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
-        if plot_histogram:
-            plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
-            
         return stats
+    
+    def plot_region_histogram(self, region: pyregion.core.ShapeList=None, title: str=None):
+        """
+        Plot the histogram of the values in a certain region. If none is provided, then the histogram represents the
+        entirety of the Map's data.
+        
+        Arguments
+        ---------
+        region: pyregion.core.ShapeList, default=None. Region in which to use the values to plot the histogram. Without
+        a region all the data is used.
+        title: str, default=None. If present, title of the figure
+        """
+        if region is None:
+            map_data_without_nan = np.ma.masked_invalid(self.data).compressed()
+            plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
+        else:
+            # A mask of zeros and ones is created with the region
+            try:
+                mask = region.get_mask(hdu=self.object)
+            except:
+                mask = region.get_mask(hdu=self.object[0])
+            mask = np.where(mask == False, np.nan, 1)
+            # The map's data is only kept where a mask applies
+            new_map = self.copy() * mask
+            map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
+            plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
+        plt.xlabel("turbulence (km/s)")
+        plt.ylabel("nombre de pixels")
+        plt.title(title)
+        plt.show()
 
 
 

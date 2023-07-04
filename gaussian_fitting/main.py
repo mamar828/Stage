@@ -1,5 +1,6 @@
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy.visualization.wcsaxes import WCSAxes
 
 from fits_analyzer import Data_cube, Map, Map_u, Map_usnr, Maps
 
@@ -226,9 +227,9 @@ settings_NII_SII = {
 # get_courtes_temperature(settings_NII_SII)
 
 
-def get_region_statistics(map, write=False, plot_histogram=False):
+def get_region_statistics(map, filename: str=None, write=False):
     """
-    In this example, the statistics of a region are obtained and stored in the turbulence_stats.txt file.
+    In this example, the statistics of a region are obtained and stored in a .txt file.
     """
     # Open the three possible regions
     regions = [
@@ -238,12 +239,12 @@ def get_region_statistics(map, write=False, plot_histogram=False):
     ]
     for i, region in enumerate(regions):
         # A histogram may be shown if the plot_histogram bool is set to True
-        stats = map.get_region_statistics(region, plot_histogram=plot_histogram)
+        stats = map.get_region_statistics(region)
         print(stats)
         plt.show()
-        # The write bool must be set to True if the statistics need to be put in the file
+        # The write bool must be set to True if the statistics need to be put in a file
         if write:
-            file = open("gaussian_fitting/maps/temp_maps_courtes/NII_Halpha2.txt", "a")
+            file = open(filename, "a")
             file.write(f"Region {i+1}:\n")
             for key, value in stats.items():
                 file.write(f"{key}: {value}\n")
@@ -251,5 +252,65 @@ def get_region_statistics(map, write=False, plot_histogram=False):
             file.close()
 
 
-get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/NII_Ha.fits")[0]), write=True, plot_histogram=True)
+# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/computed_data/turbulence.fits")[0]), 
+#                       filename="gaussian_fitting/statistics/turbulence.txt", write=True)
 
+
+def get_turbulence_figure_with_regions():
+    """
+    In this example, the turbulence jpeg image with the regions is obtained.
+    """
+    turbulence = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+    regions = [
+        pyregion.open("gaussian_fitting/regions/region_1.reg").as_imagecoord(header=turbulence.header),
+        pyregion.open("gaussian_fitting/regions/region_2.reg").as_imagecoord(header=turbulence.header),
+        pyregion.open("gaussian_fitting/regions/region_3.reg").as_imagecoord(header=turbulence.header)
+    ]
+
+    def fixed_color(shape, saved_attrs):
+        attr_list, attr_dict = saved_attrs
+        attr_dict["color"] = "red"
+        kwargs = pyregion.mpl_helper.properties_func_default(shape, (attr_list, attr_dict))
+        return kwargs
+    
+    wcs = WCS(turbulence.header)
+    fig = plt.figure()
+    ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=wcs)
+    fig.add_axes(ax)
+    cbar = plt.colorbar(ax.imshow(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0].data, origin="lower"))
+    patch_and_artist_list = [region.get_mpl_patches_texts(fixed_color) for region in regions]
+    for region in patch_and_artist_list:
+        for patch in region[0]:
+            ax.add_patch(patch)
+        for artist in region[1]:
+            ax.add_artist(artist)
+    plt.title("Turbulence de la région Sh2-158")
+    cbar.ax.set_ylabel("turbulence (km/s)")
+    plt.show()
+
+
+# get_turbulence_figure_with_regions()
+
+
+def get_histograms():
+    """
+    In this example, the histograms figure of the three regions and of the entire regions are obtained.
+    """
+    regions = [
+        None,
+        pyregion.open("gaussian_fitting/regions/region_1.reg"),
+        pyregion.open("gaussian_fitting/regions/region_2.reg"),
+        pyregion.open("gaussian_fitting/regions/region_3.reg")
+    ]
+    turbulence = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+    histogram_names = [
+        "Turbulence de la région Sh2-158",
+        "Turbulence de la région diffuse de Sh2-158",
+        "Turbulence de la région centrale de Sh2-158",
+        "Turbulence de la région du filament de Sh2-158"
+    ]
+    for region, name in zip(regions, histogram_names):
+        turbulence.plot_region_histogram(region, name)
+
+
+# get_histograms()
