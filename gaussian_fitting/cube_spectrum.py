@@ -537,6 +537,6 @@ def loop_di_loop(filename):
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()
-loop_di_loop("night_34_binned.fits")
+loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
 # loop_di_loop("calibration.fits")
- """
+"""

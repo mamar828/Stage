@@ -171,6 +171,13 @@ def get_courtes_temperature(settings: dict):
     else:
         map_2_FWHM_with_temperature = settings["Map_2"]["fwhm_map"]
 
+    if settings["turbulence_consideration"]:
+        turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")) * 2*np.sqrt(2*np.log(2))
+        map_1_FWHM_with_temperature = (map_1_FWHM_with_temperature**2 - 
+                                       turbulence_map.reproject_on(map_1_FWHM_with_temperature)**2)**0.5
+        map_2_FWHM_with_temperature = (map_2_FWHM_with_temperature**2 - 
+                                       turbulence_map.reproject_on(map_2_FWHM_with_temperature)**2)**0.5
+
     # The FWHM maps are converted in Angstroms
     map_1_peak_AA = settings["Map_1"]["peak_wavelength_AA"]
     map_2_peak_AA = settings["Map_2"]["peak_wavelength_AA"]
@@ -184,6 +191,7 @@ def get_courtes_temperature(settings: dict):
     elif settings["subtraction"] == "2-1":
         temperature_map = 4.73 * 10**4 * (map_2_FWHM_with_temperature_AA**2 -
                                           map_1_FWHM_with_temperature_AA.reproject_on(map_2_FWHM_with_temperature_AA)**2)
+    # temperature_map.plot_map((0,20000))
     temperature_map.save_as_fits_file(settings["save_file_name"])
 
 
@@ -196,7 +204,8 @@ settings_Ha_NII = {
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41},
     "subtraction": "1-2",
-    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/Ha_NII.fits"
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/Ha_NII.fits",
+    "turbulence_consideration" : True
 }
 
 # These settings allow for the computation of the temperature map using Halpha from the NII cube and OIII from Leo's data
@@ -209,7 +218,8 @@ settings_OIII_Ha = {
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6562.78},
     "subtraction": "2-1",
-    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/OIII_Ha.fits"
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits",
+    "turbulence_consideration" : True
 }
 
 # These settings allow for the computation of the temperature map using NII from the NII cube and SII from Leo's data
@@ -222,13 +232,14 @@ settings_SII_NII = {
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41},
     "subtraction": "2-1",
-    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/SII_NII.fits"
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/SII_NII.fits",
+    "turbulence_consideration" : True
 }
 
 
-# get_courtes_temperature(settings_Ha_NII)
-# get_courtes_temperature(settings_OIII_Ha)
-# get_courtes_temperature(settings_SII_NII)
+get_courtes_temperature(settings_Ha_NII)
+get_courtes_temperature(settings_OIII_Ha)
+get_courtes_temperature(settings_SII_NII)
 
 
 def get_region_statistics(Map, filename: str=None, write=False):
@@ -260,6 +271,12 @@ def get_region_statistics(Map, filename: str=None, write=False):
 #                       filename="gaussian_fitting/statistics/OIII_Ha.txt", write=True)
 # get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/SII_NII.fits")[0]), 
 #                       filename="gaussian_fitting/statistics/SII_NII.txt", write=True)
+get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/Ha_NII.fits")[0]), 
+                      filename="gaussian_fitting/statistics/turbulence_removed/Ha_NII.txt", write=True)
+get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits")[0]), 
+                      filename="gaussian_fitting/statistics/turbulence_removed/OIII_Ha.txt", write=True)
+get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/SII_NII.fits")[0]), 
+                      filename="gaussian_fitting/statistics/turbulence_removed/SII_NII.txt", write=True)
 
 
 def get_turbulence_figure_with_regions():

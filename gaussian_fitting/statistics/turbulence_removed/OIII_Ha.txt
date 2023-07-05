@@ -1,0 +1,21 @@
+Region 1:
+median: 13051.269574455044
+mean: 18898.5800724769
+standard_deviation: 11147.704638106035
+skewness: 1.1370921144667192
+kurtosis: -0.6800975814666916
+
+Region 2:
+median: nan
+mean: nan
+standard_deviation: nan
+skewness: nan
+kurtosis: nan
+
+Region 3:
+median: 10767.77235066942
+mean: 10767.77235066942
+standard_deviation: 0.0
+skewness: nan
+kurtosis: nan
+
