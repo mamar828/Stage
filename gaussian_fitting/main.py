@@ -152,41 +152,43 @@ def get_courtes_temperature(settings: dict):
     the subtraction key.
     """
     if settings["Map_1"]["global_temperature_was_substracted"]:
+        # This is the case with every Leo's maps
         map_1_FWHM = settings["Map_1"]["fwhm_map"]
         temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((map_1_FWHM.data.shape), 8500), None))
         map_1_FWHM_with_temperature = (map_1_FWHM**2 + temp_in_fwhm**2)**0.5
+        # Unnecessary data without physical significance is removed
         map_1_FWHM_with_temperature.data[map_1_FWHM_with_temperature.data > 10000] = np.NAN
     else:
         map_1_FWHM_with_temperature = settings["Map_1"]["fwhm_map"]
-    map_1_sigma_with_temperature = map_1_FWHM_with_temperature / (2*np.sqrt(2*np.log(2)))
 
     if settings["Map_2"]["global_temperature_was_substracted"]:
+        # This is the case with every Leo's maps
         map_2_FWHM = settings["Map_2"]["fwhm_map"]
         temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((map_2_FWHM.data.shape), 8500), None))
         map_2_FWHM_with_temperature = (map_2_FWHM**2 + temp_in_fwhm**2)**0.5
+        # Unnecessary data without physical significance is removed
         map_2_FWHM_with_temperature.data[map_2_FWHM_with_temperature.data > 10000] = np.NAN
     else:
         map_2_FWHM_with_temperature = settings["Map_2"]["fwhm_map"]
-    map_2_sigma_with_temperature = map_2_FWHM_with_temperature / (2*np.sqrt(2*np.log(2)))
 
     # The FWHM maps are converted in Angstroms
     map_1_peak_AA = settings["Map_1"]["peak_wavelength_AA"]
     map_2_peak_AA = settings["Map_2"]["peak_wavelength_AA"]
-    map_1_sigma_with_temperature_AA = 1000 * map_1_sigma_with_temperature * map_1_peak_AA / scipy.constants.c
-    map_2_sigma_with_temperature_AA = 1000 * map_2_sigma_with_temperature * map_2_peak_AA / scipy.constants.c
+    map_1_FWHM_with_temperature_AA = 1000 * map_1_FWHM_with_temperature * map_1_peak_AA / scipy.constants.c
+    map_2_FWHM_with_temperature_AA = 1000 * map_2_FWHM_with_temperature * map_2_peak_AA / scipy.constants.c
 
     # The two maps are used to compute a temperature map
     if settings["subtraction"] == "1-2":
-        temperature_map = 4.73 * 10**4 * (map_1_sigma_with_temperature_AA.reproject_on(map_2_sigma_with_temperature_AA)**2
-                                          - map_2_sigma_with_temperature_AA**2)
+        temperature_map = 4.73 * 10**4 * (map_1_FWHM_with_temperature_AA.reproject_on(map_2_FWHM_with_temperature_AA)**2
+                                          - map_2_FWHM_with_temperature_AA**2)
     elif settings["subtraction"] == "2-1":
-        temperature_map = 4.73 * 10**4 * (map_2_sigma_with_temperature_AA**2 -
-                                          map_1_sigma_with_temperature_AA.reproject_on(map_2_sigma_with_temperature_AA)**2)
-    temperature_map.save_as_fits_file(settings["filename"])
+        temperature_map = 4.73 * 10**4 * (map_2_FWHM_with_temperature_AA**2 -
+                                          map_1_FWHM_with_temperature_AA.reproject_on(map_2_FWHM_with_temperature_AA)**2)
+    temperature_map.save_as_fits_file(settings["save_file_name"])
 
 
 # These settings allow for the computation of the temperature map using the Halpha and NII emission lines present in the NII cube
-settings_NII_Ha = {
+settings_Ha_NII = {
     "Map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0]),
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6562.78},
@@ -194,7 +196,7 @@ settings_NII_Ha = {
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41},
     "subtraction": "1-2",
-    "filename": "gaussian_fitting/maps/temp_maps_courtes/NII_Ha.fits"
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/Ha_NII.fits"
 }
 
 # These settings allow for the computation of the temperature map using Halpha from the NII cube and OIII from Leo's data
@@ -207,11 +209,11 @@ settings_OIII_Ha = {
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6562.78},
     "subtraction": "2-1",
-    "filename": "gaussian_fitting/maps/temp_maps_courtes/OIII_Ha.fits"
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/OIII_Ha.fits"
 }
 
 # These settings allow for the computation of the temperature map using NII from the NII cube and SII from Leo's data
-settings_NII_SII = {
+settings_SII_NII = {
     "Map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/leo/SII/SII_sigma+header.fits")[0]) * 2*np.sqrt(2*np.log(2)),
               "global_temperature_was_substracted": True,
               "peak_wavelength_AA": 6716},
@@ -220,28 +222,28 @@ settings_NII_SII = {
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41},
     "subtraction": "2-1",
-    "filename": "gaussian_fitting/maps/temp_maps_courtes/SII_NII.fits"
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/SII_NII.fits"
 }
 
 
-# get_courtes_temperature(settings_NII_SII)
+# get_courtes_temperature(settings_Ha_NII)
+# get_courtes_temperature(settings_OIII_Ha)
+# get_courtes_temperature(settings_SII_NII)
 
 
-def get_region_statistics(map, filename: str=None, write=False):
+def get_region_statistics(Map, filename: str=None, write=False):
     """
     In this example, the statistics of a region are obtained and stored in a .txt file.
     """
-    # Open the three possible regions
+    # Open the three studied regions
     regions = [
         pyregion.open("gaussian_fitting/regions/region_1.reg"),
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
     for i, region in enumerate(regions):
-        # A histogram may be shown if the plot_histogram bool is set to True
-        stats = map.get_region_statistics(region)
+        stats = Map.get_region_statistics(region)
         print(stats)
-        plt.show()
         # The write bool must be set to True if the statistics need to be put in a file
         if write:
             file = open(filename, "a")
@@ -252,32 +254,38 @@ def get_region_statistics(map, filename: str=None, write=False):
             file.close()
 
 
-# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/computed_data/turbulence.fits")[0]), 
-#                       filename="gaussian_fitting/statistics/turbulence.txt", write=True)
+# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/Ha_NII.fits")[0]), 
+#                       filename="gaussian_fitting/statistics/Ha_NII.txt", write=True)
+# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/OIII_Ha.fits")[0]), 
+#                       filename="gaussian_fitting/statistics/OIII_Ha.txt", write=True)
+# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/SII_NII.fits")[0]), 
+#                       filename="gaussian_fitting/statistics/SII_NII.txt", write=True)
 
 
 def get_turbulence_figure_with_regions():
     """
     In this example, the turbulence jpeg image with the regions is obtained.
     """
-    turbulence = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+    # The regions need to be opened in a specific way to allow them to be juxtaposed on the turbulence map
     regions = [
-        pyregion.open("gaussian_fitting/regions/region_1.reg").as_imagecoord(header=turbulence.header),
-        pyregion.open("gaussian_fitting/regions/region_2.reg").as_imagecoord(header=turbulence.header),
-        pyregion.open("gaussian_fitting/regions/region_3.reg").as_imagecoord(header=turbulence.header)
+        pyregion.open("gaussian_fitting/regions/region_1.reg").as_imagecoord(header=turbulence_map.header),
+        pyregion.open("gaussian_fitting/regions/region_2.reg").as_imagecoord(header=turbulence_map.header),
+        pyregion.open("gaussian_fitting/regions/region_3.reg").as_imagecoord(header=turbulence_map.header)
     ]
 
+    # The following function allows for the modification of the regions' color
     def fixed_color(shape, saved_attrs):
         attr_list, attr_dict = saved_attrs
         attr_dict["color"] = "red"
         kwargs = pyregion.mpl_helper.properties_func_default(shape, (attr_list, attr_dict))
         return kwargs
     
-    wcs = WCS(turbulence.header)
+    wcs = WCS(turbulence_map.header)
     fig = plt.figure()
     ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=wcs)
     fig.add_axes(ax)
-    cbar = plt.colorbar(ax.imshow(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0].data, origin="lower"))
+    cbar = plt.colorbar(ax.imshow(turbulence_map.data, origin="lower"))
     patch_and_artist_list = [region.get_mpl_patches_texts(fixed_color) for region in regions]
     for region in patch_and_artist_list:
         for patch in region[0]:
@@ -294,15 +302,15 @@ def get_turbulence_figure_with_regions():
 
 def get_histograms():
     """
-    In this example, the histograms figure of the three regions and of the entire regions are obtained.
+    In this example, the histograms of the three regions and of the entire region are obtained.
     """
+    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
     regions = [
         None,
         pyregion.open("gaussian_fitting/regions/region_1.reg"),
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
-    turbulence = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
     histogram_names = [
         "Turbulence de la région Sh2-158",
         "Turbulence de la région diffuse de Sh2-158",
@@ -310,7 +318,7 @@ def get_histograms():
         "Turbulence de la région du filament de Sh2-158"
     ]
     for region, name in zip(regions, histogram_names):
-        turbulence.plot_region_histogram(region, name)
+        turbulence_map.plot_region_histogram(region, name)
 
 
 # get_histograms()
