@@ -200,3 +200,13 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # halpha_sigma = Map(fits.open("gaussian_fitting/leo/OIII/OIII_sigma.fits")[0])
 # halpha_sigma.header = cube.get_header_without_third_dimension()
 # halpha_sigma.save_as_fits_file("gaussian_fitting/leo/OIII/OIII_sigma+header.fits")
+
+# ------------------------------------------------------------------------------
+
+""" 
+        spectral_length = self.header["FP_I_A"]
+        wavelength_channel_1 = self.header["FP_B_L"]
+"""
+
+cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits"))
+cube.header["FP_I_A"] 

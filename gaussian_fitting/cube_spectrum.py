@@ -17,7 +17,7 @@ class Spectrum:
     Encapsulate all the data and methods of a cube's spectrum.
     """
 
-    def __init__(self, data: np.ndarray, calibration: bool, header=None):
+    def __init__(self, data: np.ndarray, header, calibration: bool):
         """
         Initialize a Spectrum object. Calibration boolean must be set to True to force the analysis of a single peak such as
         with a calibration cube's spectrum.
@@ -25,9 +25,9 @@ class Spectrum:
         Arguments
         ---------
         data: numpy array. Flux at each channel.
+        header: astropy.io.fits.header.Header. Allows for the calculation of the FWHM using the spectrometer's settings.
         calibration: bool. Specifies if the fit is for the calibration cube i.e. to fit a single peak. If False, the fitter will
         attempt a 6 components fit.
-        header: astropy.io.fits.header.Header. Allows for the calculation of the FWHM using the spectrometer's settings.
         """
         self.x_values, self.y_values = np.arange(len(data)) + 1, data
         self.calibration = calibration
@@ -526,7 +526,8 @@ def loop_di_loop(filename):
     for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
-        spectrum = Spectrum(data[:,y-1,x-1], calibration=calib)
+        header = fits.open(filename)[0].header
+        spectrum = Spectrum(data[:,y-1,x-1], header, calibration=calib)
         spectrum.fit_NII_cube()
         # spectrum.fit_iteratively()
         # print("FWHM NII:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))

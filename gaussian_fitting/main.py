@@ -134,11 +134,11 @@ def get_turbulence_map(temp_map):
     # The aligned map is the result of the subtraction of the instrumental_function map squared to the global map squared
     aligned_map = (nii_FWHM_map**2 - instrumental_function**2).align_regions()
     # The temperature maps are adjusted at the same WCS than the global maps
-    temperature_map = temp_map.transfer_temperature_to_FWHM().reproject_on(nii_FWHM_map)
+    temperature_map = temp_map.transfer_temperature_to_FWHM("NII").reproject_on(nii_FWHM_map)
     turbulence_map = (aligned_map - temperature_map**2)**0.5
     # The standard deviation is the desired quantity
     turbulence_map /= 2*np.sqrt(2*np.log(2))
-    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
+    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence2.fits")
 
 
 # get_turbulence_map(Map_u(fits.HDUList([fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0],
@@ -154,7 +154,8 @@ def get_courtes_temperature(settings: dict):
     if settings["map_1"]["global_temperature_was_substracted"]:
         # This is the case with every Leo's maps
         map_1_FWHM = settings["map_1"]["fwhm_map"]
-        temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((map_1_FWHM.data.shape), 8500), None))
+        temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((map_1_FWHM.data.shape), 8500), None),
+                                                        settings["map_1"]["element"])
         map_1_FWHM_with_temperature = (map_1_FWHM**2 + temp_in_fwhm**2)**0.5
         # Unnecessary data without physical significance is removed
         map_1_FWHM_with_temperature.data[map_1_FWHM_with_temperature.data > 10000] = np.NAN
@@ -164,7 +165,8 @@ def get_courtes_temperature(settings: dict):
     if settings["map_2"]["global_temperature_was_substracted"]:
         # This is the case with every Leo's maps
         map_2_FWHM = settings["map_2"]["fwhm_map"]
-        temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((map_2_FWHM.data.shape), 8500), None))
+        temp_in_fwhm = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((map_2_FWHM.data.shape), 8500), None),
+                                                        settings["map_2"]["element"])
         map_2_FWHM_with_temperature = (map_2_FWHM**2 + temp_in_fwhm**2)**0.5
         # Unnecessary data without physical significance is removed
         map_2_FWHM_with_temperature.data[map_2_FWHM_with_temperature.data > 10000] = np.NAN
@@ -208,10 +210,12 @@ settings_Ha_NII = {
     "map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0]),
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6562.78,
+              "element": "Ha",
               "fine_structure": True},
     "map_2": {"fwhm_map": Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0]),
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41,
+              "element": "NII",
               "fine_structure": False},
     "subtraction": "1-2",
     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/Ha_NII.fits",
@@ -223,11 +227,13 @@ settings_Ha_NII_with_calibration_removed = {
                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6562.78,
+              "element": "Ha",
               "fine_structure": True},
     "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0])**2 -
                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41,
+              "element": "NII",
               "fine_structure": False},
     "subtraction": "1-2",
     "save_file_name": "test_turbulence.fits",
@@ -239,11 +245,13 @@ settings_OIII_Ha = {
     "map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/leo/OIII/OIII_sigma+header.fits")[0]) * 2*np.sqrt(2*np.log(2)),
               "global_temperature_was_substracted": True,
               "peak_wavelength_AA": 5007,
+              "element": "OIII",
               "fine_structure": False},
     "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])**2 - 
                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6562.78,
+              "element": "Ha",
               "fine_structure": False},
     "subtraction": "2-1",
     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits",
@@ -254,12 +262,14 @@ settings_OIII_Ha = {
 settings_SII_NII = {
     "map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/leo/SII/SII_sigma+header.fits")[0]) * 2*np.sqrt(2*np.log(2)),
               "global_temperature_was_substracted": True,
-              "peak_wavelength_AA": 6716,
+              "peak_wavelength_AA": 6717,
+              "element": "SII",
               "fine_structure": False},
     "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0])**2 - 
                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41,
+              "element": "NII",
               "fine_structure": False},
     "subtraction": "2-1",
     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/SII_NII.fits",
@@ -267,7 +277,7 @@ settings_SII_NII = {
 }
 
 
-get_courtes_temperature(settings_Ha_NII_two_peaks)
+# get_courtes_temperature(settings_OIII_Ha)
 
 
 def get_region_statistics(Map, filename: str=None, write=False):
@@ -305,8 +315,9 @@ def get_region_statistics(Map, filename: str=None, write=False):
 #                       filename="gaussian_fitting/statistics/turbulence_removed/OIII_Ha.txt", write=True)
 # get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/SII_NII.fits")[0]), 
 #                       filename="gaussian_fitting/statistics/turbulence_removed/SII_NII.txt", write=True)
-get_region_statistics(Map(fits.open(f"test_turbulence.fits")[0]), 
-                      filename="test_turbulence_stats.txt", write=True)
+
+# get_region_statistics(Map(fits.open(f"test_turbulence.fits")[0]), 
+#                       filename="test_turbulence_stats.txt", write=True)
 
 
 def get_turbulence_figure_with_regions():
@@ -385,7 +396,7 @@ def get_OIII_FWHM_from_Leo():
 def compare_leo_OIII():
     oiii_map = Map_u(fits.open("gaussian_fitting/maps/new_leo/OIII.fits"))
     calib_map = Map_u(fits.open("gaussian_fitting/leo/OIII/M2_cal.fits"))
-    temp_map = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((oiii_map.data.shape), 8500), None))
+    temp_map = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((oiii_map.data.shape), 8500), None), "OIII")
 
     oiii_map_filtered = (oiii_map**2 - calib_map**2 - temp_map**2)**0.5
     oiii_map_filtered.save_as_fits_file("gaussian_fitting/maps/new_leo/OIII_final.fits")

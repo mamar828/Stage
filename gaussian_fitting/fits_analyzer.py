@@ -317,7 +317,7 @@ def worker_fit(args: tuple) -> list:
     ---------
     args: tuple. The first element is the y value of the line to be fitted, the second element is the data of the Data_cube used,
     the third element is a string specifying if the cube is a calibration cube or a NII cube: "calibration" or "NII" and the
-    fourth element is the Data_cube's header
+    fourth element is the Data_cube's header.
     Note that arguments are given in tuple due to the way the multiprocessing library operates.
 
     Returns
@@ -330,7 +330,7 @@ def worker_fit(args: tuple) -> list:
     line = []
     if cube_type == "calibration":
         for x in range(data.shape[2]):
-            spectrum_object = Spectrum(data[:,y,x], calibration=True, header)
+            spectrum_object = Spectrum(data[:,y,x], header, calibration=True)
             spectrum_object.fit_calibration()
             try:
                 line.append(spectrum_object.get_FWHM_speed())
@@ -608,19 +608,31 @@ class Map(Fits_file):
         new_map += region_data[0] + region_data[1] + region_data[2]
         return new_map
 
-    def transfer_temperature_to_FWHM(self) -> Map:
+    def transfer_temperature_to_FWHM(self, element: str) -> Map:
         """
         Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
         can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler calculations.
+
+        Arguments
+        ---------
+        element: str. Name of the element with which the temperature broadening will be calculated. Implemented names are:
+        "NII", "Ha", "OIII" and "SII". This makes it so the conversion takes into account the fact that heavier particles
+        will be less impacted by high temperatures
 
         Returns
         -------
         Map object: map of the FWHM due to thermal Doppler broadening.
         """
-        angstroms_center = 6583.41              # Emission wavelength of NII 
-        m = 14.0067 * scipy.constants.u         # Nitrogen mass
-        c = scipy.constants.c                   # Light speed
-        k = scipy.constants.k                   # Boltzmann constant
+        elements = {
+            "NII":  {"emission_peak": 6583.41, "mass_u": 14.0067},
+            "Ha":   {"emission_peak": 6562.78, "mass_u": 1.00784},
+            "SII":  {"emission_peak": 6717,    "mass_u": 32.065},
+            "OIII": {"emission_peak": 5007,    "mass_u": 15.9994}
+        }
+        angstroms_center = elements[element]["emission_peak"]     # Emission wavelength of the element
+        m = elements[element]["mass_u"] * scipy.constants.u         # Mass of the element
+        c = scipy.constants.c                                     # Light speed
+        k = scipy.constants.k                                     # Boltzmann constant
         angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return Map(fits.PrimaryHDU(speed_FWHM, self.header))
@@ -926,19 +938,30 @@ class Map_u(Map):
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]))
     
-    def transfer_temperature_to_FWHM(self) -> Map_u:
+    def transfer_temperature_to_FWHM(self, element: str) -> Map_u:
         """
         Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
         can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler calculations.
+        
+        Arguments
+        ---------
+        element: str. Name of the element with which the temperature broadening will be calculated. Implemented names are:
+        "NII", "Ha", "OIII" and "SII".
 
         Returns
         -------
         Map_u object: map of the FWHM due to thermal Doppler broadening.
         """
-        angstroms_center = 6583.41              # Emission wavelength of NII 
-        m = 14.0067 * scipy.constants.u         # Nitrogen mass
-        c = scipy.constants.c                   # Light speed
-        k = scipy.constants.k                   # Boltzmann constant
+        elements = {
+            "NII":  {"emission_peak": 6583.41, "mass_u": 14.0067},
+            "Ha":   {"emission_peak": 6562.78, "mass_u": 1.00784},
+            "SII":  {"emission_peak": 6716,    "mass_u": 32.065},
+            "OIII": {"emission_peak": 5007,    "mass_u": 15.9994}
+        }
+        angstroms_center = elements[element]["emission_peak"]     # Emission wavelength of the element
+        m = elements[element]["mass_u"] * scipy.constants.u         # Mass of the element
+        c = scipy.constants.c                                     # Light speed
+        k = scipy.constants.k                                     # Boltzmann constant
         angstroms_FWHM = 2 * float(np.sqrt(2 * np.log(2))) * angstroms_center * (self * k / (c**2 * m))**0.5
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
