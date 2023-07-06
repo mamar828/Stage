@@ -122,9 +122,14 @@ class Data_cube(Fits_file):
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
         """
-        self.object = fits_object
-        self.data = fits_object.data
-        self.header = fits_object.header
+        try:
+            self.object = fits_object
+            self.data = fits_object.data
+            self.header = fits_object.header
+        except:
+            self.object = fits_object[0]
+            self.data = fits_object[0].data
+            self.header = fits_object[0].header
 
     def fit_calibration(self) -> Map_u:
         """
@@ -143,7 +148,8 @@ class Data_cube(Fits_file):
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration") for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration", self.header) 
+                                                                 for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -172,7 +178,8 @@ class Data_cube(Fits_file):
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII") for y in range(data.shape[1])))))
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII", self.header)
+                                                                 for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -308,8 +315,9 @@ def worker_fit(args: tuple) -> list:
 
     Arguments
     ---------
-    args: tuple. The first element is the y value of the line to be fitted, the second element is the data of theData_cube used
-    and the third element is a string specifying if the cube is a calibration cube or a NII cube: "calibration" or "NII".
+    args: tuple. The first element is the y value of the line to be fitted, the second element is the data of the Data_cube used,
+    the third element is a string specifying if the cube is a calibration cube or a NII cube: "calibration" or "NII" and the
+    fourth element is the Data_cube's header
     Note that arguments are given in tuple due to the way the multiprocessing library operates.
 
     Returns
@@ -318,11 +326,11 @@ def worker_fit(args: tuple) -> list:
     six are the peaks' FWHM with their uncertainty and signal to noise ratio and the last one is a map indicating where fits with
     sevent components were done. The last map outputs 0 for a six components fit and 1 for a seven components fit.
     """
-    y, data, cube_type = args
+    y, data, cube_type, header = args
     line = []
     if cube_type == "calibration":
         for x in range(data.shape[2]):
-            spectrum_object = Spectrum(data[:,y,x], calibration=True)
+            spectrum_object = Spectrum(data[:,y,x], calibration=True, header)
             spectrum_object.fit_calibration()
             try:
                 line.append(spectrum_object.get_FWHM_speed())

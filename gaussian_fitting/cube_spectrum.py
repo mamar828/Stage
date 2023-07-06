@@ -17,7 +17,7 @@ class Spectrum:
     Encapsulate all the data and methods of a cube's spectrum.
     """
 
-    def __init__(self, data: np.ndarray, calibration: bool, desired_peak_position: int=35):
+    def __init__(self, data: np.ndarray, calibration: bool, header=None):
         """
         Initialize a Spectrum object. Calibration boolean must be set to True to force the analysis of a single peak such as
         with a calibration cube's spectrum.
@@ -27,22 +27,28 @@ class Spectrum:
         data: numpy array. Flux at each channel.
         calibration: bool. Specifies if the fit is for the calibration cube i.e. to fit a single peak. If False, the fitter will
         attempt a 6 components fit.
-        desired_peak_position: int. Specifies the location in channels of the single peak for the calibration cube. All values
-        will be shifted accordingly.
+        header: astropy.io.fits.header.Header. Allows for the calculation of the FWHM using the spectrometer's settings.
         """
-        self.x_values, self.y_values = np.arange(48) + 1, data
+        self.x_values, self.y_values = np.arange(len(data)) + 1, data
         self.calibration = calibration
         self.data = data
         # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
         self.seven_components_fit = 0
+        self.header = header
 
         if calibration:
             # Application of a translation in the case of the calibration cube
+            if len(self.x_values) == 48:
+                desired_peak_position = 35
+                upper_limit_mean_calculation = 25
+            if len(self.x_values) == 34:
+                desired_peak_position = 20
+                upper_limit_mean_calculation = 10
             # The distance between the desired peak and the current peak is calculated
             peak_position_translation = desired_peak_position - (list(self.y_values).index(max(self.y_values)) + 1)
             self.y_values = np.roll(self.y_values, peak_position_translation)
             # All y values are shifted downwards by the mean calculated in the 25 first channels
-            mean = np.sum(self.y_values[0:25]) / 25
+            mean = np.sum(self.y_values[0:upper_limit_mean_calculation]) / upper_limit_mean_calculation
             self.y_values -= mean
             # A tuple containing the peak's x and y is stored
             self.max_tuple = (int(self.x_values[desired_peak_position - 1]), float(self.y_values[desired_peak_position - 1]))
@@ -467,8 +473,8 @@ class Spectrum:
         numpy array: array of the FWHM and its uncertainty measured in km/s.
         """
         # The two following values are provided in the cube's header
-        spectral_length = 8.60626405229
-        wavelength_channel_1 = 6579.48886797
+        spectral_length = self.header["FP_I_A"]
+        wavelength_channel_1 = self.header["FP_B_L"]
         if peak_name is not None:
             # A multi-gaussian fit was done
             params = self.get_fitted_gaussian_parameters(peak_name)

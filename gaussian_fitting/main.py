@@ -267,7 +267,7 @@ settings_SII_NII = {
 }
 
 
-get_courtes_temperature(settings_Ha_NII)
+get_courtes_temperature(settings_Ha_NII_two_peaks)
 
 
 def get_region_statistics(Map, filename: str=None, write=False):
@@ -305,7 +305,8 @@ def get_region_statistics(Map, filename: str=None, write=False):
 #                       filename="gaussian_fitting/statistics/turbulence_removed/OIII_Ha.txt", write=True)
 # get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/SII_NII.fits")[0]), 
 #                       filename="gaussian_fitting/statistics/turbulence_removed/SII_NII.txt", write=True)
-get_region_statistics(Map(fits.open("test_turbulence.fits")), "test_turbulence_stats.txt", True)
+get_region_statistics(Map(fits.open(f"test_turbulence.fits")[0]), 
+                      filename="test_turbulence_stats.txt", write=True)
 
 
 def get_turbulence_figure_with_regions():
@@ -368,3 +369,26 @@ def get_histograms():
 
 
 # get_histograms()
+
+
+def get_OIII_FWHM_from_Leo():
+    oiii_cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits")[0])
+    # The OIII cube presents a single peak and may then be fitted as a calibration cube
+    oiii_map = oiii_cube.fit_calibration()
+    oiii_map.save_as_fits_file("gaussian_fitting/maps/new_leo/OIII.fits")
+
+
+# if __name__ == "__main__":
+#     get_OIII_FWHM_from_Leo()
+
+
+def compare_leo_OIII():
+    oiii_map = Map_u(fits.open("gaussian_fitting/maps/new_leo/OIII.fits"))
+    calib_map = Map_u(fits.open("gaussian_fitting/leo/OIII/M2_cal.fits"))
+    temp_map = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((oiii_map.data.shape), 8500), None))
+
+    oiii_map_filtered = (oiii_map**2 - calib_map**2 - temp_map**2)**0.5
+    oiii_map_filtered.save_as_fits_file("gaussian_fitting/maps/new_leo/OIII_final.fits")
+
+
+# compare_leo_OIII
