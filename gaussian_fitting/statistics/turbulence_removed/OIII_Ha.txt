@@ -1,21 +1,21 @@
 Region 1:
-median: 13051.269574455044
-mean: 18898.5800724769
-standard_deviation: 11147.704638106035
-skewness: 1.1370921144667192
-kurtosis: -0.6800975814666916
+median: 6275.956369273255
+mean: 6580.63473864481
+standard_deviation: 5339.478196144695
+skewness: 0.28624491827557497
+kurtosis: -0.12452810093680755
 
 Region 2:
-median: nan
-mean: nan
-standard_deviation: nan
-skewness: nan
-kurtosis: nan
+median: 15632.95918964049
+mean: 15101.657594893826
+standard_deviation: 5981.1355469407845
+skewness: -0.3708003451934457
+kurtosis: -0.025617696786463195
 
 Region 3:
-median: 10767.77235066942
-mean: 10767.77235066942
-standard_deviation: 0.0
-skewness: nan
-kurtosis: nan
+median: 4739.913479932356
+mean: 6404.551055311724
+standard_deviation: 8528.362898733296
+skewness: 2.2897908758849654
+kurtosis: 6.85994058874388
 

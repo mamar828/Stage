@@ -463,8 +463,8 @@ class Map(Fits_file):
 
         Arguments
         ---------
-        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the default value 2
-        will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For example, the
+        default value 2 will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
         raw_data: numpy array, default=None. If present, specifies the data to bin. By default, the Map's data will be binned.
 
         Returns

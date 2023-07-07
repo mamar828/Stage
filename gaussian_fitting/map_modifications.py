@@ -209,8 +209,8 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
         wavelength_channel_1 = self.header["FP_B_L"]
 """
 
-# cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits"))
-# cube.header["FP_I_A"] = (8.79 * 1000 / scipy.constants.c * 5007, "Interfringe (Angstrom)")
-# cube.header["FP_B_L"] = (5007 - 8.79 * 1000 / scipy.constants.c * 5007 * 18, "Lambda of the first channel (Angstrom)")
-# cube.save_as_fits_file("gaussian_fitting/leo/OIII/reference_cube_with_header.fits")
+cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits"))
+cube.header["FP_I_A"] = (8.79 * 1000 / scipy.constants.c * 5007 * 34, "Interfringe (Angstrom)")
+cube.header["FP_B_L"] = (5007 - 8.79 * 1000 / scipy.constants.c * 5007 * 18, "Lambda of the first channel (Angstrom)")
+cube.save_as_fits_file("gaussian_fitting/leo/OIII/reference_cube_with_header.fits")
 
