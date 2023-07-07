@@ -212,7 +212,7 @@ settings_Ha_NII = {
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6562.78,
               "element": "Ha",
-              "fine_structure": True},
+              "fine_structure": False},
     "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0])**2 -
                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map()**2)**0.5,
               "global_temperature_was_substracted": False,
@@ -220,8 +220,9 @@ settings_Ha_NII = {
               "element": "NII",
               "fine_structure": False},
     "subtraction": "1-2",
-    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/Ha_NII.fits",
-    "turbulence_consideration" : True
+    "save_file_name": "test2.fits",
+    "save_file_name2": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/Ha_NII.fits",
+    "turbulence_consideration" : False
 }
 
 settings_Ha_NII_with_calibration_removed = {
@@ -276,11 +277,11 @@ settings_SII_NII = {
               "fine_structure": False},
     "subtraction": "2-1",
     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/SII_NII.fits",
-    "turbulence_consideration" : True
+    "turbulence_consideration" : False
 }
 
 
-get_courtes_temperature(settings_OIII_Ha)
+get_courtes_temperature(settings_Ha_NII)
 
 
 def get_region_statistics(Map, filename: str=None, write=False):
@@ -314,8 +315,8 @@ def get_region_statistics(Map, filename: str=None, write=False):
 #                       filename="gaussian_fitting/statistics/SII_NII.txt", write=True)
 # get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/Ha_NII.fits")[0]), 
 #                       filename="gaussian_fitting/statistics/turbulence_removed/Ha_NII.txt", write=True)
-get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits")[0]), 
-                      filename="gaussian_fitting/statistics/turbulence_removed/OIII_Ha.txt", write=True)
+# get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits")[0]), 
+#                       filename="gaussian_fitting/statistics/turbulence_removed/OIII_Ha.txt", write=True)
 # get_region_statistics(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/SII_NII.fits")[0]), 
 #                       filename="gaussian_fitting/statistics/turbulence_removed/SII_NII.txt", write=True)
 

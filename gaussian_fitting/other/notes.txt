@@ -104,3 +104,9 @@ Léo p.62 calibration cube bad
 Do OIII (5004 good, check if it changes anything)
 Fine structure with removed calib
 Check SII (if needed, calib of the NII cube, change optical center...)
+
+
+
+Carte température SII: largeur SII + 8500K - turbulence -> température
+Courtès NII vs SII:
+Vérifier NII Halpha Courtès
