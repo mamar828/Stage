@@ -405,3 +405,13 @@ def calc_temp(halpha_width_kms, nii_width_kms):
 
 # v = [np.array([1,2])]
 # print(np.squeeze(np.array(v)))
+
+
+FWHM = 3.1
+angstroms_center = 6717     # Emission wavelength of the element
+m = 32.065 * scipy.constants.u       # Mass of the element
+c = scipy.constants.c                                     # Light speed
+k = scipy.constants.k                                     # Boltzmann constant
+angstroms_FWHM = FWHM * 1000 / c * angstroms_center
+temperature = (angstroms_FWHM * c / angstroms_center)**2 * m / (8 * np.log(2) * k)
+print(temperature)

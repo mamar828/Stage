@@ -110,3 +110,4 @@ Check SII (if needed, calib of the NII cube, change optical center...)
 Carte température SII: largeur SII + 8500K - turbulence -> température
 Courtès NII vs SII:
 Vérifier NII Halpha Courtès
+envoyer nouvelles stats et carte

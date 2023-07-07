@@ -630,12 +630,27 @@ class Map(Fits_file):
             "OIII": {"emission_peak": 5007,    "mass_u": 15.9994}
         }
         angstroms_center = elements[element]["emission_peak"]     # Emission wavelength of the element
-        m = elements[element]["mass_u"] * scipy.constants.u         # Mass of the element
+        m = elements[element]["mass_u"] * scipy.constants.u       # Mass of the element
         c = scipy.constants.c                                     # Light speed
         k = scipy.constants.k                                     # Boltzmann constant
-        angstroms_FWHM = 2 * np.sqrt(2 * np.log(2)) * angstroms_center * np.sqrt(self.data * k / (c**2 * m))
+        angstroms_FWHM = 2 * float(np.sqrt(2 * np.log(2))) * angstroms_center * (self * k / (c**2 * m))**0.5
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
-        return Map(fits.PrimaryHDU(speed_FWHM, self.header))
+        return speed_FWHM
+    
+    def transfer_FWHM_to_temperature(self, element: str) -> Map:
+        elements = {
+            "NII":  {"emission_peak": 6583.41, "mass_u": 14.0067},
+            "Ha":   {"emission_peak": 6562.78, "mass_u": 1.00784},
+            "SII":  {"emission_peak": 6717,    "mass_u": 32.065},
+            "OIII": {"emission_peak": 5007,    "mass_u": 15.9994}
+        }
+        angstroms_center = elements[element]["emission_peak"]     # Emission wavelength of the element
+        m = elements[element]["mass_u"] * scipy.constants.u       # Mass of the element
+        c = scipy.constants.c                                     # Light speed
+        k = scipy.constants.k                                     # Boltzmann constant
+        angstroms_FWHM = self * 1000 / c * angstroms_center
+        temperature = (angstroms_FWHM * c / angstroms_center)**2 * m / (8 * np.log(2) * k)
+        return temperature
     
     def get_region_statistics(self, region: pyregion.core.ShapeList) -> dict:
         """
@@ -937,34 +952,6 @@ class Map_u(Map):
         reprojected_uncertainties = reproject_interp(self.object[1], other.header, return_footprint=False, order="nearest-neighbor")
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]))
-    
-    def transfer_temperature_to_FWHM(self, element: str) -> Map_u:
-        """
-        Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
-        can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler calculations.
-        
-        Arguments
-        ---------
-        element: str. Name of the element with which the temperature broadening will be calculated. Implemented names are:
-        "NII", "Ha", "OIII" and "SII".
-
-        Returns
-        -------
-        Map_u object: map of the FWHM due to thermal Doppler broadening.
-        """
-        elements = {
-            "NII":  {"emission_peak": 6583.41, "mass_u": 14.0067},
-            "Ha":   {"emission_peak": 6562.78, "mass_u": 1.00784},
-            "SII":  {"emission_peak": 6716,    "mass_u": 32.065},
-            "OIII": {"emission_peak": 5007,    "mass_u": 15.9994}
-        }
-        angstroms_center = elements[element]["emission_peak"]     # Emission wavelength of the element
-        m = elements[element]["mass_u"] * scipy.constants.u         # Mass of the element
-        c = scipy.constants.c                                     # Light speed
-        k = scipy.constants.k                                     # Boltzmann constant
-        angstroms_FWHM = 2 * float(np.sqrt(2 * np.log(2))) * angstroms_center * (self * k / (c**2 * m))**0.5
-        speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
-        return speed_FWHM
 
 
 
