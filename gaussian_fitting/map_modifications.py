@@ -6,6 +6,7 @@ from reproject import reproject_interp
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import scipy
 
 from fits_analyzer import Data_cube, Map
 
@@ -208,5 +209,8 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
         wavelength_channel_1 = self.header["FP_B_L"]
 """
 
-cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits"))
-cube.header["FP_I_A"] 
+# cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits"))
+# cube.header["FP_I_A"] = (8.79 * 1000 / scipy.constants.c * 5007, "Interfringe (Angstrom)")
+# cube.header["FP_B_L"] = (5007 - 8.79 * 1000 / scipy.constants.c * 5007 * 18, "Lambda of the first channel (Angstrom)")
+# cube.save_as_fits_file("gaussian_fitting/leo/OIII/reference_cube_with_header.fits")
+

@@ -383,14 +383,14 @@ def get_histograms():
 
 
 def get_OIII_FWHM_from_Leo():
-    oiii_cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits")[0])
+    oiii_cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube_with_header.fits")[0])
     # The OIII cube presents a single peak and may then be fitted as a calibration cube
     oiii_map = oiii_cube.fit_calibration()
     oiii_map.save_as_fits_file("gaussian_fitting/maps/new_leo/OIII.fits")
 
 
-# if __name__ == "__main__":
-#     get_OIII_FWHM_from_Leo()
+if __name__ == "__main__":
+    get_OIII_FWHM_from_Leo()
 
 
 def compare_leo_OIII():
@@ -398,8 +398,8 @@ def compare_leo_OIII():
     calib_map = Map_u(fits.open("gaussian_fitting/leo/OIII/M2_cal.fits"))
     temp_map = Map.transfer_temperature_to_FWHM(fits.PrimaryHDU(np.full((oiii_map.data.shape), 8500), None), "OIII")
 
-    oiii_map_filtered = (oiii_map**2 - calib_map**2 - temp_map**2)**0.5
+    oiii_map_filtered = (oiii_map**2 - calib_map**2 - temp_map**2)**0.5 / (2*np.sqrt(2*np.log(2)))
     oiii_map_filtered.save_as_fits_file("gaussian_fitting/maps/new_leo/OIII_final.fits")
 
 
-# compare_leo_OIII
+compare_leo_OIII
