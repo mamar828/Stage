@@ -127,7 +127,7 @@ def get_turbulence_map(temp_map):
     In this example, the turbulence map is obtained with the previously computed maps: all region widenings as well as
     smoothed_instr_f. Note that the region widenings maps are not opened directly but are used in the Map.align_regions() method.
     """
-    nii_FWHM_map = Map_usnr(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
+    nii_FWHM_map = Map_usnr(fits.open("gaussian_fitting/maps/computed_data_2p/NII_fwhm.fits"))
     # The pixels that have a snr inferior to 6 are masked
     nii_FWHM_map = nii_FWHM_map.filter_snr(snr_threshold=6)
     instrumental_function = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)
@@ -138,7 +138,10 @@ def get_turbulence_map(temp_map):
     turbulence_map = (aligned_map - temperature_map**2)**0.5
     # The standard deviation is the desired quantity
     turbulence_map /= 2*np.sqrt(2*np.log(2))
-    turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data/turbulence.fits")
+    # turbulence_map.save_as_fits_file("gaussian_fitting/maps/computed_data_2p/turbulence.fits")
+    seven_peaks_map = Map(fits.open("gaussian_fitting/maps/computed_data_2p/7_component_fit.fits"))
+    temperature_map_with_7peaks = Map_usnr.from_Map_u_object(turbulence_map, seven_peaks_map)
+    temperature_map_with_7peaks.save_as_fits_file("gaussian_fitting/maps/computed_data_2p/turbulence.fits")
 
 
 # get_turbulence_map(Map_u(fits.HDUList([fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_8300.fits")[0],
@@ -203,7 +206,9 @@ def get_courtes_temperature(settings: dict):
                                           map_1_FWHM_with_temperature_AA.reproject_on(map_2_FWHM_with_temperature_AA)**2)
 
     temperature_map.plot_map((0,20000))
-    temperature_map.save_as_fits_file(settings["save_file_name"])
+    # temperature_map.save_as_fits_file(settings["save_file_name"])
+    double_map = Map_u.from_Map_objects(temperature_map, Map(fits.open("gaussian_fitting/maps/computed_data_2p/7_component_fit.fits")))
+    double_map.save_as_fits_file(settings["save_file_name"])
 
 
 # These settings allow for the computation of the temperature map using the Halpha and NII emission lines present in the NII cube
@@ -251,19 +256,19 @@ settings_SII_NII = {
               "peak_wavelength_AA": 6717,
               "element": "SII",
               "fine_structure": False},
-    "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0])**2 - 
+    "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data_2p/NII_fwhm.fits")[0])**2 - 
                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41,
               "element": "NII",
               "fine_structure": False},
     "subtraction": "2-1",
-    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/SII_NII.fits",
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/SII_NII_2peaks.fits",
     "turbulence_consideration" : False
 }
 
 
-get_courtes_temperature(settings_SII_NII)
+# get_courtes_temperature(settings_SII_NII)
 
 
 def get_region_stats(Map, filename: str=None, write=False):
@@ -299,11 +304,11 @@ def get_region_stats(Map, filename: str=None, write=False):
 #                       filename="gaussian_fitting/statistics/new/Ha_NII.txt", write=True)
 # get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits")[0]), 
 #                       filename="gaussian_fitting/statistics/turbulence_removed/OIII_Ha.txt", write=True)
-get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/new/SII_NII.fits")[0]), 
-                      filename="gaussian_fitting/statistics/new/SII_NII.txt", write=True)
+# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/new/SII_NII_2peaks.fits")[0]), 
+#                       filename="gaussian_fitting/statistics/new/SII_NII_2peaks.txt", write=True)
 
-# get_region_stats(Map(fits.open(f"test_turbulence.fits")[0]), 
-#                       filename="test_turbulence_stats.txt", write=True)
+get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_2p/turbulence.fits")[0]), 
+                      filename="turbulence_stats.txt", write=True)
 
 
 def get_turbulence_figure_with_regions():
@@ -411,17 +416,17 @@ def get_turbulence_map_from_OIII(temp_map):
 
 def get_temperature_from_SII_broadening():
     sii_FWHM = Map(fits.open("gaussian_fitting/leo/SII/SII_sigma+header.fits")) * 2*np.sqrt(2*np.log(2))
-    turb_FWHM = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")) * 2*np.sqrt(2*np.log(2))
-    global_temp = Map.transfer_temperature_to_FWHM(Map(fits.PrimaryHDU(np.full((sii_FWHM.data.shape), 8500), None)), "SII")
-    temperature_FWHM_broadening = (sii_FWHM**2 + global_temp**2 - turb_FWHM.reproject_on(sii_FWHM)**2)**0.5
+    turb_FWHM = Map_u(fits.open("gaussian_fitting/maps/computed_data_2p/turbulence.fits")) * 2*np.sqrt(2*np.log(2))
+    global_temp = Map.transfer_temperature_to_FWHM(Map(fits.PrimaryHDU(np.full((turb_FWHM.data.shape), 8500), None)), "SII")
+    temperature_FWHM_broadening = (sii_FWHM.reproject_on(turb_FWHM)**2 + global_temp**2 - turb_FWHM**2)**0.5
     # sii_FWHM.plot_map((0,40))
     # turb_FWHM.plot_map((0,40))
     # global_temp.plot_map((0,40))
     temperatures = temperature_FWHM_broadening.transfer_FWHM_to_temperature("SII")
-    print(sii_FWHM.data[165,131])
-    print(turb_FWHM.reproject_on(sii_FWHM).data[165,131])
-    print(global_temp.data[165,131])
-    print(temperatures.data[165,131])
+    temperatures.plot_map((0,10**5))
+    temperatures.save_as_fits_file("temp_SII.fits")
+    print(temperatures.get_region_statistics(pyregion.open("gaussian_fitting/regions/region_1.reg")))
+
         # elements = {
         #     "NII":  {"emission_peak": 6583.41, "mass_u": 14.0067},
         #     "Ha":   {"emission_peak": 6562.78, "mass_u": 1.00784},
@@ -436,7 +441,6 @@ def get_temperature_from_SII_broadening():
         # speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
 
 
-
-get_temperature_from_SII_broadening()
+# get_temperature_from_SII_broadening()
 
 
