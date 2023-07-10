@@ -130,7 +130,7 @@ class Data_cube(Fits_file):
             self.object = fits_object[0]
             self.data = fits_object[0].data
             self.header = fits_object[0].header
-
+        
     def fit_calibration(self) -> Map_u:
         """
         Fit the whole data cube as if it was a calibration cube and extract the FWHM and its uncertainty at every point.
@@ -208,6 +208,38 @@ class Data_cube(Fits_file):
             Map(fits.PrimaryHDU(fit_fwhm_array[:,:,6,0], new_header), name="7_components_fit")
         ])
         return map_list
+    
+    def fit_amplitude(self) -> Maps:
+        data = np.copy(self.data)
+        fit_fwhm_list = []
+        pool = multiprocessing.Pool(processes=1)           # This automatically generates an optimal number of workers
+        self.reset_update_file()
+        start = time.time()
+        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_amplitude", self.header)
+                                                                 for y in range(data.shape[1])))))
+        stop = time.time()
+        print("Finished in", stop-start, "s.")
+        pool.close()
+        new_header = self.get_header_without_third_dimension()
+        # The list containing the fit results is transformed into a numpy array to facilitate extraction
+        fit_fwhm_array = np.squeeze(fit_fwhm_list)
+        map_list = Maps([
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1])]), name="OH1_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,1,1])]), name="OH2_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,2,1])]), name="OH3_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,3,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,3,1])]), name="OH4_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,4,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,4,1])]), name="NII_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,5,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,5,1])]), name="Ha_amplitude"),
+            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,6,0], new_header), name="7_components_fit")
+        ])
+        return map_list
+
         
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
@@ -330,28 +362,43 @@ def worker_fit(args: tuple) -> list:
     line = []
     if cube_type == "calibration":
         for x in range(data.shape[2]):
-            spectrum_object = Spectrum(data[:,y,x], header, calibration=True)
-            spectrum_object.fit_calibration()
+            spec = Spectrum(data[:,y,x], header, calibration=True)
+            spec.fit_calibration()
             try:
-                line.append(spectrum_object.get_FWHM_speed())
+                line.append(spec.get_FWHM_speed())
             except:
                 line.append([np.NAN, np.NAN])
         Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
 
     elif cube_type == "NII":
         for x in range(data.shape[2]):
-            spectrum_object = Spectrum(data[:,y,x], calibration=False)
-            spectrum_object.fit_NII_cube()
+            spec = Spectrum(data[:,y,x], header, calibration=False)
+            spec.fit_NII_cube()
             line.append(np.array((
-                np.concatenate((spectrum_object.get_FWHM_speed("OH1"), np.array([spectrum_object.get_snr("OH1")]))),
-                np.concatenate((spectrum_object.get_FWHM_speed("OH2"), np.array([spectrum_object.get_snr("OH2")]))),
-                np.concatenate((spectrum_object.get_FWHM_speed("OH3"), np.array([spectrum_object.get_snr("OH3")]))),
-                np.concatenate((spectrum_object.get_FWHM_speed("OH4"), np.array([spectrum_object.get_snr("OH4")]))),
-                np.concatenate((spectrum_object.get_FWHM_speed("NII"), np.array([spectrum_object.get_snr("NII")]))),
-                np.concatenate((spectrum_object.get_FWHM_speed("Ha"), np.array([spectrum_object.get_snr("Ha")]))),
-                np.array([spectrum_object.seven_components_fit, False, False])
+                np.concatenate((spec.get_FWHM_speed("OH1"), np.array([spec.get_snr("OH1")]))),
+                np.concatenate((spec.get_FWHM_speed("OH2"), np.array([spec.get_snr("OH2")]))),
+                np.concatenate((spec.get_FWHM_speed("OH3"), np.array([spec.get_snr("OH3")]))),
+                np.concatenate((spec.get_FWHM_speed("OH4"), np.array([spec.get_snr("OH4")]))),
+                np.concatenate((spec.get_FWHM_speed("NII"), np.array([spec.get_snr("NII")]))),
+                np.concatenate((spec.get_FWHM_speed("Ha"), np.array([spec.get_snr("Ha")]))),
+                np.array([spec.seven_components_fit, False, False])
             )))
         Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
+
+    elif cube_type == "NII_amplitude":
+        for x in range(data.shape[2]):
+            spec = Spectrum(data[:,y,x], header, calibration=False)
+            spec.fit_NII_cube()
+            line.append(np.array((
+                [spec.get_fit_parameters("OH1").amplitude.value, spec.get_uncertainties()["OH1"]["amplitude"]],
+                [spec.get_fit_parameters("OH2").amplitude.value, spec.get_uncertainties()["OH2"]["amplitude"]],
+                [spec.get_fit_parameters("OH3").amplitude.value, spec.get_uncertainties()["OH3"]["amplitude"]],
+                [spec.get_fit_parameters("OH4").amplitude.value, spec.get_uncertainties()["OH4"]["amplitude"]],
+                [spec.get_fit_parameters("NII").amplitude.value, spec.get_uncertainties()["NII"]["amplitude"]],
+                [spec.get_fit_parameters("Ha").amplitude.value, spec.get_uncertainties()["Ha"]["amplitude"]],
+                [spec.seven_components_fit, False]
+            )))
+        Data_cube.give_update(None, f"NII complete cube amplitude fitting progress /{data.shape[2]}")
     return line
 
 
@@ -397,13 +444,21 @@ class Map(Fits_file):
         return Map(fits.PrimaryHDU(self.data ** power, self.header))
     
     def __mul__(self, other):
-        return Map(fits.PrimaryHDU(self.data * other, self.header))
+        if issubclass(type(other), Map):
+            assert self.data.shape == other.data.shape, "Maps of different sizes are being multiplied."
+            return Map(fits.PrimaryHDU(self.data * other.data, self.header))
+        else:
+            return Map(fits.PrimaryHDU(self.data * other, self.header))
     
     def __rmul__(self, other):
         return self.__mul__(other)
     
     def __truediv__(self, other):
-        return Map(fits.PrimaryHDU(self.data / other, self.header))
+        if issubclass(type(other), Map):
+            assert self.data.shape == other.data.shape, "Maps of different sizes are being divided."
+            return Map(fits.PrimaryHDU(self.data / other.data, self.header))
+        else:
+            return Map(fits.PrimaryHDU(self.data / other, self.header))
 
     def __rtruediv__(self, other):
         return (self.__truediv__(other))**(-1)
@@ -791,12 +846,24 @@ class Map_u(Map):
                                    fits.ImageHDU(np.abs(self.uncertainties / self.data * power * self.data**power), self.header)]))
     
     def __mul__(self, other):
-        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other, self.header),
-                                   fits.ImageHDU(self.uncertainties * other, self.header)]))
+        if issubclass(type(other), Map):
+            assert self.data.shape == other.data.shape, "Maps of different sizes are being multiplied."
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other.data, self.header),
+                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data)
+                                                      * self.data * other.data, self.header)]))
+        else:
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other, self.header),
+                                       fits.ImageHDU(self.uncertainties * other, self.header)]))
         
     def __truediv__(self, other):
-        return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other, self.header),
-                                   fits.ImageHDU(self.uncertainties / other, self.header)]))
+        if issubclass(type(other), Map):
+            assert self.data.shape == other.data.shape, "Maps of different sizes are being divided."
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other.data, self.header),
+                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data)
+                                                      * self.data / other.data, self.header)]))
+        else:
+            return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other, self.header),
+                                       fits.ImageHDU(self.uncertainties / other, self.header)]))
 
     def __eq__(self, other):
         return (np.nansum(self.data - other.data) == 0. and 

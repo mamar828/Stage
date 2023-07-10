@@ -39,13 +39,34 @@ def get_FWHM_maps():
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
     fitted_maps = nii_cube.bin_cube(2).fit_all()
-    # In this case, the fit() method returns a Maps object which takes a directory to save into
-    # It saves every individual map using their map.name attribute
+    # In this case, the fit_all() method returns a Maps object which takes a directory to save into
+    # It saves every individual map using their map.name attribute, given in the fit_all() method
     fitted_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
 
 
 # if __name__ == "__main__":
 #     get_FWHM_maps()
+
+
+def get_NII_amplitude_map_and_multiplication_map():
+    """
+    In this example, the amplitude of the NII peak is obtained as well as the map of the multiplication of the amplitude by the
+    NII FWHM without the instrumental broadening.
+    """
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
+    fitted_maps = nii_cube.bin_cube(2).fit_amplitude()
+    # In this case, the fit() method returns a Maps object which takes a directory to save into
+    # It saves every individual map using their map.name attribute
+    fitted_maps["NII_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data/NII_amplitude.fits")
+    fwhm_NII = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
+    instr_f  = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits"))
+    multiplication_map = fitted_maps["NII_amplitude"] * (fwhm_NII**2 - instr_f.bin_map(2)**2)**0.5
+    multiplication_map.save_as_fits_file("gaussian_fitting/maps/computed_data/multiplication_map.fits")
+
+
+if __name__ == "__main__":
+    get_NII_amplitude_map_and_multiplication_map()
 
 
 def get_region_widening_maps(base_map: Map_usnr):

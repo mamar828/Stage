@@ -374,7 +374,7 @@ class Spectrum:
             params["NII_2"] = {"x0": x_peaks["NII_2"], "a": self.y_values[x_peaks["NII_2"]-1]}
         return params
         
-    def get_fitted_gaussian_parameters(self, peak_name: str=None) -> models:
+    def get_fit_parameters(self, peak_name: str=None) -> models:
         """
         Get the parameters of every gaussian component of the complete fit. Each component is an index of the returned object.
 
@@ -477,13 +477,13 @@ class Spectrum:
         number_of_channels = self.header["NAXIS3"]
         if peak_name is not None:
             # A multi-gaussian fit was done
-            params = self.get_fitted_gaussian_parameters(peak_name)
+            params = self.get_fit_parameters(peak_name)
             uncertainties = self.get_uncertainties()[peak_name]
             channels_FWHM = self.get_FWHM_channels(params, uncertainties["stddev"])
             angstroms_center = (np.array((params.mean.value, uncertainties["mean"])) * spectral_length / number_of_channels)
         else:
             # A single gaussian fit was done
-            params = self.get_fitted_gaussian_parameters()
+            params = self.get_fit_parameters()
             uncertainties = self.get_uncertainties()["calibration"]
             channels_FWHM = self.get_FWHM_channels(params, uncertainties["stddev"])
             angstroms_center = (np.array((params.mean.value, uncertainties["mean"])) * spectral_length / number_of_channels)
@@ -514,35 +514,35 @@ class Spectrum:
         -------
         float: value of the signal to noise ratio.
         """
-        return (self.get_fitted_gaussian_parameters(peak_name).amplitude/u.Jy)/self.get_residue_stddev()
+        return (self.get_fit_parameters(peak_name).amplitude/u.Jy)/self.get_residue_stddev()
 
 """ 
 def loop_di_loop(filename, calib=False):
-    x = 296
+    x = 1
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         header = fits.open(filename)[0].header
         spectrum = Spectrum(data[:,y-1,x-1], header, calibration=calib)
-        spectrum.fit_calibration()
+        spectrum.fit_NII_cube()
         # spectrum.fit_iteratively()
-        # print("FWHM NII:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
-        # print("FWHM Ha:", spectrum.get_FWHM_speed(spectrum.get_fitted_gaussian_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
+        # print("FWHM NII:", spectrum.get_FWHM_speed(spectrum.get_fit_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
+        # print("FWHM Ha:", spectrum.get_FWHM_speed(spectrum.get_fit_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
         # print("standard deviation:", spectrum.get_residue_stddev())
         print(spectrum.fitted_gaussian)
-        try:
-            print("mean FWHM:", (spectrum.get_FWHM_speed("NII"), spectrum.get_FWHM_speed("Ha")))
-        except:
-            try:
-                print("mean FWHM:", (spectrum.get_FWHM_speed()))
-            except:
-                pass
+        # try:
+        #     print("mean FWHM:", (spectrum.get_FWHM_speed("NII"), spectrum.get_FWHM_speed("Ha")))
+        # except:
+        #     try:
+        #         print("mean FWHM:", (spectrum.get_FWHM_speed()))
+        #     except:
+        #         pass
         # spectrum.plot(coords=(x,y))
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()
-# loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
-loop_di_loop("gaussian_fitting/leo/OIII/reference_cube_with_header.fits", calib=True)
-  """
+loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
+# loop_di_loop("gaussian_fitting/leo/OIII/reference_cube_with_header.fits", calib=True)
+ """
