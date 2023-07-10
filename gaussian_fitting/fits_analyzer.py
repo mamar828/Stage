@@ -146,6 +146,7 @@ class Data_cube(Fits_file):
         data = np.copy(self.data)
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
+        print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
         fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration", self.header) 
@@ -159,7 +160,7 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
 
-    def fit_all(self) -> Maps:
+    def fit_FWHM(self) -> Maps:
         """
         Fit the whole data cube to extract the peaks' FWHM. This method presupposes that four OH peaks, one Halpha peak and
         one NII peak (sometimes two) are present.
@@ -170,12 +171,13 @@ class Data_cube(Fits_file):
 
         Returns
         -------
-        Maps object: maps of every ray's FWHM present in the provided data cube. Note that each peak map is Map_usnr object
-        and the last one is a Map object having the value 1 when a seven components fit was executed and 0 otherwise.
+        Maps object: maps of every ray's FWHM present in the provided data cube. Note that each peak map is a Map_usnr
+        object and the last one is a Map object having the value 1 when a seven components fit was executed and 0 otherwise.
         """
         data = np.copy(self.data)
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
+        print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
         fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII", self.header)
@@ -210,9 +212,23 @@ class Data_cube(Fits_file):
         return map_list
     
     def fit_amplitude(self) -> Maps:
+        """
+        Fit the whole data cube to extract the peaks' amplitude. This method presupposes that four OH peaks, one Halpha peak
+        and one NII peak (sometimes two) are present.
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
+        state with the following phrasing:
+        if __name__ == "__main__":
+        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
+
+        Returns
+        -------
+        Maps object: maps of every ray's amplitude present in the provided data cube. Note that each peak map is a Map_usnr
+        object and the last one is a Map object having the value 1 when a seven components fit was executed and 0 otherwise.
+        """
         data = np.copy(self.data)
         fit_fwhm_list = []
-        pool = multiprocessing.Pool(processes=1)           # This automatically generates an optimal number of workers
+        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
+        print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
         fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_amplitude", self.header)
@@ -240,7 +256,6 @@ class Data_cube(Fits_file):
         ])
         return map_list
 
-        
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
         Bin a specific cube by the amount of pixels given for every channel.
@@ -348,19 +363,21 @@ def worker_fit(args: tuple) -> list:
     Arguments
     ---------
     args: tuple. The first element is the y value of the line to be fitted, the second element is the data of the Data_cube used,
-    the third element is a string specifying if the cube is a calibration cube or a NII cube: "calibration" or "NII" and the
-    fourth element is the Data_cube's header.
+    the third element is a string specifying if the cube is a calibration cube or a NII cube and if the amplitude should be 
+    extracted: "calibration", "NII" or "NII_amplitude" and the fourth element is the Data_cube's header.
     Note that arguments are given in tuple due to the way the multiprocessing library operates.
 
     Returns
     -------
-    list: FWHM value of the fitted gaussians at every point along the specified line. Each coordinates has seven values: the first
-    six are the peaks' FWHM with their uncertainty and signal to noise ratio and the last one is a map indicating where fits with
-    sevent components were done. The last map outputs 0 for a six components fit and 1 for a seven components fit.
+    list: FWHM value or amplitude of the fitted gaussians at every point along the specified line. In the case of the calibration
+    cube, each element is a list of the FWHM and its uncertainty. In the case of the NII cube, each coordinates has seven values:
+    the first six are the peaks' FWHM with their uncertainty and signal to noise ratio and the last one is a map indicating where
+    fits with sevent components were done. The last map outputs 0 for a six components fit and 1 for a seven components fit.
     """
     y, data, cube_type, header = args
     line = []
     if cube_type == "calibration":
+        # A single fit will be made and the FWHM value will be extracted
         for x in range(data.shape[2]):
             spec = Spectrum(data[:,y,x], header, calibration=True)
             spec.fit_calibration()
@@ -371,6 +388,7 @@ def worker_fit(args: tuple) -> list:
         Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
 
     elif cube_type == "NII":
+        # A multi-gaussian fit will be made and the FWHM value will be extracted
         for x in range(data.shape[2]):
             spec = Spectrum(data[:,y,x], header, calibration=False)
             spec.fit_NII_cube()
@@ -386,6 +404,7 @@ def worker_fit(args: tuple) -> list:
         Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
 
     elif cube_type == "NII_amplitude":
+        # A multi-gaussian fit will be made and the amplitude will be extracted
         for x in range(data.shape[2]):
             spec = Spectrum(data[:,y,x], header, calibration=False)
             spec.fit_NII_cube()

@@ -518,7 +518,7 @@ class Spectrum:
 
 """ 
 def loop_di_loop(filename, calib=False):
-    x = 1
+    x = 277
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")
@@ -531,13 +531,13 @@ def loop_di_loop(filename, calib=False):
         # print("FWHM Ha:", spectrum.get_FWHM_speed(spectrum.get_fit_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
         # print("standard deviation:", spectrum.get_residue_stddev())
         print(spectrum.fitted_gaussian)
-        # try:
-        #     print("mean FWHM:", (spectrum.get_FWHM_speed("NII"), spectrum.get_FWHM_speed("Ha")))
-        # except:
-        #     try:
-        #         print("mean FWHM:", (spectrum.get_FWHM_speed()))
-        #     except:
-        #         pass
+        try:
+            print("mean FWHM:", spectrum.get_FWHM_speed("NII"))
+        except:
+            try:
+                print("mean FWHM:", (spectrum.get_FWHM_speed()))
+            except:
+                pass
         # spectrum.plot(coords=(x,y))
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
         file = open("gaussian_fitting/other/iter_number.txt", "w")
