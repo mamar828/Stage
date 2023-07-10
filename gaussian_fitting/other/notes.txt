@@ -111,3 +111,7 @@ Carte température SII: largeur SII + 8500K - turbulence -> température
 Courtès NII vs SII:
 Vérifier NII Halpha Courtès
 envoyer nouvelles stats et carte
+
+
+Extract multiple things
+seven_components_fit inclusion

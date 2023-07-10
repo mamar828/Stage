@@ -66,6 +66,24 @@ def get_NII_amplitude_map_and_flux_map():
 #     get_NII_amplitude_map_and_multiplication_map()
 
 
+def get_NII_Doppler_shift():
+    """
+    In this example, the NII Doppler shift is computed.
+    """
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    # fitted_maps = nii_cube.bin_cube(2).fit_amplitude()
+    mean_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits"))
+    spectral_length = nii_cube.header["FP_I_A"]
+    wavelength_channel_1 = nii_cube.header["FP_B_L"]
+    number_of_channels = nii_cube.header["NAXIS3"]
+    mean_map_AA = mean_map * spectral_length / number_of_channels + wavelength_channel_1
+    doppler_shift = (mean_map_AA - 6583.41) / 6583.41 * scipy.constants.c / 1000
+    doppler_shift.save_as_fits_file("gaussian_fitting/maps/computed_data/NII_doppler_shift.fits")
+
+
+# get_NII_Doppler_shift()
+
+
 def get_region_widening_maps(base_map: Map_usnr):
     """
     In this example, the four headers are extracted and attributed to the various region widenings. The data is 

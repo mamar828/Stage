@@ -130,6 +130,9 @@ class Data_cube(Fits_file):
             self.object = fits_object[0]
             self.data = fits_object[0].data
             self.header = fits_object[0].header
+
+        if self.data.shape == (48,1024,1024):
+            self.data = self.data[:,:10,:10]
         
     def fit_calibration(self) -> Map_u:
         """
@@ -160,20 +163,31 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
 
-    def fit_FWHM(self) -> Maps:
+    def fit_all(self, extract: tuple) -> Maps:
         """
-        Fit the whole data cube to extract the peaks' FWHM. This method presupposes that four OH peaks, one Halpha peak and
+        Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha peak and
         one NII peak (sometimes two) are present.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
         state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
 
+        Arguments
+        ---------
+        extract: tuple. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
+        Any combination or number of these terms can be given
+
         Returns
         -------
-        Maps object: maps of every ray's FWHM present in the provided data cube. Note that each peak map is a Map_usnr
-        object and the last one is a Map object having the value 1 when a seven components fit was executed and 0 otherwise.
+        tuple of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
+        were put in argument and the tuple may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
+        in the provided data cube. 
+        Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
+        amplitude or mean. In any case, in every Maps object is a Map object having the value 1 when a seven components fit was
+        executed and 0 otherwise.
         """
+        for element in extract:
+            assert element == "mean" or element == "amplitude" or element == "FWHM", "Unsupported element in extract tuple."
         data = np.copy(self.data)
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
@@ -388,19 +402,39 @@ def worker_fit(args: tuple) -> list:
         Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
 
     elif cube_type == "NII":
-        # A multi-gaussian fit will be made and the FWHM value will be extracted
+        # A multi-gaussian fit will be made and every values will be extracted
         for x in range(data.shape[2]):
             spec = Spectrum(data[:,y,x], header, calibration=False)
             spec.fit_NII_cube()
-            line.append(np.array((
-                np.concatenate((spec.get_FWHM_speed("OH1"), np.array([spec.get_snr("OH1")]))),
-                np.concatenate((spec.get_FWHM_speed("OH2"), np.array([spec.get_snr("OH2")]))),
-                np.concatenate((spec.get_FWHM_speed("OH3"), np.array([spec.get_snr("OH3")]))),
-                np.concatenate((spec.get_FWHM_speed("OH4"), np.array([spec.get_snr("OH4")]))),
-                np.concatenate((spec.get_FWHM_speed("NII"), np.array([spec.get_snr("NII")]))),
-                np.concatenate((spec.get_FWHM_speed("Ha"), np.array([spec.get_snr("Ha")]))),
-                np.array([spec.seven_components_fit, False, False])
-            )))
+            line.append([
+                np.array((
+                    np.concatenate((spec.get_FWHM_speed("OH1"), np.array([spec.get_snr("OH1")]))),
+                    np.concatenate((spec.get_FWHM_speed("OH2"), np.array([spec.get_snr("OH2")]))),
+                    np.concatenate((spec.get_FWHM_speed("OH3"), np.array([spec.get_snr("OH3")]))),
+                    np.concatenate((spec.get_FWHM_speed("OH4"), np.array([spec.get_snr("OH4")]))),
+                    np.concatenate((spec.get_FWHM_speed("NII"), np.array([spec.get_snr("NII")]))),
+                    np.concatenate((spec.get_FWHM_speed("Ha"), np.array([spec.get_snr("Ha")]))),
+                    np.array([spec.seven_components_fit, False, False])
+                )),
+                np.array((
+                    [spec.get_fit_parameters("OH1").amplitude.value, spec.get_uncertainties()["OH1"]["amplitude"], False],
+                    [spec.get_fit_parameters("OH2").amplitude.value, spec.get_uncertainties()["OH2"]["amplitude"], False],
+                    [spec.get_fit_parameters("OH3").amplitude.value, spec.get_uncertainties()["OH3"]["amplitude"], False],
+                    [spec.get_fit_parameters("OH4").amplitude.value, spec.get_uncertainties()["OH4"]["amplitude"], False],
+                    [spec.get_fit_parameters("NII").amplitude.value, spec.get_uncertainties()["NII"]["amplitude"], False],
+                    [spec.get_fit_parameters("Ha").amplitude.value, spec.get_uncertainties()["Ha"]["amplitude"], False],
+                    [spec.seven_components_fit, False, False]
+                )),
+                np.array((
+                    [spec.get_fit_parameters("OH1").mean.value, spec.get_uncertainties()["OH1"]["mean"], False],
+                    [spec.get_fit_parameters("OH2").mean.value, spec.get_uncertainties()["OH2"]["mean"], False],
+                    [spec.get_fit_parameters("OH3").mean.value, spec.get_uncertainties()["OH3"]["mean"], False],
+                    [spec.get_fit_parameters("OH4").mean.value, spec.get_uncertainties()["OH4"]["mean"], False],
+                    [spec.get_fit_parameters("NII").mean.value, spec.get_uncertainties()["NII"]["mean"], False],
+                    [spec.get_fit_parameters("Ha").mean.value, spec.get_uncertainties()["Ha"]["mean"], False],
+                    [spec.seven_components_fit, False, False]
+                ))
+            ])
         Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
 
     elif cube_type == "NII_amplitude":
@@ -455,9 +489,15 @@ class Map(Fits_file):
         else:
             return Map(fits.PrimaryHDU(self.data + other, self.header))
     
+    def __radd__(self, other):
+        return self.__add__(other)
+    
     def __sub__(self, other):
         assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
         return Map(fits.PrimaryHDU(self.data - other.data, self.header))
+    
+    def __rsub__(self, other):
+        return (self.__sub__(other) * -1)
 
     def __pow__(self, power):
         return Map(fits.PrimaryHDU(self.data ** power, self.header))
