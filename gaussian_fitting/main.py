@@ -38,7 +38,7 @@ def get_FWHM_maps():
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The 4 int indicates from which gaussian the FWHM will be extracted, in this case from the NII peak
-    fitted_maps = nii_cube.bin_cube(2).fit()
+    fitted_maps = nii_cube.bin_cube(2).fit_all()
     # In this case, the fit() method returns a Maps object which takes a directory to save into
     # It saves every individual map using their map.name attribute
     fitted_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
@@ -277,45 +277,34 @@ def get_region_stats(Map, filename: str=None, write=False):
     """
     # Open the three studied regions
     regions = [
+        None,
         pyregion.open("gaussian_fitting/regions/region_1.reg"),
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
-    for i, region in enumerate(regions):
+    region_names = ["Global region", "Region 1", "Region 2", "Region 3"]
+    for region, region_name in zip(regions, region_names):
         stats = Map.get_region_statistics(region)
         print(stats)
         # The write bool must be set to True if the statistics need to be put in a file
         if write:
             file = open(filename, "a")
-            file.write(f"Region {i+1}:\n")
+            file.write(f"{region_name}:\n")
             for key, value in stats.items():
                 file.write(f"{key}: {value}\n")
             file.write("\n")
             file.close()
 
 
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/Ha_NII.fits")[0]), 
-#                       filename="gaussian_fitting/statistics/Ha_NII.txt", write=True)
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/OIII_Ha.fits")[0]), 
-#                       filename="gaussian_fitting/statistics/OIII_Ha.txt", write=True)
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/SII_NII.fits")[0]), 
-#                       filename="gaussian_fitting/statistics/SII_NII.txt", write=True)
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/new/Ha_NII.fits")[0]), 
-#                       filename="gaussian_fitting/statistics/new/Ha_NII.txt", write=True)
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits")[0]), 
-#                       filename="gaussian_fitting/statistics/turbulence_removed/OIII_Ha.txt", write=True)
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/temp_maps_courtes/new/SII_NII_2peaks.fits")[0]), 
-#                       filename="gaussian_fitting/statistics/new/SII_NII_2peaks.txt", write=True)
-
-get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_2p/turbulence.fits")[0]), 
-                      filename="turbulence_stats.txt", write=True)
+# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_2p/turbulence.fits")[0]), 
+#                       filename="gaussian_fitting/statistics/new/turbulence_2p_stats.txt", write=True)
 
 
 def get_turbulence_figure_with_regions():
     """
     In this example, the turbulence jpeg image with the regions is obtained.
     """
-    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data_2p/turbulence.fits"))
     # The regions need to be opened in a specific way to allow them to be juxtaposed on the turbulence map
     regions = [
         pyregion.open("gaussian_fitting/regions/region_1.reg").as_imagecoord(header=turbulence_map.header),
@@ -341,7 +330,7 @@ def get_turbulence_figure_with_regions():
             ax.add_patch(patch)
         for artist in region[1]:
             ax.add_artist(artist)
-    plt.title("Turbulence de la région Sh2-158")
+    plt.title("Turbulence de la région Sh2-158 avec un fit NII à deux composantes")
     cbar.ax.set_ylabel("turbulence (km/s)")
     plt.show()
 
@@ -353,7 +342,7 @@ def get_histograms():
     """
     In this example, the histograms of the three regions and of the entire region are obtained.
     """
-    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data_2p/turbulence.fits"))
     regions = [
         None,
         pyregion.open("gaussian_fitting/regions/region_1.reg"),
@@ -366,6 +355,8 @@ def get_histograms():
         "Turbulence de la région centrale de Sh2-158",
         "Turbulence de la région du filament de Sh2-158"
     ]
+    # Note: it is possible to use the + operator between Shapelist objects to merge two regions together
+    # turbulence_map.plot_region_histogram(pyregion.ShapeList(regions[1] + regions[3]), "Turbulence de la région diffuse et du filament de Sh2-158 avec un fit NII à deux composantes")
     for region, name in zip(regions, histogram_names):
         turbulence_map.plot_region_histogram(region, name)
 

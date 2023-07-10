@@ -159,7 +159,7 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
 
-    def fit(self) -> Maps:
+    def fit_all(self) -> Maps:
         """
         Fit the whole data cube to extract the peaks' FWHM. This method presupposes that four OH peaks, one Halpha peak and
         one NII peak (sometimes two) are present.
@@ -652,15 +652,15 @@ class Map(Fits_file):
         temperature = (angstroms_FWHM * c / angstroms_center)**2 * m / (8 * np.log(2) * k)
         return temperature
     
-    def get_region_statistics(self, region: pyregion.core.ShapeList) -> dict:
+    def get_region_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
         """
         Get the statistics of a region along with a histogram. The supported statistic measures are: median, mean, standard
         deviation, skewness and kurtosis.
 
         Arguments
         ---------
-        region: pyregion.core.ShapeList. Region in which the statistics need to be calculated. A histogram will also be made with
-        the data in this region.
+        region: pyregion.core.ShapeList, default=None. Region in which the statistics need to be calculated. A histogram
+        will also be made with the data in this region.
         plot_histogram: bool, default=False. Boolean that specifies if the histogram should be plotted.
 
         Returns
@@ -668,13 +668,16 @@ class Map(Fits_file):
         dict: statistics of the region. Every key is a statistic measure.
         """
         # A mask of zeros and ones is created with the region
-        try:
-            mask = region.get_mask(hdu=self.object)
-        except:
-            mask = region.get_mask(hdu=self.object[0])
-        mask = np.where(mask == False, np.nan, 1)
-        # The map's data is only kept where a mask applies
-        new_map = self.copy() * mask
+        if region is None:
+            new_map = self.copy()
+        else:
+            try:
+                mask = region.get_mask(hdu=self.object)
+            except:
+                mask = region.get_mask(hdu=self.object[0])
+            mask = np.where(mask == False, np.nan, 1)
+            # The map's data is only kept where a mask applies
+            new_map = self.copy() * mask
         stats = {
             "median": np.nanmedian(new_map.data),
             "mean": np.nanmean(new_map.data),
@@ -682,8 +685,6 @@ class Map(Fits_file):
             "skewness": scipy.stats.skew(new_map.data, axis=None, nan_policy="omit"),
             "kurtosis": scipy.stats.kurtosis(new_map.data, axis=None, nan_policy="omit")
         }
-        # The NANs are removed from the data from which the statistics are computed
-        map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
         return stats
     
     def plot_region_histogram(self, region: pyregion.core.ShapeList=None, title: str=None):
@@ -698,6 +699,7 @@ class Map(Fits_file):
         title: str, default=None. If present, title of the figure
         """
         if region is None:
+            # The NANs are removed from the data from which the statistics are computed
             map_data_without_nan = np.ma.masked_invalid(self.data).compressed()
             plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
         else:
