@@ -163,7 +163,7 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
 
-    def fit_all(self, extract: list) -> tuple:
+    def fit_all(self, extract: list, seven_components_fit_authorized: bool=False) -> tuple:
         """
         Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha peak and
         one NII peak (sometimes two) are present.
@@ -176,6 +176,9 @@ class Data_cube(Fits_file):
         ---------
         extract: list. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
         Any combination or number of these terms can be given.
+        seven_components_fit_authorized: bool, default=False. Specifies if double NII peaks are considered. If True, the fitting
+        may detect two components and fit these separately. The NII values in the returned maps for a certain parameter will then
+        be the mean value of the two fits.
 
         Returns
         -------
@@ -198,8 +201,12 @@ class Data_cube(Fits_file):
         print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII", self.header)
-                                                                 for y in range(data.shape[1])))))
+        if seven_components_fit_authorized:
+            fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_2", self.header)
+                                                                    for y in range(data.shape[1])))))
+        else:
+            fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_1", self.header)
+                                                                    for y in range(data.shape[1])))))
         stop = time.time()
         print("Finished in", stop-start, "s.")
         pool.close()
@@ -211,7 +218,7 @@ class Data_cube(Fits_file):
         # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: OH3, 3: OH4, 4: NII, 5: Ha, 6: 7 components fit map
         # Fifth dimension: 0: data, 1: uncertainties, 2: snr (only when associated to fwhm values)
         # The 7 components fit map is a map taking the value 0 if a single component was fitted onto NII and the value 1 if
-        # two components were considered.
+        # two components were considered
         fwhm_maps = Maps([
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0,0], new_header),
                                    fits.ImageHDU(fit_fwhm_array[:,:,0,0,1]),
@@ -403,8 +410,8 @@ def worker_fit(args: tuple) -> list:
                 line.append([np.NAN, np.NAN])
         Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
 
-    elif cube_type == "NII":
-        # A multi-gaussian fit will be made and every values will be extracted
+    elif cube_type == "NII_1":
+        # A multi-gaussian fit with 6 components will be made and every values will be extracted
         for x in range(data.shape[2]):
             spec = Spectrum(data[:,y,x], header, calibration=False)
             spec.fit_NII_cube()
@@ -434,6 +441,48 @@ def worker_fit(args: tuple) -> list:
                     [spec.get_fit_parameters("OH3").mean.value, spec.get_uncertainties()["OH3"]["mean"], False],
                     [spec.get_fit_parameters("OH4").mean.value, spec.get_uncertainties()["OH4"]["mean"], False],
                     [spec.get_fit_parameters("NII").mean.value, spec.get_uncertainties()["NII"]["mean"], False],
+                    [spec.get_fit_parameters("Ha").mean.value, spec.get_uncertainties()["Ha"]["mean"], False],
+                    [spec.seven_components_fit, False, False]
+                ))
+            ])
+        Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
+    
+    elif cube_type == "NII_2":
+        # A multi-gaussian fit will be made and every values will be extracted, sometimes with a double NII fit
+        for x in range(data.shape[2]):
+            spec = Spectrum(data[:,y,x], header, calibration=False, seven_components_fit_authorized=True)
+            spec.fit_NII_cube()
+            # Numpy arrays are used to facilitate extraction
+            # In this case, sometimes the mean value of both NII fits needs to be calculated
+            line.append([
+                np.array((
+                    np.concatenate((spec.get_FWHM_speed("OH1"), np.array([spec.get_snr("OH1")]))),
+                    np.concatenate((spec.get_FWHM_speed("OH2"), np.array([spec.get_snr("OH2")]))),
+                    np.concatenate((spec.get_FWHM_speed("OH3"), np.array([spec.get_snr("OH3")]))),
+                    np.concatenate((spec.get_FWHM_speed("OH4"), np.array([spec.get_snr("OH4")]))),
+                    np.concatenate((spec.get_FWHM_speed("NII"), np.array([spec.get_snr("NII")]))),
+                    np.concatenate((spec.get_FWHM_speed("Ha"), np.array([spec.get_snr("Ha")]))),
+                    np.array([spec.seven_components_fit, False, False])
+                )),
+                np.array((
+                    [spec.get_fit_parameters("OH1").amplitude.value, spec.get_uncertainties()["OH1"]["amplitude"], False],
+                    [spec.get_fit_parameters("OH2").amplitude.value, spec.get_uncertainties()["OH2"]["amplitude"], False],
+                    [spec.get_fit_parameters("OH3").amplitude.value, spec.get_uncertainties()["OH3"]["amplitude"], False],
+                    [spec.get_fit_parameters("OH4").amplitude.value, spec.get_uncertainties()["OH4"]["amplitude"], False],
+                    [np.nanmean((spec.get_fit_parameters("NII").amplitude.value, spec.get_fit_parameters("NII_2").amplitude.value)),
+                     np.nanmean((spec.get_uncertainties()["NII"]["amplitude"], spec.get_uncertainties()["NII)2"]["amplitude"])), 
+                     False],
+                    [spec.get_fit_parameters("Ha").amplitude.value, spec.get_uncertainties()["Ha"]["amplitude"], False],
+                    [spec.seven_components_fit, False, False]
+                )),
+                np.array((
+                    [spec.get_fit_parameters("OH1").mean.value, spec.get_uncertainties()["OH1"]["mean"], False],
+                    [spec.get_fit_parameters("OH2").mean.value, spec.get_uncertainties()["OH2"]["mean"], False],
+                    [spec.get_fit_parameters("OH3").mean.value, spec.get_uncertainties()["OH3"]["mean"], False],
+                    [spec.get_fit_parameters("OH4").mean.value, spec.get_uncertainties()["OH4"]["mean"], False],
+                    [np.nanmean((spec.get_fit_parameters("NII").mean.value, spec.get_fit_parameters("NII_2").mean.value)), 
+                     np.nanmean((spec.get_uncertainties()["NII"]["mean"], spec.get_uncertainties()["NII_2"]["mean"])), 
+                     False],
                     [spec.get_fit_parameters("Ha").mean.value, spec.get_uncertainties()["Ha"]["mean"], False],
                     [spec.seven_components_fit, False, False]
                 ))
@@ -513,7 +562,7 @@ class Map(Fits_file):
         return self.data
     
     def __eq__(self, other):
-        return np.nansum(self.data - other.data) < 10**(-10)
+        return np.nanmax(np.abs((self.data - other.data) / self.data)) <= 10**(-6) or np.array_equal(self.data, other.data)
 
     def copy(self):
         return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()))
@@ -912,8 +961,8 @@ class Map_u(Map):
                                        fits.ImageHDU(self.uncertainties / other, self.header)]))
 
     def __eq__(self, other):
-        return (np.nansum(self.data - other.data) == 0. and 
-                np.nansum(self.uncertainties - other.uncertainties) == 0.)
+        return (np.nanmax(np.abs((self.data - other.data) / self.data)) <= 1**(-5) and 
+                np.nanmax(np.abs((self.uncertainties - other.uncertainties) / self.uncertainties)) <= 1**(-5))
     
     def copy(self):
         return Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), self.header.copy()),
@@ -1137,7 +1186,8 @@ class Map_usnr(Map_u):
                                   fits.ImageHDU(map_snr.data, map_values.header)]))
     
     def __eq__(self, other):
-        return super().__eq__(other) and np.nansum(self.snr - other.snr) == 0.
+        return super().__eq__(other) and (np.nanmax(np.abs((self.snr - other.snr) / self.snr)) <= 10**(-6)
+                                          or self.snr == other.snr)
     
     def copy(self):
         return self.from_Map_u_object(super().copy(), self.snr)
@@ -1252,6 +1302,18 @@ class Maps():
                     except:
                         maps.append(Map(fits.open(f"{folder_path}/{file}")[0], name=name))
         return self(maps)
+
+    def __eq__(self, other):
+        for Map in self:
+            name = Map.name
+            if name not in other.names.values():
+                print(f"{name} not present in both Maps.")
+            elif self[name].data.shape != other[name].data.shape:
+                print(f"{name} does not have the same shape in both Maps.")
+            elif self[name] == other[name]:
+                print(f"{name} equal.")
+            else:
+                print(f"{name} not equal.")
 
     def __iter__(self):
         self.n = -1

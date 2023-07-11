@@ -15,6 +15,14 @@ In this file are examples of code that have been used to create the .fits files.
 a function to improve readability.
 """
 
+if __name__ == "__main__":
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+
+    fwhm_maps = nii_cube.fit_all(extract=["FWHM"], seven_components_fit_authorized=True)
+    fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data_testy")
+
+
+
 
 def get_maps():
     """
@@ -37,8 +45,8 @@ def get_maps():
 # Note that function are called in a if __name__ == "__main__" block because the fitting algorithm used the multiprocessing
 # library which created multiple instances of the same code. Without this condition, the program would create itself
 # recursively.
-if __name__ == "__main__":
-    get_maps()
+# if __name__ == "__main__":
+#     get_maps()
 
 
 def example_fitting():
@@ -55,6 +63,10 @@ def example_fitting():
     mean_maps["7_components_fit"].plot_map()    # The map that tells if a double NII peak was detected is plotted
     # It is also possible to save an entire Maps object into a folder
     mean_maps.save_as_fits_file("path/to/folder")
+
+    # It is also possible to fit using two NII gaussians
+    fwhm_maps = nii_cube.fit_all(extract=["FWHM"], seven_components_fit_authorized=True)
+    fwhm_maps.save_as_fits_file("path/to/folder")
 
 
 def get_smoothed_instr_f():

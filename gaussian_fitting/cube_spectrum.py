@@ -17,7 +17,7 @@ class Spectrum:
     Encapsulate all the data and methods of a cube's spectrum.
     """
 
-    def __init__(self, data: np.ndarray, header, calibration: bool):
+    def __init__(self, data: np.ndarray, header, calibration: bool, seven_components_fit_authorized: bool=False):
         """
         Initialize a Spectrum object. Calibration boolean must be set to True to force the analysis of a single peak such as
         with a calibration cube's spectrum.
@@ -28,6 +28,8 @@ class Spectrum:
         header: astropy.io.fits.header.Header. Allows for the calculation of the FWHM using the spectrometer's settings.
         calibration: bool. Specifies if the fit is for the calibration cube i.e. to fit a single peak. If False, the fitter will
         attempt a 6 components fit.
+        seven_components_fit_authorized: bool, default=False. Specifies if a fit with seven components, i.e. two NII components,
+        can be detected and used.
         """
         self.x_values, self.y_values = np.arange(len(data)) + 1, data
         self.calibration = calibration
@@ -35,6 +37,7 @@ class Spectrum:
         # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
         self.seven_components_fit = 0
         self.header = header
+        self.seven_components_fit_authorized = seven_components_fit_authorized
 
         if calibration:
             # Application of a translation in the case of the calibration cube
@@ -225,16 +228,17 @@ class Spectrum:
         if number_of_components == 6:
             self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
                                              fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
-            # The following line must be erased for the double peak fit method.
-            return self.fitted_gaussian
-            # Check the possibility of a double-component NII peak
-            nii_FWHM = self.get_FWHM_speed("NII")[0]
-            ha_FWHM  = self.get_FWHM_speed("Ha")[0]
-            if nii_FWHM > ha_FWHM or nii_FWHM > 40:
-                self.seven_components_fit = 1
-                return self.fit_NII_cube(number_of_components=7)
-            else:
+            if not self.seven_components_fit_authorized:
                 return self.fitted_gaussian
+            else:
+                # Check the possibility of a double-component NII peak
+                nii_FWHM = self.get_FWHM_speed("NII")[0]
+                ha_FWHM  = self.get_FWHM_speed("Ha")[0]
+                if nii_FWHM > ha_FWHM or nii_FWHM > 40:
+                    self.seven_components_fit = 1
+                    return self.fit_NII_cube(number_of_components=7)
+                else:
+                    return self.fitted_gaussian
         else:   # Seven components fit
             gi_NII_2 = models.Gaussian1D(amplitude=params["NII_2"]["a"]*u.Jy, mean=params["NII_2"]["x0"]*u.um,
                                          bounds=parameter_bounds["NII_2"])
