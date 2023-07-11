@@ -416,16 +416,21 @@ def calc_temp(halpha_width_kms, nii_width_kms):
 # temperature = (angstroms_FWHM * c / angstroms_center)**2 * m / (8 * np.log(2) * k)
 # print(temperature)
 
-lol = [
-    "bateau 0",
-    "bateau 1",
-    "bateau 2",
-    "bateau 3",
-    "bateau 4",
-]
+# lol = [
+#     "bateau 0",
+#     "bateau 1",
+#     "bateau 2",
+#     "bateau 3",
+#     "bateau 4",
+# ]
 
-for i, j in enumerate(lol):
-    print(i,j)
+# for i, j in enumerate(lol):
+#     print(i,j)
 
-for i, j in zip(range(len(lol)), lol):
-    print(i,j)
+# for i, j in zip(range(len(lol)), lol):
+#     print(i,j)
+
+
+v = [5,3]
+j,c = tuple(v)
+print(j)

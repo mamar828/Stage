@@ -131,8 +131,8 @@ class Data_cube(Fits_file):
             self.data = fits_object[0].data
             self.header = fits_object[0].header
 
-        if self.data.shape == (48,1024,1024):
-            self.data = self.data[:,:10,:10]
+        # if self.data.shape == (48,1024,1024):
+        #     self.data = self.data[:,:10,:10]
         
     def fit_calibration(self) -> Map_u:
         """
@@ -163,7 +163,7 @@ class Data_cube(Fits_file):
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
 
-    def fit_all(self, extract: tuple) -> Maps:
+    def fit_all(self, extract: list) -> tuple:
         """
         Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha peak and
         one NII peak (sometimes two) are present.
@@ -174,20 +174,24 @@ class Data_cube(Fits_file):
 
         Arguments
         ---------
-        extract: tuple. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
-        Any combination or number of these terms can be given
+        extract: list. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
+        Any combination or number of these terms can be given.
 
         Returns
         -------
         tuple of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
-        were put in argument and the tuple may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
+        were put in argument, thus the tuple may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
         in the provided data cube. 
         Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
         amplitude or mean. In any case, in every Maps object is a Map object having the value 1 when a seven components fit was
         executed and 0 otherwise.
         """
+        # The provided extract data is verified before fitting
+        assert extract != [], "At least a parameter to be extracted should be provided in the extract list."
+        assert isinstance(extract, list), f"Extract argument must be a list, not {type(extract).__name__}."
         for element in extract:
-            assert element == "mean" or element == "amplitude" or element == "FWHM", "Unsupported element in extract tuple."
+            assert element == "mean" or element == "amplitude" or element == "FWHM", "Unsupported element in extract list."
+
         data = np.copy(self.data)
         fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
@@ -202,74 +206,72 @@ class Data_cube(Fits_file):
         new_header = self.get_header_without_third_dimension()
         # The list containing the fit results is transformed into a numpy array to facilitate extraction
         fit_fwhm_array = np.squeeze(fit_fwhm_list)
-        map_list = Maps([
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,2])]), name="OH1_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,1,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,1,2])]), name="OH2_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,2,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,2,2])]), name="OH3_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,3,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,3,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,3,2])]), name="OH4_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,4,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,4,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,4,2])]), name="NII_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,5,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,5,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,5,2])]), name="Ha_fwhm"),
-            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,6,0], new_header), name="7_components_fit")
+        # The fit_fwhm_array has 5 dimensions (x_shape,y_shape,3,7,3) and the last three dimensions are given at every pixel
+        # Third dimension: all three gaussian parameters. 0: fwhm, 1: amplitude, 2: mean
+        # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: OH3, 3: OH4, 4: NII, 5: Ha, 6: 7 components fit map
+        # Fifth dimension: 0: data, 1: uncertainties, 2: snr (only when associated to fwhm values)
+        # The 7 components fit map is a map taking the value 0 if a single component was fitted onto NII and the value 1 if
+        # two components were considered.
+        fwhm_maps = Maps([
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,0,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,0,2])]), name="OH1_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,1,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1,2])]), name="OH2_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,2,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,2,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,2,2])]), name="OH3_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,3,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,3,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,3,2])]), name="OH4_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,4,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,4,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,4,2])]), name="NII_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,5,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,5,1]),
+                                   fits.ImageHDU(fit_fwhm_array[:,:,0,5,2])]), name="Ha_fwhm"),
+            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,0,6,0], new_header), name="7_components_fit")
         ])
-        return map_list
+        amplitude_maps = Maps([
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,0,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,1,0,1])]), name="OH1_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,1,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,1,1,1])]), name="OH2_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,2,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,1,2,1])]), name="OH3_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,3,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,1,3,1])]), name="OH4_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,4,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,1,4,1])]), name="NII_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,5,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,1,5,1])]), name="Ha_amplitude"),
+            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,1,6,0], new_header), name="7_components_fit")
+        ])
+        mean_maps = Maps([
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,0,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,2,0,1])]), name="OH1_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,1,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,2,1,1])]), name="OH2_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,2,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,2,2,1])]), name="OH3_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,3,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,2,3,1])]), name="OH4_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,4,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,2,4,1])]), name="NII_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,5,0], new_header),
+                                fits.ImageHDU(fit_fwhm_array[:,:,2,5,1])]), name="Ha_mean"),
+            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,2,6,0], new_header), name="7_components_fit")
+        ])
+        parameter_names = {"FWHM": fwhm_maps, "amplitude": amplitude_maps, "mean": mean_maps}
+        return_list = []
+        for element in extract:
+            return_list.append(parameter_names[element])
+        if len(extract) == 1:
+            # If only a single Maps is present, the element itself needs to be returned and not a tuple
+            return return_list[-1]
+        return tuple(return_list)
     
-    def fit_amplitude(self) -> Maps:
-        """
-        Fit the whole data cube to extract the peaks' amplitude. This method presupposes that four OH peaks, one Halpha peak
-        and one NII peak (sometimes two) are present.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
-        if __name__ == "__main__":
-        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
-
-        Returns
-        -------
-        Maps object: maps of every ray's amplitude present in the provided data cube. Note that each peak map is a Map_usnr
-        object and the last one is a Map object having the value 1 when a seven components fit was executed and 0 otherwise.
-        """
-        data = np.copy(self.data)
-        fit_fwhm_list = []
-        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
-        print(f"Number of processes used: {pool._processes}")
-        self.reset_update_file()
-        start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_amplitude", self.header)
-                                                                 for y in range(data.shape[1])))))
-        stop = time.time()
-        print("Finished in", stop-start, "s.")
-        pool.close()
-        new_header = self.get_header_without_third_dimension()
-        # The list containing the fit results is transformed into a numpy array to facilitate extraction
-        fit_fwhm_array = np.squeeze(fit_fwhm_list)
-        map_list = Maps([
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1])]), name="OH1_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,1,1])]), name="OH2_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,2,1])]), name="OH3_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,3,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,3,1])]), name="OH4_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,4,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,4,1])]), name="NII_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,5,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,5,1])]), name="Ha_amplitude"),
-            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,6,0], new_header), name="7_components_fit")
-        ])
-        return map_list
-
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
         Bin a specific cube by the amount of pixels given for every channel.
@@ -406,6 +408,7 @@ def worker_fit(args: tuple) -> list:
         for x in range(data.shape[2]):
             spec = Spectrum(data[:,y,x], header, calibration=False)
             spec.fit_NII_cube()
+            # Numpy arrays are used to facilitate extraction
             line.append([
                 np.array((
                     np.concatenate((spec.get_FWHM_speed("OH1"), np.array([spec.get_snr("OH1")]))),
@@ -436,22 +439,6 @@ def worker_fit(args: tuple) -> list:
                 ))
             ])
         Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
-
-    elif cube_type == "NII_amplitude":
-        # A multi-gaussian fit will be made and the amplitude will be extracted
-        for x in range(data.shape[2]):
-            spec = Spectrum(data[:,y,x], header, calibration=False)
-            spec.fit_NII_cube()
-            line.append(np.array((
-                [spec.get_fit_parameters("OH1").amplitude.value, spec.get_uncertainties()["OH1"]["amplitude"]],
-                [spec.get_fit_parameters("OH2").amplitude.value, spec.get_uncertainties()["OH2"]["amplitude"]],
-                [spec.get_fit_parameters("OH3").amplitude.value, spec.get_uncertainties()["OH3"]["amplitude"]],
-                [spec.get_fit_parameters("OH4").amplitude.value, spec.get_uncertainties()["OH4"]["amplitude"]],
-                [spec.get_fit_parameters("NII").amplitude.value, spec.get_uncertainties()["NII"]["amplitude"]],
-                [spec.get_fit_parameters("Ha").amplitude.value, spec.get_uncertainties()["Ha"]["amplitude"]],
-                [spec.seven_components_fit, False]
-            )))
-        Data_cube.give_update(None, f"NII complete cube amplitude fitting progress /{data.shape[2]}")
     return line
 
 

@@ -15,6 +15,48 @@ In this file are examples of code that have been used to create the .fits files.
 a function to improve readability.
 """
 
+
+def get_maps():
+    """
+    In this example, all important maps that will be used later are computed once.
+    """
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    # The cube is binned, then fitted, and the FWHM, mean and amplitude of every gaussian is stored
+    # The extract argument specifies the order in which the Maps will be returned
+    # Note that the extract argument can have fewer elements if not all Maps are desired
+    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit_all(extract=["FWHM", "mean", "amplitude"])
+    # All fwhm_maps are saved
+    fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data_test")
+    # Only the NII and Ha maps for mean and amplitude are saved
+    mean_maps["NII_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/NII_mean.fits")
+    mean_maps["Ha_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/Ha_mean.fits")
+    amplitude_maps["NII_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/NII_amplitude.fits")
+    amplitude_maps["Ha_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/Ha_amplitude.fits")
+
+
+# Note that function are called in a if __name__ == "__main__" block because the fitting algorithm used the multiprocessing
+# library which created multiple instances of the same code. Without this condition, the program would create itself
+# recursively.
+if __name__ == "__main__":
+    get_maps()
+
+
+def example_fitting():
+    """
+    This example is never used but is intended to clarify the fitting method and the returned objects.
+    """
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    # The extract argument controls what will be returned and in what order by the fit_all() method
+    mean_maps, amplitude_maps = nii_cube.fit_all(extract=["mean", "amplitude"])
+    # The fit_all() method returns Maps objects which are a list of Map objects and its subclasses
+    # Each_map can be accessed as done below
+    mean_maps["OH1_mean"].plot_map()            # The first OH peak's mean value is plotted
+    amplitude_maps["Ha_amplitude"].plot_map()   # The Ha peak's amplitude value is plotted
+    mean_maps["7_components_fit"].plot_map()    # The map that tells if a double NII peak was detected is plotted
+    # It is also possible to save an entire Maps object into a folder
+    mean_maps.save_as_fits_file("path/to/folder")
+
+
 def get_smoothed_instr_f():
     """
     In this example, the smooth instrumental function map is calculated from the calibration_cube.
@@ -32,33 +74,15 @@ def get_smoothed_instr_f():
 #     get_smoothed_instr_f()
 
 
-def get_FWHM_maps():
+def get_NII_flux_map():
     """
-    In this example, the FWHM maps of the NII cube are obtained.
+    In this example, the map of the multiplication of the amplitude by the NII FWHM without the instrumental broadening 
+    is obtained.
     """
-    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
-    fitted_maps = nii_cube.bin_cube(2).fit_FWHM()
-    # In this case, the fit_FWHM() method returns a Maps object which takes a directory to save into
-    # It saves every individual map using their map.name attribute, given in the fit_FWHM() method
-    fitted_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
-
-
-# if __name__ == "__main__":
-#     get_FWHM_maps()
-
-
-def get_NII_amplitude_map_and_flux_map():
-    """
-    In this example, the amplitude of the NII peak is obtained as well as the map of the multiplication of the amplitude by the
-    NII FWHM without the instrumental broadening.
-    """
-    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
-    fitted_maps = nii_cube.bin_cube(2).fit_amplitude()
-    # In this case, the fit_amplitude() method returns a Maps object which contains all the peaks' amplitude
-    fitted_maps["NII_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data/NII_amplitude.fits")
+    nii_amplitude = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_amplitude.fits"))
     fwhm_NII = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
     instr_f  = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits"))
-    flux_map = fitted_maps["NII_amplitude"] * (fwhm_NII**2 - instr_f.bin_map(2)**2)**0.5
+    flux_map = nii_amplitude * (fwhm_NII**2 - instr_f.bin_map(2)**2)**0.5
     flux_map.save_as_fits_file("gaussian_fitting/maps/computed_data/flux_map.fits")
 
 
@@ -70,8 +94,8 @@ def get_NII_Doppler_shift():
     """
     In this example, the NII Doppler shift is computed.
     """
+    # The NII cube is opened so spectral data provided in its header can be used
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
-    # fitted_maps = nii_cube.bin_cube(2).fit_amplitude()
     mean_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits"))
     spectral_length = nii_cube.header["FP_I_A"]
     wavelength_channel_1 = nii_cube.header["FP_B_L"]
@@ -86,10 +110,11 @@ def get_NII_Doppler_shift():
 
 def get_region_widening_maps(base_map: Map_usnr):
     """
-    In this example, the four headers are extracted and attributed to the various region widenings. The data is 
-    stored in gaussian_fitting/maps/reproject.
+    In this example, the four headers are extracted and attributed to the various region widenings. The data is stored in
+    gaussian_fitting/maps/reproject. These maps are useful only for their headers which locally correct for the data cube's
+    distortion.
     """
-    global_header = Map(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0]).header
+    global_header = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0]).header
     header_0 = global_header.copy()
     wcs_0 = WCS(header_0)
     wcs_0.sip = None
