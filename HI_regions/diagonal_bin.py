@@ -36,14 +36,16 @@ class Fits_file():
         astropy.io.fits.header.Header: binned header.
         """
         header_copy = self.header.copy()
+        print(repr(header_copy))
         # The try statement makes it so calibration maps/cubes can also be binned
         try:
             header_copy["CDELT1"] *= nb_pix_bin
             header_copy["CDELT2"] *= nb_pix_bin
             header_copy["CRPIX1"] /= nb_pix_bin
             header_copy["CRPIX2"] /= nb_pix_bin
-            # header_copy["CRPIX1"] += 0.5
-            # header_copy["CRPIX2"] += 0.5
+            # A small shift has been empirically corrected
+            header_copy["CRPIX1"] += 1.4/3
+            header_copy["CRPIX2"] += 1.4/3
         except:
             pass
         return header_copy
@@ -62,7 +64,8 @@ class Fits_file():
             fits.open(filename)[0]
             # The file already exists
             while True:
-                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                answer = "y"
+                # answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
                 if answer == "y":
                     fits.writeto(filename, self.data, self.header, overwrite=True)
                     print("File overwritten.")
@@ -131,7 +134,7 @@ class Data_cube(Fits_file):
                     print(f"Cube to bin will be cut vertically by {i+1} pixel(s).")
                     data = data[:,:,:-1]
                 else:
-                    print(f"Cube to bin will be cut by {i+1} pixel(s).")
+                    print(f"Cube to bin will be cut in both axes by {i+1} pixel(s).")
                     data = data[:,:-1,:-1]
         # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
         return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
@@ -153,4 +156,4 @@ class Data_cube(Fits_file):
 
 test_data_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
 # test_data_cube.save_as_fits_file("bin.fits")
-test_data_cube.bin_cube(3).save_as_fits_file("bin.fits")
+test_data_cube.bin_cube(4).save_as_fits_file("bin.fits")

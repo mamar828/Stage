@@ -15,11 +15,11 @@ In this file are examples of code that have been used to create the .fits files.
 a function to improve readability.
 """
 
-if __name__ == "__main__":
-    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+# if __name__ == "__main__":
+#     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
 
-    fwhm_maps = nii_cube.fit_all(extract=["FWHM"], seven_components_fit_authorized=True)
-    fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data_testy")
+#     fwhm_maps = nii_cube.fit_all(extract=["FWHM"], seven_components_fit_authorized=True)
+#     fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data_testy")
 
 
 
