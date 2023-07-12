@@ -36,7 +36,6 @@ class Fits_file():
         astropy.io.fits.header.Header: binned header.
         """
         header_copy = self.header.copy()
-        print(repr(header_copy))
         # The try statement makes it so calibration maps/cubes can also be binned
         try:
             header_copy["CDELT1"] *= nb_pix_bin
@@ -156,4 +155,4 @@ class Data_cube(Fits_file):
 
 test_data_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
 # test_data_cube.save_as_fits_file("bin.fits")
-test_data_cube.bin_cube(4).save_as_fits_file("bin.fits")
+test_data_cube.bin_cube(2).save_as_fits_file("bin.fits")

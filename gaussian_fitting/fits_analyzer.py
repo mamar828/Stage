@@ -91,18 +91,30 @@ class Fits_file():
 
     def give_update(self, info: str):
         """
-        Give the user an update of the status of the running code in the text file output.txt.
+        Give the user an update of the status of the running code in the text file output.txt and in a print.
 
         Arguments
         ---------
         info: str. Beggining string to give information about the current running program.
         """
         try:
+            # The file is opened and the last number is extracted
             file = open("output.txt", "r")
             number = int(file.readlines()[-1])
             file = open("output.txt", "w")
-            file.write(f"{info}\n{str(number + 1)}")
+            if number == 0:
+                # First print is aligned so that all dots are justified
+                print(" " * len(info.split("/")[-1]), end="", flush=True)
+            new_num = number + 1
+            file.write(f"{info}\n{str(new_num)}")
             file.close()
+            if new_num%10 == 0:
+                # At every 10 rows that is fitted, a newline is printed with the number of the current line
+                # The number also needs to be aligned for the dots to be justified
+                alignment_string = " " * (len(info.split("/")[-1]) - len(str(new_num)))
+                print(f"\n{alignment_string}{new_num}", end="", flush=True)
+            else:
+                print(".", end="", flush=True)
         except:
             # Sometimes the read method is unsuccessful
             pass
@@ -130,9 +142,6 @@ class Data_cube(Fits_file):
             self.object = fits_object[0]
             self.data = fits_object[0].data
             self.header = fits_object[0].header
-
-        # if self.data.shape == (48,1024,1024):
-        #     self.data = self.data[:,:10,:10]
         
     def fit_calibration(self) -> Map_u:
         """
@@ -155,7 +164,7 @@ class Data_cube(Fits_file):
         fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration", self.header) 
                                                                  for y in range(data.shape[1])))))
         stop = time.time()
-        print("Finished in", stop-start, "s.")
+        print("\nFinished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
         # The map is temporarily stored in a simple format to facilitate extraction
@@ -208,7 +217,7 @@ class Data_cube(Fits_file):
             fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_1", self.header)
                                                                     for y in range(data.shape[1])))))
         stop = time.time()
-        print("Finished in", stop-start, "s.")
+        print("\nFinished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
         # The list containing the fit results is transformed into a numpy array to facilitate extraction
@@ -386,8 +395,8 @@ def worker_fit(args: tuple) -> list:
     Arguments
     ---------
     args: tuple. The first element is the y value of the line to be fitted, the second element is the data of the Data_cube used,
-    the third element is a string specifying if the cube is a calibration cube or a NII cube and if the amplitude should be 
-    extracted: "calibration", "NII" or "NII_amplitude" and the fourth element is the Data_cube's header.
+    the third element is a string specifying if the cube is a calibration cube or a NII cube and if a double NII components fit
+    should be made: "calibration", "NII_1" or "NII_2" and the fourth element is the Data_cube's header.
     Note that arguments are given in tuple due to the way the multiprocessing library operates.
 
     Returns
@@ -408,86 +417,25 @@ def worker_fit(args: tuple) -> list:
                 line.append(spec.get_FWHM_speed())
             except:
                 line.append([np.NAN, np.NAN])
-        Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[2]}")
+        Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[1]}")
 
-    elif cube_type == "NII_1":
-        # A multi-gaussian fit with 6 components will be made and every values will be extracted
+    elif cube_type[:3] == "NII":
+        if cube_type[-1] == "1":
+            # A multi-gaussian fit with 6 components will be made and every values will be extracted
+            seven_components = False
+        elif cube_type[-1] == "2":
+            # A multi-gaussian fit with 7 components will be made and every values will be extracted
+            seven_components = True
         for x in range(data.shape[2]):
-            spec = Spectrum(data[:,y,x], header, calibration=False)
+            spec = Spectrum(data[:,y,x], header, calibration=False, seven_components_fit_authorized=seven_components)
             spec.fit_NII_cube()
             # Numpy arrays are used to facilitate extraction
             line.append([
-                np.array((
-                    np.concatenate((spec.get_FWHM_speed("OH1"), np.array([spec.get_snr("OH1")]))),
-                    np.concatenate((spec.get_FWHM_speed("OH2"), np.array([spec.get_snr("OH2")]))),
-                    np.concatenate((spec.get_FWHM_speed("OH3"), np.array([spec.get_snr("OH3")]))),
-                    np.concatenate((spec.get_FWHM_speed("OH4"), np.array([spec.get_snr("OH4")]))),
-                    np.concatenate((spec.get_FWHM_speed("NII"), np.array([spec.get_snr("NII")]))),
-                    np.concatenate((spec.get_FWHM_speed("Ha"), np.array([spec.get_snr("Ha")]))),
-                    np.array([spec.seven_components_fit, False, False])
-                )),
-                np.array((
-                    [spec.get_fit_parameters("OH1").amplitude.value, spec.get_uncertainties()["OH1"]["amplitude"], False],
-                    [spec.get_fit_parameters("OH2").amplitude.value, spec.get_uncertainties()["OH2"]["amplitude"], False],
-                    [spec.get_fit_parameters("OH3").amplitude.value, spec.get_uncertainties()["OH3"]["amplitude"], False],
-                    [spec.get_fit_parameters("OH4").amplitude.value, spec.get_uncertainties()["OH4"]["amplitude"], False],
-                    [spec.get_fit_parameters("NII").amplitude.value, spec.get_uncertainties()["NII"]["amplitude"], False],
-                    [spec.get_fit_parameters("Ha").amplitude.value, spec.get_uncertainties()["Ha"]["amplitude"], False],
-                    [spec.seven_components_fit, False, False]
-                )),
-                np.array((
-                    [spec.get_fit_parameters("OH1").mean.value, spec.get_uncertainties()["OH1"]["mean"], False],
-                    [spec.get_fit_parameters("OH2").mean.value, spec.get_uncertainties()["OH2"]["mean"], False],
-                    [spec.get_fit_parameters("OH3").mean.value, spec.get_uncertainties()["OH3"]["mean"], False],
-                    [spec.get_fit_parameters("OH4").mean.value, spec.get_uncertainties()["OH4"]["mean"], False],
-                    [spec.get_fit_parameters("NII").mean.value, spec.get_uncertainties()["NII"]["mean"], False],
-                    [spec.get_fit_parameters("Ha").mean.value, spec.get_uncertainties()["Ha"]["mean"], False],
-                    [spec.seven_components_fit, False, False]
-                ))
+                spec.get_FWHM_snr_7_components_array(),
+                spec.get_amplitude_7_components_array(),
+                spec.get_mean_7_components_array()
             ])
-        Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
-    
-    elif cube_type == "NII_2":
-        # A multi-gaussian fit will be made and every values will be extracted, sometimes with a double NII fit
-        for x in range(data.shape[2]):
-            spec = Spectrum(data[:,y,x], header, calibration=False, seven_components_fit_authorized=True)
-            spec.fit_NII_cube()
-            # Numpy arrays are used to facilitate extraction
-            # In this case, sometimes the mean value of both NII fits needs to be calculated
-            line.append([
-                np.array((
-                    np.concatenate((spec.get_FWHM_speed("OH1"), np.array([spec.get_snr("OH1")]))),
-                    np.concatenate((spec.get_FWHM_speed("OH2"), np.array([spec.get_snr("OH2")]))),
-                    np.concatenate((spec.get_FWHM_speed("OH3"), np.array([spec.get_snr("OH3")]))),
-                    np.concatenate((spec.get_FWHM_speed("OH4"), np.array([spec.get_snr("OH4")]))),
-                    np.concatenate((spec.get_FWHM_speed("NII"), np.array([spec.get_snr("NII")]))),
-                    np.concatenate((spec.get_FWHM_speed("Ha"), np.array([spec.get_snr("Ha")]))),
-                    np.array([spec.seven_components_fit, False, False])
-                )),
-                np.array((
-                    [spec.get_fit_parameters("OH1").amplitude.value, spec.get_uncertainties()["OH1"]["amplitude"], False],
-                    [spec.get_fit_parameters("OH2").amplitude.value, spec.get_uncertainties()["OH2"]["amplitude"], False],
-                    [spec.get_fit_parameters("OH3").amplitude.value, spec.get_uncertainties()["OH3"]["amplitude"], False],
-                    [spec.get_fit_parameters("OH4").amplitude.value, spec.get_uncertainties()["OH4"]["amplitude"], False],
-                    [np.nanmean((spec.get_fit_parameters("NII").amplitude.value, spec.get_fit_parameters("NII_2").amplitude.value)),
-                     np.nanmean((spec.get_uncertainties()["NII"]["amplitude"], spec.get_uncertainties()["NII)2"]["amplitude"])), 
-                     False],
-                    [spec.get_fit_parameters("Ha").amplitude.value, spec.get_uncertainties()["Ha"]["amplitude"], False],
-                    [spec.seven_components_fit, False, False]
-                )),
-                np.array((
-                    [spec.get_fit_parameters("OH1").mean.value, spec.get_uncertainties()["OH1"]["mean"], False],
-                    [spec.get_fit_parameters("OH2").mean.value, spec.get_uncertainties()["OH2"]["mean"], False],
-                    [spec.get_fit_parameters("OH3").mean.value, spec.get_uncertainties()["OH3"]["mean"], False],
-                    [spec.get_fit_parameters("OH4").mean.value, spec.get_uncertainties()["OH4"]["mean"], False],
-                    [np.nanmean((spec.get_fit_parameters("NII").mean.value, spec.get_fit_parameters("NII_2").mean.value)), 
-                     np.nanmean((spec.get_uncertainties()["NII"]["mean"], spec.get_uncertainties()["NII_2"]["mean"])), 
-                     False],
-                    [spec.get_fit_parameters("Ha").mean.value, spec.get_uncertainties()["Ha"]["mean"], False],
-                    [spec.seven_components_fit, False, False]
-                ))
-            ])
-        Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[2]}")
+        Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[1]}")
     return line
 
 

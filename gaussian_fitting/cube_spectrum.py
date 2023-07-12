@@ -519,6 +519,105 @@ class Spectrum:
         float: value of the signal to noise ratio.
         """
         return (self.get_fit_parameters(peak_name).amplitude/u.Jy)/self.get_residue_stddev()
+    
+    def get_FWHM_snr_7_components_array(self):
+        """
+        Get the 7x3 dimensional array representing the FWHM, snr and 7 components fit. This method is used in the worker_fit()
+        function which creates heavy arrays.
+        
+        Returns
+        -------
+        Numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
+        the FWHM value in km/s, the second element is the uncertainty in km/s and the third element is the snr of the peak. The
+        peaks are in the following order: OH1, OH2, OH3, OH4, NII and Ha. The last row has only a relevant element in the first
+        column: it takes the value 1 if a double NII peak was considered and 0 otherwise. The two other rows are filled with 
+        False only to make the array have the same length in every dimension.
+        """
+        return np.array((
+            np.concatenate((self.get_FWHM_speed("OH1"), np.array([self.get_snr("OH1")]))),
+            np.concatenate((self.get_FWHM_speed("OH2"), np.array([self.get_snr("OH2")]))),
+            np.concatenate((self.get_FWHM_speed("OH3"), np.array([self.get_snr("OH3")]))),
+            np.concatenate((self.get_FWHM_speed("OH4"), np.array([self.get_snr("OH4")]))),
+            np.concatenate((self.get_FWHM_speed("NII"), np.array([self.get_snr("NII")]))),
+            np.concatenate((self.get_FWHM_speed("Ha"), np.array([self.get_snr("Ha")]))),
+            np.array([self.seven_components_fit, False, False])
+        ))
+    
+    def get_amplitude_7_components_array(self):
+        """
+        Get the 7x3 dimensional array representing the amplitude and 7 components fit. This method is used in the worker_fit()
+        function which creates heavy arrays.
+        
+        Returns
+        -------
+        Numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
+        the amplitude value, the second element is the uncertainty and a False, present to make the array have the same shape
+        then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the following order: OH1, OH2,
+        OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes the value 1 if a double
+        NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
+        length in every dimension.
+        """
+        # If a double NII peak was fitted, the mean value between both NII peaks needs to be considered
+        if self.seven_components_fit == 0:
+            return np.array((
+                [self.get_fit_parameters("OH1").amplitude.value, self.get_uncertainties()["OH1"]["amplitude"], False],
+                [self.get_fit_parameters("OH2").amplitude.value, self.get_uncertainties()["OH2"]["amplitude"], False],
+                [self.get_fit_parameters("OH3").amplitude.value, self.get_uncertainties()["OH3"]["amplitude"], False],
+                [self.get_fit_parameters("OH4").amplitude.value, self.get_uncertainties()["OH4"]["amplitude"], False],
+                [self.get_fit_parameters("NII").amplitude.value, self.get_uncertainties()["NII"]["amplitude"], False],
+                [self.get_fit_parameters("Ha").amplitude.value, self.get_uncertainties()["Ha"]["amplitude"], False],
+                [self.seven_components_fit, False, False]   
+            ))
+        else:
+            return np.array((
+                [self.get_fit_parameters("OH1").amplitude.value, self.get_uncertainties()["OH1"]["amplitude"], False],
+                [self.get_fit_parameters("OH2").amplitude.value, self.get_uncertainties()["OH2"]["amplitude"], False],
+                [self.get_fit_parameters("OH3").amplitude.value, self.get_uncertainties()["OH3"]["amplitude"], False],
+                [self.get_fit_parameters("OH4").amplitude.value, self.get_uncertainties()["OH4"]["amplitude"], False],
+                [np.nanmean((self.get_fit_parameters("NII").amplitude.value, self.get_fit_parameters("NII_2").amplitude.value)),
+                 np.nanmean((self.get_uncertainties()["NII"]["amplitude"], self.get_uncertainties()["NII_2"]["amplitude"])), 
+                 False],
+                [self.get_fit_parameters("Ha").amplitude.value, self.get_uncertainties()["Ha"]["amplitude"], False],
+                [self.seven_components_fit, False, False]
+            ))
+        
+    def get_mean_7_components_array(self):
+        """
+        Get the 7x3 dimensional array representing the mean and 7 components fit. This method is used in the worker_fit()
+        function which creates heavy arrays.
+        
+        Returns
+        -------
+        Numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
+        the mean value, the second element is the uncertainty and a False, present to make the array have the same shape
+        then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the following order: OH1, OH2,
+        OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes the value 1 if a double
+        NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
+        length in every dimension.
+        """
+        # If a double NII peak was fitted, the mean value between both NII peaks needs to be considered
+        if self.seven_components_fit == 0:
+            return np.array((
+                [self.get_fit_parameters("OH1").mean.value, self.get_uncertainties()["OH1"]["mean"], False],
+                [self.get_fit_parameters("OH2").mean.value, self.get_uncertainties()["OH2"]["mean"], False],
+                [self.get_fit_parameters("OH3").mean.value, self.get_uncertainties()["OH3"]["mean"], False],
+                [self.get_fit_parameters("OH4").mean.value, self.get_uncertainties()["OH4"]["mean"], False],
+                [self.get_fit_parameters("NII").mean.value, self.get_uncertainties()["NII"]["mean"], False],
+                [self.get_fit_parameters("Ha").mean.value, self.get_uncertainties()["Ha"]["mean"], False],
+                [self.seven_components_fit, False, False]
+            ))
+        else:
+            return np.array((
+                [self.get_fit_parameters("OH1").mean.value, self.get_uncertainties()["OH1"]["mean"], False],
+                [self.get_fit_parameters("OH2").mean.value, self.get_uncertainties()["OH2"]["mean"], False],
+                [self.get_fit_parameters("OH3").mean.value, self.get_uncertainties()["OH3"]["mean"], False],
+                [self.get_fit_parameters("OH4").mean.value, self.get_uncertainties()["OH4"]["mean"], False],
+                [np.nanmean((self.get_fit_parameters("NII").mean.value, self.get_fit_parameters("NII_2").mean.value)), 
+                 np.nanmean((self.get_uncertainties()["NII"]["mean"], self.get_uncertainties()["NII_2"]["mean"])), 
+                 False],
+                [self.get_fit_parameters("Ha").mean.value, self.get_uncertainties()["Ha"]["mean"], False],
+                [self.seven_components_fit, False, False]
+            ))
 
 """ 
 def loop_di_loop(filename, calib=False):
