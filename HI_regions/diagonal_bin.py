@@ -95,8 +95,6 @@ class Data_cube(Fits_file):
         self.object = fits_object
         self.data = fits_object.data
         self.header = fits_object.header
-        # if self.data.shape == (48,1024,1024):
-        #     self.data = self.data[:,:510,:]
 
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
@@ -115,6 +113,7 @@ class Data_cube(Fits_file):
         Data_cube object: binned cube with the same header.
         """
         data = np.copy(self.data)
+        
         # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
         for i in range(nb_pix_bin):
             try:
@@ -138,6 +137,27 @@ class Data_cube(Fits_file):
         # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
         return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
 
+    def bin_cube_diagonally(self, nb_pix_bin: int, angle: float) -> Data_cube:
+        """
+        Bin a Data_cube diagonally. This takes the values of the cube in a diagonal manner.
+        """
+        # The old shape is stored to make the array reshaping easier
+        old_shape = np.array(self.data.shape) / nb_pix_bin
+        rotated_data = self.rotate(angle).bin_cube(nb_pix_bin).rotate(-angle).data
+        new_shape = np.array(rotated_data.shape)
+        # The pixels that need to be cropped are calculated and a slice tuple is made
+        crop_pix = np.floor((new_shape[1:] - old_shape[1:]) / 2)
+        slices = np.array((crop_pix[0]+1, new_shape[1]-crop_pix[0]-1,crop_pix[1]+1,new_shape[2]-crop_pix[1]-1)).astype(int)
+        return Data_cube(fits.PrimaryHDU(rotated_data[:,slices[0]:slices[1],slices[2]:slices[3]], self.bin_header(nb_pix_bin)))
+
+    def rotate(self, angle) -> Data_cube:
+        rotated_data = scipy.ndimage.rotate(self.data.swapaxes(0,2).swapaxes(0,1), angle=angle)
+        return Data_cube(fits.PrimaryHDU(rotated_data.swapaxes(0,1).swapaxes(0,2), self.header))
+    
+    def plot_cube(self):
+        plt.imshow(self.data[13,:,:], origin="lower")
+        plt.show()
+
     def get_header_without_third_dimension(self) -> fits.header:
         """
         Get the adaptation of a Data_cube object's header for a Map object by removing the spectral axis.
@@ -154,5 +174,7 @@ class Data_cube(Fits_file):
         return header
 
 test_data_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
-# test_data_cube.save_as_fits_file("bin.fits")
-test_data_cube.bin_cube(2).save_as_fits_file("bin.fits")
+# test_data_cube.bin_cube(4).rotate(45).rotate(30).plot_cube()
+test_data_cube.bin_cube_diagonally(4, 30).save_as_fits_file("bin.fits")
+# test_data_cube.bin_cube(2).save_as_fits_file("bin.fits")
+
