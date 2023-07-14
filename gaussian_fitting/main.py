@@ -80,18 +80,17 @@ def get_smoothed_instr_f():
 
 def get_NII_flux_map():
     """
-    In this example, the map of the multiplication of the amplitude by the NII FWHM without the instrumental broadening 
-    is obtained.
+    In this example, the map of the multiplication of the amplitude by the channel spacing is obtained. This corresponds to M0 which
+    is equation 2.
     """
     nii_amplitude = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_amplitude.fits"))
-    fwhm_NII = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
-    instr_f  = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits"))
-    flux_map = nii_amplitude * (fwhm_NII**2 - instr_f.bin_map(2)**2)**0.5
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits"))
+    flux_map = nii_amplitude * nii_cube.header["CDELT3"]
     flux_map.save_as_fits_file("gaussian_fitting/maps/computed_data/flux_map.fits")
 
 
 # if __name__ == "__main__":
-#     get_NII_amplitude_map_and_multiplication_map()
+#     get_NII_flux_map()
 
 
 def get_NII_Doppler_shift():
@@ -111,6 +110,15 @@ def get_NII_Doppler_shift():
 
 # get_NII_Doppler_shift()
 
+
+def get_NII_intensity_weighted_centroid_velocity():
+    """
+    In this example, the NII intensity-weighted centroid velocity is obtained. This correspond to M1 which is equation 3.
+    """
+    pass
+
+
+get_NII_intensity_weighted_centroid_velocity()
 
 def get_region_widening_maps(base_map: Map_usnr):
     """
