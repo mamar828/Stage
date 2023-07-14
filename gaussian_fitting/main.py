@@ -80,17 +80,16 @@ def get_smoothed_instr_f():
 
 def get_NII_flux_map():
     """
-    In this example, the map of the multiplication of the amplitude by the channel spacing is obtained. This corresponds to M0 which
+    In this example, the map of the multiplication of the intensity by the channel spacing is obtained. This corresponds to M0 which
     is equation 2.
     """
-    nii_amplitude = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_amplitude.fits"))
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits"))
-    flux_map = nii_amplitude * nii_cube.header["CDELT3"]
+    flux_map = nii_cube.bin_cube(2).get_flux_map()
     flux_map.save_as_fits_file("gaussian_fitting/maps/computed_data/flux_map.fits")
 
 
-# if __name__ == "__main__":
-#     get_NII_flux_map()
+if __name__ == "__main__":
+    get_NII_flux_map()
 
 
 def get_NII_Doppler_shift():

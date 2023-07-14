@@ -431,6 +431,12 @@ def calc_temp(halpha_width_kms, nii_width_kms):
 #     print(i,j)
 
 
-v = [5,3]
-j,c = tuple(v)
-print(j)
+# v = [5,3]
+# j,c = tuple(v)
+# print(j)
+
+a = np.array((1,2,3))
+b = np.tile(a, 2*2).reshape(2,2,3)
+# b = np.resize(a, (2,6))
+print(b)
+print(b.shape)
