@@ -389,21 +389,39 @@ class Data_cube(Fits_file):
     
     def get_flux_map(self) -> Map:
         """
-        Get the flux map which correspond to the multiplication of the intensity by the channel spacing at every channel.
+        Get the flux map which corresponds to the sum on every pixel of the multiplication of the intensity by the channel spacing
+        at every channel. This is equation 2 which gives the moment-0
         
         Returns
         -------
         Map object: map of the flux at every pixel.
         """
+        speed_per_channel = self.header["CDELT3"]
+        flux_at_every_channel = self.data * speed_per_channel
+        total_flux = np.sum(flux_at_every_channel, axis=0)
+        return Map(fits.PrimaryHDU(total_flux, self.get_header_without_third_dimension()))
+    
+    def get_flux_weighted_centroid_velocity(self) -> Map:
+        """
+        Get the intensity-weighted centroid velocity of a data cube by the sum on every pixel of the multiplication of the channel
+        spacing, speed and intensity at every channel. This is equation 3 which gives the moment-1.
+        
+        Returns
+        -------
+        Map object: map of the weighted velocity.
+        """
         speed_channel_1 = self.header["CRVAL3"]
         speed_per_channel = self.header["CDELT3"]
-        # A list is first created which link every channel to their velocity in km/s
+        # A list is first created which links every channel to their velocity in km/s
         speed_at_every_channel = np.array([speed_channel_1 + i*speed_per_channel for i in range(48)])
-        # The m_s variable corresponds to the dimensions of the data cube without the spectral axis
+        # The m_s variable corresponds the data cube's dimensions without the spectral axis
         m_s = self.data.shape[1:]
-        # The multiplication array is a 3D array with the corresponding speed at every channel
+        # The multiplication array is a 3D array with the speed corresponding to every channel
         multiplication_array = np.tile(speed_at_every_channel, m_s[0]*m_s[1]).reshape(m_s[1],m_s[0],48).swapaxes(0,2)
-        return Map(fits.PrimaryHDU(multiplication_array * np.copy(self.data), self.get_header_without_third_dimension()))
+        numerator_data = np.sum(self.data * multiplication_array * speed_per_channel, axis=0)
+        numerator = Map(fits.PrimaryHDU(numerator_data, self.get_header_without_third_dimension()))
+        denominator = self.get_flux_map()
+        return numerator / denominator
 
 
 

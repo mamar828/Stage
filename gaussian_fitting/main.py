@@ -88,8 +88,7 @@ def get_NII_flux_map():
     flux_map.save_as_fits_file("gaussian_fitting/maps/computed_data/flux_map.fits")
 
 
-if __name__ == "__main__":
-    get_NII_flux_map()
+# get_NII_flux_map()
 
 
 def get_NII_Doppler_shift():
@@ -114,10 +113,13 @@ def get_NII_intensity_weighted_centroid_velocity():
     """
     In this example, the NII intensity-weighted centroid velocity is obtained. This correspond to M1 which is equation 3.
     """
-    pass
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits"))
+    intensity_weighted_centroid_velocity = nii_cube.bin_cube(2).get_flux_weighted_centroid_velocity()
+    intensity_weighted_centroid_velocity.save_as_fits_file("gaussian_fitting/maps/computed_data/intensity_weighted_velocity.fits")
 
 
 get_NII_intensity_weighted_centroid_velocity()
+
 
 def get_region_widening_maps(base_map: Map_usnr):
     """
