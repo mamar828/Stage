@@ -557,7 +557,7 @@ class Spectrum:
         NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
         length in every dimension.
         """
-        # If a double NII peak was fitted, the mean value between both NII peaks needs to be considered
+        # If a double NII peak was considered, the mean value between both NII peaks needs to be considered
         if self.seven_components_fit == 0:
             return np.array((
                 [self.get_fit_parameters("OH1").amplitude.value, self.get_uncertainties()["OH1"]["amplitude"], False],
@@ -595,7 +595,7 @@ class Spectrum:
         NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
         length in every dimension.
         """
-        # If a double NII peak was fitted, the mean value between both NII peaks needs to be considered
+        # If a double NII peak was considered, the mean value between both NII peaks needs to be considered
         if self.seven_components_fit == 0:
             return np.array((
                 [self.get_fit_parameters("OH1").mean.value, self.get_uncertainties()["OH1"]["mean"], False],
@@ -621,7 +621,7 @@ class Spectrum:
 
 """ 
 def loop_di_loop(filename, calib=False):
-    x = 277
+    x = 300
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter), 1013):
         print(f"\n----------------\ncoords: {x,y}")
@@ -642,6 +642,7 @@ def loop_di_loop(filename, calib=False):
             except:
                 pass
         # spectrum.plot(coords=(x,y))
+        # print(f"M0: {np.sum(spectrum.get_fit_parameters('NII')(np.linspace(1,48,48)*u.um)*header['CDELT3']*u.um)}")
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))

@@ -389,8 +389,8 @@ class Data_cube(Fits_file):
     
     def get_flux_map(self) -> Map:
         """
-        Get the flux map which corresponds to the sum on every pixel of the multiplication of the intensity by the channel spacing
-        at every channel. This is equation 2 which gives the moment-0
+        Get the flux map which corresponds to the sum on every pixel of the multiplication of the NII gaussian's intensity at every
+        channel by the channel spacing. This is equation 2 which gives M0.
         
         Returns
         -------
@@ -551,6 +551,23 @@ class Map(Fits_file):
 
     def copy(self):
         return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()))
+    
+    def add_new_axis(self, new_axis_shape: int) -> Map:
+        """
+        Reshape a Map object by adding one dimension and filling this axis with preexisting data.
+
+        Arguments
+        ---------
+        new_axis_shape: int. Desired shape of the new axis that will be appended.
+
+        Returns
+        -------
+        Map object: new map with its augmented dimension.
+        """
+        # The m_s variable corresponds the map's dimensions
+        m_s = self.data.shape
+        new_data = np.repeat(self.data, new_axis_shape).reshape(*reversed(m_s), new_axis_shape)
+        return Map(fits.PrimaryHDU(new_data, self.header))
 
     def plot_map(self, bounds: tuple=None):
         """
@@ -966,6 +983,22 @@ class Map_u(Map):
         
     def __getitem__(self, index):
         return Map(self.object[index])
+
+    def add_new_axis(self, new_axis_shape: int) -> Map_u:
+        """
+        Reshape a Map_u object by adding one dimension and filling this axis with preexisting data.
+
+        Arguments
+        ---------
+        new_axis_shape: int. Desired shape of the new axis that will be appended.
+
+        Returns
+        -------
+        Map_u object: new map with its augmented dimension.
+        """
+        # The m_s variable corresponds the map's dimensions
+        data_map, uncertainty_map = self
+        return Map_u.from_Map_objects(data_map.add_new_axis(new_axis_shape), uncertainty_map.add_new_axis(new_axis_shape))
 
     def save_as_fits_file(self, filename: str):
         """

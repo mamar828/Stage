@@ -115,3 +115,5 @@ envoyer nouvelles stats et carte
 
 Extract multiple things
 seven_components_fit inclusion
+
+

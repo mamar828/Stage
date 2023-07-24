@@ -26,7 +26,7 @@ def get_maps():
     # Note that the extract argument can have fewer elements if not all Maps are desired
     fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit_all(extract=["FWHM", "mean", "amplitude"])
     # All fwhm_maps are saved
-    fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data_test")
+    fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
     # Only the NII and Ha maps for mean and amplitude are saved
     mean_maps["NII_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/NII_mean.fits")
     mean_maps["Ha_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/Ha_mean.fits")
@@ -84,11 +84,73 @@ def get_NII_flux_map():
     is equation 2.
     """
     nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits"))
+    speed_per_channel = nii_cube.header["CDELT3"]
+    speed_channel_1 = nii_cube.header["CRVAL3"]
+    spectral_length = nii_cube.header["FP_I_A"]
+    wavelength_channel_1 = nii_cube.header["FP_B_L"]
+    number_of_channels = nii_cube.header["NAXIS3"]
+    # The NII gaussian first needs to be reconstructed
+    amplitude = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_amplitude.fits"))
+    mean = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits"))
+    fwhm = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
+    angstroms_center = mean * spectral_length / number_of_channels + wavelength_channel_1
+    fwhm_channels = (fwhm*1000 / scipy.constants.c * angstroms_center) / spectral_length * number_of_channels
+    sigma = fwhm_channels / (2*np.sqrt(2*np.log(2)))
+
+    # To calculate the NII gaussian's intensity, the gaussian function equation may be used but all arrays must have the same shape
+    a = amplitude.add_new_axis(48)
+    x0 = mean.add_new_axis(48)
+    s = sigma.add_new_axis(48)
+
+    speed_at_every_channel = np.linspace(1, 48, 48)
+    speed_at_every_channel = np.tile(speed_at_every_channel, 512*512).reshape(512,512,48)
+    intensity = a * np.e**(-(speed_at_every_channel - x0)**2 / (2 * s**2))
+
+    flux_data = np.nansum(intensity.data, 2)
+    flux_uncertainty = np.nansum(intensity.uncertainties, 2)
+    flux = Map_u(fits.HDUList([fits.PrimaryHDU(flux_data, amplitude.header),
+                               fits.ImageHDU(flux_uncertainty, amplitude.header)])) * speed_per_channel
+    flux.save_as_fits_file("gaussian_fitting/maps/computed_data/flux_map.fits")
+    # # new = Map_u(fits.HDUList([fits.PrimaryHDU(np.array([[1,2,3],[4,5,6],[7,8,9]])),
+    # #                           fits.PrimaryHDU(np.array([[11,12,13],[14,15,16],[17,18,19]]))])).add_new_axis(3)
+    # # print(new.uncertainties)
+    # raise
+
+
+    # # The channel sampling is created
+    # # The m_s variable corresponds the data cube's dimensions without the spectral axis
+    # m_s = self.data.shape[1:]
+    # # The multiplication array is a 3D array with the speed corresponding to every channel
+    # multiplication_array = np.tile(speed_at_every_channel, m_s[0]*m_s[1]).reshape(m_s[1],m_s[0],48).swapaxes(0,2)
+
+    # speed_at_every_channel = np.linspace(speed_channel_1, speed_channel_1 + speed_per_channel*47, 48)
+    # # The NII gaussian's intensity at every channel is computed
+    # intensity = a * np.e**(-(speed_at_every_channel - x0)**2 / (2 * s**2))
+    # print(a.shape, intensity.shape)
+
+    # raise
+    # flux_at_every_channel = self.data * speed_per_channel
+    # total_flux = np.sum(flux_at_every_channel, axis=0)
+    # return Map(fits.PrimaryHDU(total_flux, self.get_header_without_third_dimension()))
+
+    # flux_map = nii_cube.bin_cube(2).get_flux_map()
+    # flux_map.save_as_fits_file("gaussian_fitting/maps/computed_data/flux_map.fits")
+
+
+get_NII_flux_map()
+
+
+def get_NII_flux_map_old():
+    """
+    In this example, the map of the multiplication of the intensity by the channel spacing is obtained. This corresponds to M0 which
+    is equation 2.
+    """
+    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits"))
     flux_map = nii_cube.bin_cube(2).get_flux_map()
     flux_map.save_as_fits_file("gaussian_fitting/maps/computed_data/flux_map.fits")
 
 
-# get_NII_flux_map()
+# get_NII_flux_map_old()
 
 
 def get_NII_Doppler_shift():
