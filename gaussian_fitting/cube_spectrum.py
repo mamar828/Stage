@@ -619,7 +619,7 @@ class Spectrum:
                 [self.seven_components_fit, False, False]
             ))
 
-""" 
+
 def loop_di_loop(filename, calib=False):
     x = 300
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
@@ -642,11 +642,13 @@ def loop_di_loop(filename, calib=False):
             except:
                 pass
         # spectrum.plot(coords=(x,y))
-        # print(f"M0: {np.sum(spectrum.get_fit_parameters('NII')(np.linspace(1,48,48)*u.um)*header['CDELT3']*u.um)}")
+        # M0 = np.sum(spectrum.get_fit_parameters('NII')(np.linspace(1,48,48)*u.um)*header['CDELT3']*u.um)
+        # print(f"M0: {M0}")
+        # M1 = np.sum(spectrum.get_fit_parameters('NII')(np.linspace(1,48,48)*u.um)*header['CDELT3']*u.um*np.linspace(header["CRVAL3"], header["CRVAL3"]+header["CDELT3"]*47, 48)) / M0
+        # print(f"M1: {M1}")
         spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()
 loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
 # loop_di_loop("gaussian_fitting/leo/OIII/reference_cube_with_header.fits", calib=True)
- """
