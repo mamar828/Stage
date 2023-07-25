@@ -393,8 +393,8 @@ plt.show()
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-def calc_temp(halpha_width_kms, nii_width_kms):
-    return 4.73*10**4 * ((halpha_width_kms * 1000 * 6562.78 / (scipy.constants.c * (2*np.sqrt(2*np.log(2)))))**2 - (nii_width_kms * 1000 * 6583.41 / (scipy.constants.c * (2*np.sqrt(2*np.log(2)))))**2)
+# def calc_temp(halpha_width_kms, nii_width_kms):
+#     return 4.73*10**4 * ((halpha_width_kms * 1000 * 6562.78 / (scipy.constants.c * (2*np.sqrt(2*np.log(2)))))**2 - (nii_width_kms * 1000 * 6583.41 / (scipy.constants.c * (2*np.sqrt(2*np.log(2)))))**2)
 
 # print(calc_temp(48, 32))
 
@@ -435,8 +435,21 @@ def calc_temp(halpha_width_kms, nii_width_kms):
 # j,c = tuple(v)
 # print(j)
 
-a = np.array((1,2,3))
-b = np.tile(a, 2*2).reshape(2,2,3)
+# a = np.array((1,2,3))
+# b = np.tile(a, 2*2).reshape(2,2,3)
 # b = np.resize(a, (2,6))
-print(b)
-print(b.shape)
+# print(b)
+# print(b.shape)
+
+# import time
+# lol=0
+# start = time.time()
+# for i in range(6734025):
+#     lol += 1
+#     print(".", end="", flush=True)
+# stop = time.time()
+# print(lol, stop-start)
+
+# a = {1:3}
+# a.update()
+# print(a)

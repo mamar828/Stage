@@ -619,7 +619,7 @@ class Spectrum:
                 [self.seven_components_fit, False, False]
             ))
 
-
+""" 
 def loop_di_loop(filename, calib=False):
     x = 300
     iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
@@ -652,3 +652,4 @@ def loop_di_loop(filename, calib=False):
         file.close()
 loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
 # loop_di_loop("gaussian_fitting/leo/OIII/reference_cube_with_header.fits", calib=True)
+ """

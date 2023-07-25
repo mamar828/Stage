@@ -233,6 +233,6 @@ test_data_cube = Data_cube(fits.open("HI_regions/LOOP4_cube_bin2.fits")[0])
 # test_data_cube.bin_cube_diagonally(4, 30).save_as_fits_file("bin.fits")
 # test_data_cube.bin_cube(2).save_as_fits_file("bin.fits")
 
-inverted_data_cube = test_data_cube.switch_axes({"x": "v", "y": "b", "z": "l"})
-inverted_data_cube.save_as_fits_file("test_invert.fits")
+inverted_data_cube = test_data_cube.switch_axes({"x": "v", "y": "l", "z": "b"})
+inverted_data_cube.save_as_fits_file("vlb.fits")
 # test_data_cube.save_as_fits_file("test.fits")

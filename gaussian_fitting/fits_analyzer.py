@@ -832,7 +832,47 @@ class Map(Fits_file):
         plt.title(title)
         plt.show()
 
+    def plot_structure_function(self):
+        non_nan_indices = np.where(~np.isnan(self.data))
+        # Determine the minimum and maximum indices along each axis
+        min_row, max_row = np.min(non_nan_indices[0]), np.max(non_nan_indices[0])
+        min_col, max_col = np.min(non_nan_indices[1]), np.max(non_nan_indices[1])
 
+        # Extract the subarray containing non-NaN elements
+        cropped_array = self.data[min_row:max_row + 1, min_col:max_col + 1]
+        variance = np.nanvar(cropped_array)
+        x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
+        xx, yy = np.meshgrid(x, y)
+        subtraction_and_distance = []
+        for y in range(cropped_array.shape[0]):
+            if np.nansum(cropped_array[y,:]) == 0.0:
+                continue
+            for x in range(cropped_array.shape[1]):
+                if cropped_array[y, x] != np.NAN:
+                    subtraction = cropped_array[y, x] - cropped_array
+                    dists = np.round(np.sqrt((x-xx)**2 + (y-yy)**2), 5)
+                    subtraction_and_distance.append(np.stack((subtraction, dists), axis=2))
+            print(y)
+        print("finished")
+        subtraction_and_distance_array = np.array(subtraction_and_distance)
+        print("success")
+        unique_distances, indices = np.unique(subtraction_and_distance_array[:,:,:,1], return_inverse=True)
+        structure_func = []
+        for i, unique_distance in enumerate(unique_distances):
+            flat_values = subtraction_and_distance_array[:,:,:,0].flatten()
+            structure_func.append([unique_distance, np.nanmean(flat_values[indices == i])])
+            print(".", end="")
+        structure_func_array = np.array(structure_func)
+        x_values = structure_func_array[:,0]
+        y_values = structure_func_array[:,1] / variance
+        plt.plot(x_values, y_values)
+        plt.show()
+
+
+# ([[[[1,2],[2,2]],[[3,3],[3,2]]],[[[4,4],[3,4]],[[2,3],[5,2]]]])
+# np.array([[11,2],[5,3],[7,4]])
+a = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+a.plot_structure_function()
 
 class Map_u(Map):
     """
