@@ -832,20 +832,35 @@ class Map(Fits_file):
         plt.title(title)
         plt.show()
 
-    def get_structure_function_array(self):
+    def get_structure_function_array(self) -> np.ndarray:
+        """ 
+        Get the array that represents the structure function.
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
+        state with the following phrasing:
+        if __name__ == "__main__":
+        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
+        
+        Returns
+        -------
+        np array: two-dimensional array that contains the function structure (second element on last axis) corresponding to
+        the distance between the pixels (first element on last axis).
+        """
+        # The decimal precision int specifies how many decimals will be kept when computing pixel differences
         decimal_precision = 3
-        non_nan_indices = np.where(~np.isnan(self.data))
 
+        # Crop the map's nan values to accelerate the following processes
+        non_nan_indices = np.where(~np.isnan(self.data))
         # Determine the minimum and maximum indices along each axis
         min_row, max_row = np.min(non_nan_indices[0]), np.max(non_nan_indices[0])
         min_col, max_col = np.min(non_nan_indices[1]), np.max(non_nan_indices[1])
-
-        # Extract the subarray containing non-NaN elements
+        # Extract the subarray that has been trimmed from the nan ocean
         cropped_array = self.data[min_row:max_row + 1, min_col:max_col + 1]
-        variance = np.nanvar(cropped_array)
+
+        # Create arrays that will be useful for computing distances
         x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
         xx, yy = np.meshgrid(x, y)
         dists_and_subtraction = []
+        
         for y in range(cropped_array.shape[0]):
             if np.nansum(cropped_array[y,:]) == 0.0:
                 continue
@@ -853,94 +868,112 @@ class Map(Fits_file):
                 if not np.isnan(cropped_array[y, x]):
                     subtraction = cropped_array[y, x] - cropped_array
                     dists = np.round(np.sqrt((x-xx)**2 + (y-yy)**2), decimal_precision)
+                    # The subtraction's result is linked to the pixels' distance
                     dists_and_subtraction.append(np.stack((dists, subtraction), axis=2))
-        print("map extraction complete")
-        # dists_and_subtraction = dists_and_subtraction[85:88]
+        
         pool = multiprocessing.Pool()
-        print("number of processes:", pool._processes)
+        print("Number of processes:", pool._processes)
         dists_and_means = []
         start = time.time()
-        dists_and_means.append(pool.map(worker_calculate_means_of_pixel, list(enumerate(dists_and_subtraction))))
-        print("\npool 1 done", time.time() - start, "s")
+        # Calculate the mean subtraction per distance of every pixel
+        dists_and_means.append(pool.map(worker_calculate_means_of_pixel, dists_and_subtraction))
 
-        group_size = 10
         total_dists_and_means = []
+        # Convert every array to a dict
         total_dists_and_means.append(pool.map(worker_convert_to_dict, dists_and_means[0]))
         total_dists_and_means = total_dists_and_means[0]
-        print("pool 2 done")
 
+        group_size = 10
         total_dists_and_means_1 = []
+        # Calculate the mean subtraction per distance of groups of [group_size] pixels, in this case 10
         total_dists_and_means_1.append(pool.map(worker_regroup_pixels,
                                                 np.array_split(total_dists_and_means, len(total_dists_and_means)//group_size)))
         total_dists_and_means_1 = total_dists_and_means_1[0]
-        print("pool 3 done")
 
         total_dists_and_means_2 = []
+        # From the already grouped pixels, regroup another [group_size] arrays
         total_dists_and_means_2.append(pool.map(worker_regroup_pixels,
                                                 np.array_split(total_dists_and_means_1, len(total_dists_and_means_1)//group_size)))
         total_dists_and_means_2 = total_dists_and_means_2[0]
-        print("pool 4 done")
         pool.close()
 
+        # Group all the remaining arrays
         total_dists_and_means_3 = worker_regroup_pixels(total_dists_and_means_2)
-        
+        mean_values = np.array([np.nanmean(np.abs(array)) for array in list(total_dists_and_means_3.values())])
+
         print("all calculations complete", time.time() - start, "s")
+
+        # Extract the x values (distances) and y values (subtraction means divided by the variance)
         x_values = np.array(list(total_dists_and_means_3.keys()))
-        y_values = np.array(list(total_dists_and_means_3.values())) / variance
+        y_values = mean_values / np.nanvar(cropped_array)
         return np.stack((x_values, y_values), axis=1)
-        
-        # plt.plot(x_values, y_values)
-        # plt.show()
-
-        
-        # print("1")
-        # dists_and_subtraction_array = np.array(dists_and_subtraction, dtype=np.float16)
-        # print("2")
-        # unique_distances, indices = np.unique(dists_and_subtraction_array[:,:,:,1], return_inverse=True)
-        # print("3")
-        # structure_func = []
-        # print("4")
-        # for i, unique_distance in enumerate(unique_distances):
-        #     flat_values = dists_and_subtraction_array[:,:,:,0].flatten()
-        #     structure_func.append([unique_distance, np.nanmean(flat_values[indices == i])])
-        #     print(".", end="")
-        # structure_func_array = np.array(structure_func)
-        # x_values = structure_func_array[:,0]
-        # y_values = structure_func_array[:,1] / variance
-        # plt.plot(x_values, y_values)
-        # plt.show()
 
 
-def worker_calculate_means_of_pixel(args):
-    number, pixel_array = args
-    if not np.isnan(pixel_array[:,:,1]).all():
-        unique_distances, indices = np.unique(pixel_array[:,:,0], return_inverse=True)
-        dist_and_mean = []
-        for i, unique_distance in enumerate(unique_distances):
-            flat_values = pixel_array[:,:,1].flatten()
-            dist_and_mean.append([unique_distance, np.nanmean(flat_values[indices == i])])
-        print("X", end="", flush=True)
-        return np.array(dist_and_mean)
+
+def worker_calculate_means_of_pixel(pixel_array: np.ndarray) -> np.ndarray:
+    """
+    Calculate the mean values of a certain array depending on the distance between pixels from which the subtractions were
+    calculated. Prints a "." everytime an array has been computed.
+    
+    Arguments
+    ---------
+    pixel_array: numpy array. Array whose mean values must be calculated.
+    
+    Returns
+    -------
+    numpy array: two-dimensional array. On every row, the first element is the distance between pixels and the second element
+    is the mean value of the data subtraction from all pixels that are separated by that same distance."""
+    # The unique distances and their positions in the array are extracted
+    unique_distances, indices = np.unique(pixel_array[:,:,0], return_inverse=True)
+    dist_and_mean = []
+    for i, unique_distance in enumerate(unique_distances):
+        # Indices refer to the flattened array
+        flat_values = pixel_array[:,:,1].flatten()
+        dist_and_mean.append([unique_distance, np.nanmean(flat_values[indices == i])])
     print(".", end="", flush=True)
+    return np.array(dist_and_mean)
 
-def worker_convert_to_dict(array):
-    dicti = {}
-    if array is None:
-        return None
-    for key, value in array:
-        if not np.isnan(value):
-            dicti[key] = value
-    return dicti
+def worker_convert_to_dict(array: np.ndarray) -> dict:
+    """
+    Convert a two-dimensional numpy array to a dictionary.
+    
+    Arguments
+    ---------
+    array: numpy array. Two dimensional array in which every row has two elements which will become key and value respectively.
+    
+    Returns
+    -------
+    dict: array converted to a dictionary.
+    """
+    if array is not None:
+        dicti = {}
+        for key, value in array:
+            if not np.isnan(value):
+                dicti[key] = value
+        return dicti
 
-def worker_regroup_pixels(pixel_list):
+def worker_regroup_pixels(pixel_list: list) -> dict:
+    """
+    Regroup the dictionary values that are linked to the same key.
+    
+    Arguments
+    ---------
+    pixel_list: list of dicts. List of dictionaries in which all the values attributed to the same key will be regrouped.
+    
+    Returns
+    -------
+    dict: Single dictionary containing the data of all dictionaries in the pixel_list list of dicts.
+    """
     pixel_list_means = {}
     for pixel in pixel_list:
         if pixel is not None:
             for key, value in pixel.items():
                 if key is not None and value is not None:
                     if key in pixel_list_means:
-                        pixel_list_means[key] = np.nanmean(np.array((pixel_list_means[key], value)))
+                        # If the key is already present, the new value is appended to the global dict
+                        pixel_list_means[key] = np.append(pixel_list_means[key], value)
                     else:
+                        # If not, the key is simply added
                         pixel_list_means[key] = np.array(value)
     return pixel_list_means
 
