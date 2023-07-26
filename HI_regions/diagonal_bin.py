@@ -122,8 +122,6 @@ class Data_cube(Fits_file):
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
         Bin a specific cube by the amount of pixels given for every channel.
-        Note that this works with every square cube, even though the number of pixels to bin cannot fully divide the cube's size. In
-        the case of a rectangular cube, it cannot always find a suitable reshape size.
 
         Arguments
         ---------
@@ -133,31 +131,21 @@ class Data_cube(Fits_file):
 
         Returns
         -------
-        Data_cube object: binned cube with the same header.
+        Data_cube object: binned cube with a binned header.
         """
-        data = np.copy(self.data)
+        # Calculate the pixels that must be cropped to permit the bin
+        cropped_pixels = self.data.shape[1]%nb_pix_bin, self.data.shape[2]%nb_pix_bin
+        data = np.copy(self.data)[:, :self.data.shape[1] - cropped_pixels[0], :self.data.shape[2] - cropped_pixels[1]]
+        if cropped_pixels[0] != 0:
+            print(f"Cube to bin will be horizontally cut by {cropped_pixels[0]} pixel(s).")
+        if cropped_pixels[1] != 0:
+            print(f"Cube to bin will be vertically cut by {cropped_pixels[1]} pixel(s).")
+
+        # Create a 5 dimensional array that regroups, for every channel, every group of pixels (2 times the nb_pix_bin)
+        # into a new grid whose size has been divided by the number of pixels to bin
+        bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
+                                                int(data.shape[2]/nb_pix_bin), nb_pix_bin)
         
-        # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
-        for i in range(nb_pix_bin):
-            try:
-                # Create a 5 dimensional array that regroups, for every channel, every group of pixels (2 times the nb_pix_bin)
-                # into a new grid whose size has been divided by the number of pixels to bin
-                bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
-                                                        int(data.shape[2]/nb_pix_bin), nb_pix_bin)
-                break
-            except ValueError:
-                # This error occurs if the nb_pix_bin integer cannot fully divide the cube's size
-                current_shape = data.shape
-                if current_shape[1] > current_shape[2]:
-                    print(f"Cube to bin will be cut horizontally by {i+1} pixel(s).")
-                    data = data[:,:-1,:]
-                elif current_shape[1] < current_shape[2]:
-                    print(f"Cube to bin will be cut vertically by {i+1} pixel(s).")
-                    data = data[:,:,:-1]
-                else:
-                    print(f"Cube to bin will be cut in both axes by {i+1} pixel(s).")
-                    data = data[:,:-1,:-1]
-        # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
         return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
 
     def rotate(self, angle) -> Data_cube:
@@ -228,11 +216,12 @@ class Data_cube(Fits_file):
 
 
 
-test_data_cube = Data_cube(fits.open("HI_regions/LOOP4_cube_bin2.fits")[0])
-# test_data_cube.bin_cube(4).rotate(45).rotate(30).plot_cube()
-# test_data_cube.bin_cube_diagonally(4, 30).save_as_fits_file("bin.fits")
-# test_data_cube.bin_cube(2).save_as_fits_file("bin.fits")
+data_cube = Data_cube(fits.open("HI_regions/LOOP4_cube.fits")[0])
+data_cube.bin_cube(2).save_as_fits_file("HI_regions/LOOP4_cube_bin2_wcs.fits")
+# data_cube.bin_cube(4).rotate(45).rotate(30).plot_cube()
+# data_cube.bin_cube_diagonally(4, 30).save_as_fits_file("bin.fits")
+# data_cube.bin_cube(2).save_as_fits_file("bin.fits")
 
-inverted_data_cube = test_data_cube.switch_axes({"x": "v", "y": "l", "z": "b"})
-inverted_data_cube.save_as_fits_file("vlb.fits")
-# test_data_cube.save_as_fits_file("test.fits")
+# inverted_data_cube = data_cube.switch_axes({"x": "v", "y": "l", "z": "b"})
+# inverted_data_cube.save_as_fits_file("vlb.fits")
+# data_cube.save_as_fits_file("test.fits")
