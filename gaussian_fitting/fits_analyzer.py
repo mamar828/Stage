@@ -832,8 +832,10 @@ class Map(Fits_file):
         plt.title(title)
         plt.show()
 
-    def plot_structure_function(self):
+    def get_structure_function_array(self):
+        decimal_precision = 3
         non_nan_indices = np.where(~np.isnan(self.data))
+
         # Determine the minimum and maximum indices along each axis
         min_row, max_row = np.min(non_nan_indices[0]), np.max(non_nan_indices[0])
         min_col, max_col = np.min(non_nan_indices[1]), np.max(non_nan_indices[1])
@@ -843,36 +845,112 @@ class Map(Fits_file):
         variance = np.nanvar(cropped_array)
         x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
         xx, yy = np.meshgrid(x, y)
-        subtraction_and_distance = []
+        dists_and_subtraction = []
         for y in range(cropped_array.shape[0]):
             if np.nansum(cropped_array[y,:]) == 0.0:
                 continue
             for x in range(cropped_array.shape[1]):
-                if cropped_array[y, x] != np.NAN:
+                if not np.isnan(cropped_array[y, x]):
                     subtraction = cropped_array[y, x] - cropped_array
-                    dists = np.round(np.sqrt((x-xx)**2 + (y-yy)**2), 5)
-                    subtraction_and_distance.append(np.stack((subtraction, dists), axis=2))
-            print(y)
-        print("finished")
-        subtraction_and_distance_array = np.array(subtraction_and_distance)
-        print("success")
-        unique_distances, indices = np.unique(subtraction_and_distance_array[:,:,:,1], return_inverse=True)
-        structure_func = []
+                    dists = np.round(np.sqrt((x-xx)**2 + (y-yy)**2), decimal_precision)
+                    dists_and_subtraction.append(np.stack((dists, subtraction), axis=2))
+        print("map extraction complete")
+        # dists_and_subtraction = dists_and_subtraction[85:88]
+        pool = multiprocessing.Pool()
+        print("number of processes:", pool._processes)
+        dists_and_means = []
+        start = time.time()
+        dists_and_means.append(pool.map(worker_calculate_means_of_pixel, list(enumerate(dists_and_subtraction))))
+        print("\npool 1 done", time.time() - start, "s")
+
+        group_size = 10
+        total_dists_and_means = []
+        total_dists_and_means.append(pool.map(worker_convert_to_dict, dists_and_means[0]))
+        total_dists_and_means = total_dists_and_means[0]
+        print("pool 2 done")
+
+        total_dists_and_means_1 = []
+        total_dists_and_means_1.append(pool.map(worker_regroup_pixels,
+                                                np.array_split(total_dists_and_means, len(total_dists_and_means)//group_size)))
+        total_dists_and_means_1 = total_dists_and_means_1[0]
+        print("pool 3 done")
+
+        total_dists_and_means_2 = []
+        total_dists_and_means_2.append(pool.map(worker_regroup_pixels,
+                                                np.array_split(total_dists_and_means_1, len(total_dists_and_means_1)//group_size)))
+        total_dists_and_means_2 = total_dists_and_means_2[0]
+        print("pool 4 done")
+        pool.close()
+
+        total_dists_and_means_3 = worker_regroup_pixels(total_dists_and_means_2)
+        
+        print("all calculations complete", time.time() - start, "s")
+        x_values = np.array(list(total_dists_and_means_3.keys()))
+        y_values = np.array(list(total_dists_and_means_3.values())) / variance
+        return np.stack((x_values, y_values), axis=1)
+        
+        # plt.plot(x_values, y_values)
+        # plt.show()
+
+        
+        # print("1")
+        # dists_and_subtraction_array = np.array(dists_and_subtraction, dtype=np.float16)
+        # print("2")
+        # unique_distances, indices = np.unique(dists_and_subtraction_array[:,:,:,1], return_inverse=True)
+        # print("3")
+        # structure_func = []
+        # print("4")
+        # for i, unique_distance in enumerate(unique_distances):
+        #     flat_values = dists_and_subtraction_array[:,:,:,0].flatten()
+        #     structure_func.append([unique_distance, np.nanmean(flat_values[indices == i])])
+        #     print(".", end="")
+        # structure_func_array = np.array(structure_func)
+        # x_values = structure_func_array[:,0]
+        # y_values = structure_func_array[:,1] / variance
+        # plt.plot(x_values, y_values)
+        # plt.show()
+
+
+def worker_calculate_means_of_pixel(args):
+    number, pixel_array = args
+    if not np.isnan(pixel_array[:,:,1]).all():
+        unique_distances, indices = np.unique(pixel_array[:,:,0], return_inverse=True)
+        dist_and_mean = []
         for i, unique_distance in enumerate(unique_distances):
-            flat_values = subtraction_and_distance_array[:,:,:,0].flatten()
-            structure_func.append([unique_distance, np.nanmean(flat_values[indices == i])])
-            print(".", end="")
-        structure_func_array = np.array(structure_func)
-        x_values = structure_func_array[:,0]
-        y_values = structure_func_array[:,1] / variance
-        plt.plot(x_values, y_values)
-        plt.show()
+            flat_values = pixel_array[:,:,1].flatten()
+            dist_and_mean.append([unique_distance, np.nanmean(flat_values[indices == i])])
+        print("X", end="", flush=True)
+        return np.array(dist_and_mean)
+    print(".", end="", flush=True)
+
+def worker_convert_to_dict(array):
+    dicti = {}
+    if array is None:
+        return None
+    for key, value in array:
+        if not np.isnan(value):
+            dicti[key] = value
+    return dicti
+
+def worker_regroup_pixels(pixel_list):
+    pixel_list_means = {}
+    for pixel in pixel_list:
+        if pixel is not None:
+            for key, value in pixel.items():
+                if key is not None and value is not None:
+                    if key in pixel_list_means:
+                        pixel_list_means[key] = np.nanmean(np.array((pixel_list_means[key], value)))
+                    else:
+                        pixel_list_means[key] = np.array(value)
+    return pixel_list_means
+
+
+
 
 
 # ([[[[1,2],[2,2]],[[3,3],[3,2]]],[[[4,4],[3,4]],[[2,3],[5,2]]]])
 # np.array([[11,2],[5,3],[7,4]])
-a = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
-a.plot_structure_function()
+
 
 class Map_u(Map):
     """
