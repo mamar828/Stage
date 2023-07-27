@@ -22,11 +22,12 @@ class Fits_file():
     Encapsulate the methods specific to .fits files that can be used both in data cube and map analysis.
     """
 
-    def bin_header(self, nb_pix_bin) -> fits.header:
+    def bin_header(self, nb_pix_bin: int) -> fits.header:
         """
         Bin the header to make the WCS match with a binned map.
-        Note that this method only works if the binned map has not been cropped in the binning process. Otherwise, the WCS will
-        not match.
+        Note that this method is more advanced than the one present in gaussian_fitting/fits_analyzer as this one is able
+        to correct for the microscopic distortions that affect the WCS. These distortions are better perceived when reducing
+        considerably the map's size.
 
         Arguments
         ---------
@@ -37,15 +38,13 @@ class Fits_file():
         astropy.io.fits.header.Header: binned header.
         """
         header_copy = self.header.copy()
-        # The try statement makes it so calibration maps/cubes can also be binned
+        # The try statement makes it so calibration maps/cubes, which don't have WCS, can also be binned
         try:
             header_copy["CDELT1"] *= nb_pix_bin
             header_copy["CDELT2"] *= nb_pix_bin
-            header_copy["CRPIX1"] /= nb_pix_bin
-            header_copy["CRPIX2"] /= nb_pix_bin
-            # A small shift has been empirically corrected
-            header_copy["CRPIX1"] += 1.4/3
-            header_copy["CRPIX2"] += 1.4/3
+            # The CRPIX values correspond to the pixel's center and this must be accounted for when binning
+            header_copy["CRPIX1"] = (self.header["CRPIX1"] - 0.5) / nb_pix_bin + 0.5
+            header_copy["CRPIX2"] = (self.header["CRPIX2"] - 0.5) / nb_pix_bin + 0.5
         except:
             pass
         return header_copy
@@ -137,9 +136,9 @@ class Data_cube(Fits_file):
         cropped_pixels = self.data.shape[1]%nb_pix_bin, self.data.shape[2]%nb_pix_bin
         data = np.copy(self.data)[:, :self.data.shape[1] - cropped_pixels[0], :self.data.shape[2] - cropped_pixels[1]]
         if cropped_pixels[0] != 0:
-            print(f"Cube to bin will be horizontally cut by {cropped_pixels[0]} pixel(s).")
+            print(f"Cube to bin will be cut horizontally by {cropped_pixels[0]} pixel(s).")
         if cropped_pixels[1] != 0:
-            print(f"Cube to bin will be vertically cut by {cropped_pixels[1]} pixel(s).")
+            print(f"Cube to bin will be cut vertically by {cropped_pixels[1]} pixel(s).")
 
         # Create a 5 dimensional array that regroups, for every channel, every group of pixels (2 times the nb_pix_bin)
         # into a new grid whose size has been divided by the number of pixels to bin
@@ -164,7 +163,7 @@ class Data_cube(Fits_file):
         crop_pix = np.floor((new_shape[1:] - old_shape[1:]) / 2)
         slices = np.array((crop_pix[0]+1, new_shape[1]-crop_pix[0]-1,crop_pix[1]+1,new_shape[2]-crop_pix[1]-1)).astype(int)
         return Data_cube(fits.PrimaryHDU(rotated_data[:,slices[0]:slices[1],slices[2]:slices[3]], self.bin_header(nb_pix_bin)))
-    
+
     def plot_cube(self):
         plt.imshow(self.data[13,:,:], origin="lower")
         plt.show()

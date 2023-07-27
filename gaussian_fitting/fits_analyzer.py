@@ -33,6 +33,9 @@ class Fits_file():
         Bin the header to make the WCS match with a binned map.
         Note that this method only works if the binned map has not been cropped in the binning process. Otherwise, the WCS will
         not match.
+        Note that this method creates minor WCS displacement but this is only considerable when reducing greatly the map's size. When
+        binning only 2x2 pixels, the displacement is negligible. This method has been enhanced in the HI_regions' version of the
+        Data_cube object and now prevents WCS displacement with any nb_pix_bin.
 
         Arguments
         ---------
