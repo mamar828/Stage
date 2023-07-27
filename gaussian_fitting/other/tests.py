@@ -472,10 +472,19 @@ plt.show()
 # print(np.append(a,b))
 # print(np.append(a,c))
 
-a = np.array([
-    [1,np.NAN],
-    [3,np.NAN]
-])
-print(a)
-print(a[0,0][~np.isnan(a[0,0])])
-print(a[np.isnan(a)])
+# a = np.array([
+#     [1,np.NAN],
+#     [3,np.NAN]
+# ])
+# print(a)
+# print(a[0,0][~np.isnan(a[0,0])])
+# print(a[np.isnan(a)])
+
+
+# a = 5.000
+# b = 4.494
+# print(a%1 == 0)
+# print(b%1)
+
+a = [5,-8,4,-5,8,-4]
+print(np.nanmean(np.sqrt(a)))

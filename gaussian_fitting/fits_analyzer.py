@@ -886,22 +886,23 @@ class Map(Fits_file):
                                               np.array_split(dist_and_vals, len(dist_and_vals)//group_size)))
         dist_and_vals_group_1 = dist_and_vals_group_1[0]
 
-        total_dists_and_means_2 = []
+        dists_and_vals_group_2 = []
         # From the already grouped pixels, regroup another [group_size] arrays
-        total_dists_and_means_2.append(pool.map(worker_regroup_pixels,
+        dists_and_vals_group_2.append(pool.map(worker_regroup_pixels,
                                                 np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size)))
-        total_dists_and_means_2 = total_dists_and_means_2[0]
+        dists_and_vals_group_2 = dists_and_vals_group_2[0]
         pool.close()
 
         # Group all the remaining arrays
-        total_dists_and_means_3 = worker_regroup_pixels(total_dists_and_means_2)
-        # mean_values = np.array([np.nanmean(array) for array in list(total_dists_and_means_3.values())])
-        mean_values = np.array([np.nanmean(np.abs(array)) for array in list(total_dists_and_means_3.values())])
-        
+        dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
+        # The square root of each value is computed first to eliminate all negative data
+        # This allows the pixel difference to be computed only once
+        mean_values = np.array([np.nanmean((np.sqrt(array))**4) for array in list(dists_and_vals_group_3.values())])
+
         print("\nAll calculations completed in", time.time() - start, "s.")
 
         # Extract the x values (distances) and y values (subtraction means divided by the variance)
-        x_values = np.array(list(total_dists_and_means_3.keys()))
+        x_values = np.array(list(dists_and_vals_group_3.keys()))
         y_values = mean_values / np.nanvar(cropped_array)
         return np.stack((x_values, y_values), axis=1)
 
@@ -925,6 +926,7 @@ def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     unique_distances, indices = np.unique(pixel_array[:,:,0], return_inverse=True)
     dist_and_vals = {}
     for i, unique_distance in enumerate(unique_distances):
+        # if unique_distance % 1 == 0:                      # Only get integer distances
         # The indices variable refers to the flattened array
         flat_values = pixel_array[:,:,1].flatten()
         corresponding_values = flat_values[indices == i]
