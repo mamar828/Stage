@@ -486,5 +486,11 @@ plt.show()
 # print(a%1 == 0)
 # print(b%1)
 
-a = [5,-8,4,-5,8,-4]
-print(np.nanmean(np.sqrt(a)))
+# a = [5,-8,4,-5,8,-4]
+# print(np.nanmean(np.sqrt(a)))
+
+# a = np.arange(0, 1, 0.2)
+# print(a[(np.abs(a-0.15)).argmin()])
+# print(np.append(np.array([]), a))
+
+print(np.arange(0.1,5.1,0.1))

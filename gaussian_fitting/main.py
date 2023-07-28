@@ -516,16 +516,18 @@ def get_temperature_from_SII_broadening():
 
 def get_structure_function_plot():
     """
-    In this example, the structure function is plotted.
+    In this example, the structure function is plotted for many different steps.
     """
     # turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
-    # The output array is saved for later use
-    # np.save("gaussian_fitting/data_array.npy", turbulence_map.get_structure_function_array())
-    data_array = np.load("gaussian_fitting/data_array_t1.npy", allow_pickle=True)
-    plt.plot(data_array[:,0], data_array[:,1], "go", markersize=1)
-    plt.show()
+    # for step in np.arange(0.1,5.1,0.1):
+        # The output array is saved for later use
+        # np.save(f"gaussian_fitting/data_arrays/data_array_{step}.npy", turbulence_map.get_structure_function_array(step))
+    for step in np.arange(0.1,5.1,0.1):
+        data_array = np.load(f"gaussian_fitting/data_arrays/data_array_b{step}.npy", allow_pickle=True)
+        plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+        plt.title(step)
+        plt.show()
 
 
 if __name__ == "__main__":
     get_structure_function_plot()
-

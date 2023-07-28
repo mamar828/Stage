@@ -835,7 +835,7 @@ class Map(Fits_file):
         plt.title(title)
         plt.show()
 
-    def get_structure_function_array(self) -> np.ndarray:
+    def get_structure_function_array(self, step: float=0.5) -> np.ndarray:
         """ 
         Get the array that represents the structure function.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
@@ -843,6 +843,11 @@ class Map(Fits_file):
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
         
+        Arguments
+        ---------
+        step: float, default=0.5. Specifies the bin steps that are to be used to regroup close distances. This helps in smoothing
+        the curve and preventing great bumps with large distances.
+
         Returns
         -------
         np array: two-dimensional array that contains the function structure (second element on last axis) corresponding to
@@ -895,9 +900,17 @@ class Map(Fits_file):
 
         # Group all the remaining arrays
         dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
+        
+        bins = np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step)
+        regrouped_dict = {}
+        for distance, values in dists_and_vals_group_3.items():
+            # Get the closest value to bin to and append the values
+            closest_bin = bins[(np.abs(bins-distance)).argmin()]
+            regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
+
         # The square root of each value is computed first to eliminate all negative data
-        # This allows the pixel difference to be computed only once
-        mean_values = np.array([np.nanmean((np.sqrt(array))**4) for array in list(dists_and_vals_group_3.values())])
+        # This allows the pixel difference to be considered only once
+        mean_values = np.array([np.nanmean((np.sqrt(array))**4) for array in list(regrouped_dict.values())])
 
         print("\nAll calculations completed in", time.time() - start, "s.")
 
@@ -951,12 +964,8 @@ def worker_regroup_pixels(pixel_list: list) -> dict:
         if pixel is not None:
             for key, value in pixel.items():
                 if key is not None and value is not None:
-                    if key in pixel_list_means:
-                        # If the key is already present, the new value is appended to the global dict
-                        pixel_list_means[key] = np.append(pixel_list_means[key], value)
-                    else:
-                        # If not already present, the key is simply added
-                        pixel_list_means[key] = np.array(value)
+                    # If the key is already present, the new value is appended to the global dict
+                    pixel_list_means[key] = np.append(pixel_list_means.get(key, np.array([])), value)
     return pixel_list_means
 
 
