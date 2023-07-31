@@ -493,4 +493,11 @@ plt.show()
 # print(a[(np.abs(a-0.15)).argmin()])
 # print(np.append(np.array([]), a))
 
-print(np.arange(0.1,5.1,0.1))
+# print(np.arange(0.1,5.1,0.1))
+
+# s = slice(1,3)
+# b = [1,2,3,4,5,6]
+# print(b[s])
+
+# print(np.round(np.arange(0.1,1.6,0.1), 1))
+# print(np.arange(0.1,1.6,0.1), 1)

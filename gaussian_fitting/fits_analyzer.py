@@ -515,9 +515,15 @@ class Map(Fits_file):
     
     def __eq__(self, other):
         return np.nanmax(np.abs((self.data - other.data) / self.data)) <= 10**(-6) or np.array_equal(self.data, other.data)
+    
+    def __getitem__(self, key_slice):
+        return Map(fits.PrimaryHDU(self.data[key_slice], None))
 
     def copy(self):
         return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()))
+    
+    def shape(self):
+        return self.data.shape
     
     def add_new_axis(self, new_axis_shape: int) -> Map:
         """
@@ -835,6 +841,77 @@ class Map(Fits_file):
         plt.title(title)
         plt.show()
 
+    def get_cropped_NaNs_array(self) -> np.ndarray:
+        # Determine where the data is located
+        non_nan_indices = np.where(~np.isnan(self.data))
+        # Determine the minimum and maximum indices along each axis
+        min_row, max_row = np.min(non_nan_indices[0]), np.max(non_nan_indices[0])
+        min_col, max_col = np.min(non_nan_indices[1]), np.max(non_nan_indices[1])
+        # Extract the subarray that has been trimmed from the nan ocean
+        cropped_array = self.data[min_row:max_row + 1, min_col:max_col + 1]
+        return cropped_array
+
+    def get_autocovariance_function_array(self, step: float=0.5) -> np.ndarray:
+        cropped_array = self.get_cropped_NaNs_array()
+
+        # Create arrays that will be useful for computing distances
+        x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
+        xx, yy = np.meshgrid(x, y)
+        dists_and_multiplication = []
+
+        for y in range(cropped_array.shape[0]):
+            if np.nansum(cropped_array[y,:]) == 0.0:        # The row is empty
+                continue
+            for x in range(cropped_array.shape[1]):
+                if not np.isnan(cropped_array[y, x]):
+                    multiplication = cropped_array[y, x] * cropped_array
+                    dists = np.sqrt((x-xx)**2 + (y-yy)**2)
+                    # The multiplication's result is linked to the pixels' distance
+                    dists_and_multiplication.append(np.stack((dists, multiplication), axis=2))
+        
+        pool = multiprocessing.Pool()
+        print("Number of processes:", pool._processes)
+        dist_and_vals = []
+        start = time.time()
+        # Calculate the mean multiplication per distance of every pixel
+        dist_and_vals.append(pool.map(worker_regroup_distances_of_pixel, dists_and_multiplication))
+        dist_and_vals = dist_and_vals[0]
+
+        group_size = 10
+        dist_and_vals_group_1 = []
+        # Regroup all the multiplication's results per distance of groups of [group_size] pixels, in this case 10
+        dist_and_vals_group_1.append(pool.map(worker_regroup_pixels,
+                                              np.array_split(dist_and_vals, len(dist_and_vals)//group_size)))
+        dist_and_vals_group_1 = dist_and_vals_group_1[0]
+
+        dists_and_vals_group_2 = []
+        # From the already grouped pixels, regroup another [group_size] arrays
+        dists_and_vals_group_2.append(pool.map(worker_regroup_pixels,
+                                                np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size)))
+        dists_and_vals_group_2 = dists_and_vals_group_2[0]
+        pool.close()
+
+        # Group all the remaining arrays
+        dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
+        
+        bins = np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step)
+        regrouped_dict = {}
+        for distance, values in dists_and_vals_group_3.items():
+            # Get the closest value to bin to and append the values
+            closest_bin = bins[(np.abs(bins-distance)).argmin()]
+            regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
+
+        # The square root of each value is computed first to eliminate all negative data
+        # This allows the pixel difference to be considered only once
+        mean_values = np.array([np.nanmean((np.sqrt(array))**2) for array in list(regrouped_dict.values())])
+
+        print("\nAll calculations completed in", time.time() - start, "s.")
+
+        # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
+        x_values = np.array(list(regrouped_dict.keys()))
+        y_values = mean_values / np.nanvar(cropped_array)
+        return np.stack((x_values, y_values), axis=1)
+
     def get_structure_function_array(self, step: float=0.5) -> np.ndarray:
         """ 
         Get the array that represents the structure function.
@@ -853,13 +930,7 @@ class Map(Fits_file):
         np array: two-dimensional array that contains the function structure (second element on last axis) corresponding to
         the distance between the pixels (first element on last axis).
         """
-        # Crop the map's nan values to accelerate the following processes
-        non_nan_indices = np.where(~np.isnan(self.data))
-        # Determine the minimum and maximum indices along each axis
-        min_row, max_row = np.min(non_nan_indices[0]), np.max(non_nan_indices[0])
-        min_col, max_col = np.min(non_nan_indices[1]), np.max(non_nan_indices[1])
-        # Extract the subarray that has been trimmed from the nan ocean
-        cropped_array = self.data[min_row:max_row + 1, min_col:max_col + 1]
+        cropped_array = self.get_cropped_NaNs_array()
 
         # Create arrays that will be useful for computing distances
         x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
@@ -914,8 +985,8 @@ class Map(Fits_file):
 
         print("\nAll calculations completed in", time.time() - start, "s.")
 
-        # Extract the x values (distances) and y values (subtraction means divided by the variance)
-        x_values = np.array(list(dists_and_vals_group_3.keys()))
+        # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
+        x_values = np.array(list(regrouped_dict.keys()))
         y_values = mean_values / np.nanvar(cropped_array)
         return np.stack((x_values, y_values), axis=1)
 
@@ -923,7 +994,7 @@ class Map(Fits_file):
 
 def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     """
-    Regroup all the subtraction values that correspond to the same distance between pixels in the form of a dictionary. Print a 
+    Regroup all the values that correspond to the same distance between pixels in the form of a dictionary. Print a 
     "." everytime an array a pixel's analysis has been completed.
     
     Arguments
@@ -932,7 +1003,7 @@ def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     
     Returns
     -------
-    dict: the keys are the unique distances between pixels and the values are numpy arrays and correspond to the subtraction's
+    dict: the keys are the unique distances between pixels and the values are numpy arrays and correspond to the operation's
     result from the pixels that are separated by that same distance.
     """
     # The unique distances and their positions in the array are extracted
@@ -1063,6 +1134,10 @@ class Map_u(Map):
     def __eq__(self, other):
         return (np.nanmax(np.abs((self.data - other.data) / self.data)) <= 1**(-5) and 
                 np.nanmax(np.abs((self.uncertainties - other.uncertainties) / self.uncertainties)) <= 1**(-5))
+    
+    def __getitem__(self, key_slice):
+        return self.from_Map_objects(Map(fits.PrimaryHDU(self.data, None))[key_slice], 
+                                     Map(fits.PrimaryHDU(self.uncertainties, None))[key_slice])
     
     def copy(self):
         return Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), self.header.copy()),
@@ -1303,6 +1378,11 @@ class Map_usnr(Map_u):
     def __eq__(self, other):
         return super().__eq__(other) and (np.nanmax(np.abs((self.snr - other.snr) / self.snr)) <= 10**(-6)
                                           or self.snr == other.snr)
+    
+    def __getitem__(self, key_slice):
+        return self.from_Map_objects(Map(fits.PrimaryHDU(self.data, None))[key_slice],
+                                     Map(fits.PrimaryHDU(self.uncertainties, None))[key_slice],
+                                     Map(fits.PrimaryHDU(self.snr, None))[key_slice])
     
     def copy(self):
         return self.from_Map_u_object(super().copy(), self.snr)
