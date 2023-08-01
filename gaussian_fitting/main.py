@@ -537,8 +537,8 @@ def get_ACF_plot():
         plt.show()
 
 
-if __name__ == "__main__":
-    get_ACF_plot()
+# if __name__ == "__main__":
+#     get_ACF_plot()
 
 
 def get_structure_function_plot():
@@ -546,16 +546,31 @@ def get_structure_function_plot():
     In this example, the structure function is plotted for different steps.
     """
     turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])[175:315,230:365]
-    for step in np.round(np.arange(0.1,1.6,0.1), 1):
-        # The output array is saved for later use
-        print("Current bin:", step)
-        np.save(f"gaussian_fitting/data_arrays_slice/data_array_{step}.npy", turbulence_map.get_structure_function_array(step))
-    for step in np.arange(0.1,5.1,0.1):
-        data_array = np.load(f"gaussian_fitting/data_arrays/data_array_b{step}.npy", allow_pickle=True)
+    # for step in np.round(np.arange(0.1,1.6,0.1), 1):
+    #     # The output array is saved for later use
+    #     print("Current bin:", step)
+    #     np.save(f"gaussian_fitting/data_arrays_slice/data_array_{step}.npy", turbulence_map.get_structure_function_array(step))
+    for step in np.round(np.arange(0.1,5.1,0.1), 1):
+        data_array = np.load(f"gaussian_fitting/data_arrays/data_array_{step}.npy", allow_pickle=True)
         plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
         plt.title(step)
         plt.show()
 
 
 # if __name__ == "__main__":
-#     get_structure_function_plot()
+#     data_array = np.load(f"gaussian_fitting/data_arrays/data_array_None.npy", allow_pickle=True)
+#     plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+#     plt.show()
+    # get_structure_function_plot()
+
+
+def test_structure():
+    turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+    turbulence_map.test_structure_func()
+    # np.save(f"gaussian_fitting/test_1_lag.npy", turbulence_map.test_structure_func())
+    # data_array = np.load(f"gaussian_fitting/data_arrays/data_array_b{step}.npy", allow_pickle=True)
+    # plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+    # plt.show()
+    
+if __name__ == "__main__":
+    test_structure()

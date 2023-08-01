@@ -851,7 +851,7 @@ class Map(Fits_file):
         cropped_array = self.data[min_row:max_row + 1, min_col:max_col + 1]
         return cropped_array
 
-    def get_autocovariance_function_array(self, step: float=0.5) -> np.ndarray:
+    def get_autocovariance_function_array(self, step: float=None) -> np.ndarray:
         cropped_array = self.get_cropped_NaNs_array()
 
         # Create arrays that will be useful for computing distances
@@ -880,7 +880,7 @@ class Map(Fits_file):
         y_values = mean_values / np.nanvar(cropped_array)
         return np.stack((x_values, y_values), axis=1)
 
-    def get_structure_function_array(self, step: float=0.5) -> np.ndarray:
+    def get_structure_function_array(self, step: float=None) -> np.ndarray:
         """ 
         Get the array that represents the structure function.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
@@ -958,6 +958,34 @@ class Map(Fits_file):
                 regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
             print("\nAll calculations completed in", time.time() - start, "s.")
             return regrouped_dict
+        
+    def test_structure_func(self):
+        # cropped_array = self.get_cropped_NaNs_array()
+        array = np.copy(self.data)
+        file = open("dists and subs.txt", "a")
+        with multiprocessing.Pool() as pool:
+            for distance in np.linspace(1,167,167):
+                print(distance)
+                nan_bool = ~np.isnan(array)
+                difference_results = pool.starmap(worker_test, [(array, array[nan_bool][i], np.argwhere(nan_bool)[i], distance) 
+                                                            for i in range(len(array[nan_bool]))])
+                all_diffs = []
+                for list_of_lists in difference_results:
+                    for listi in list_of_lists:
+                        all_diffs.append(listi)
+                mean_diffs = np.nanmean((np.sqrt(all_diffs))**4) / np.nanvar(array)
+                file.write(f"distance {distance} --> {mean_diffs}\n")
+
+def worker_test(array, pixel_value, pixel_coords, distance):
+    sub = []
+    nan_bool = ~np.isnan(array)
+    for pixel, coords in zip(array[nan_bool].flatten(), np.argwhere(nan_bool)):
+        dist = np.sqrt(np.sum((pixel_coords - coords)**2))
+        if dist == distance and not np.isnan(pixel):
+            sub.append(pixel_value - pixel)
+    return sub
+
+    
 
 def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     """
