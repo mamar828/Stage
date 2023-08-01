@@ -962,26 +962,22 @@ class Map(Fits_file):
     def test_structure_func(self):
         # cropped_array = self.get_cropped_NaNs_array()
         array = np.copy(self.data)
-        file = open("dists and subs.txt", "a")
         with multiprocessing.Pool() as pool:
-            for distance in np.linspace(1,167,167):
-                print(distance)
-                nan_bool = ~np.isnan(array)
-                difference_results = pool.starmap(worker_test, [(array, array[nan_bool][i], np.argwhere(nan_bool)[i], distance) 
-                                                            for i in range(len(array[nan_bool]))])
-                all_diffs = []
-                for list_of_lists in difference_results:
-                    for listi in list_of_lists:
-                        all_diffs.append(listi)
-                mean_diffs = np.nanmean((np.sqrt(all_diffs))**4) / np.nanvar(array)
-                file.write(f"distance {distance} --> {mean_diffs}\n")
+            nan_bool = ~np.isnan(array)
+            difference_results = pool.starmap(worker_test, [(array, array[nan_bool][i], np.argwhere(nan_bool)[i]) 
+                                                        for i in range(len(array[nan_bool]))])
+            all_diffs = []
+            for list_of_lists in difference_results:
+                for listi in list_of_lists:
+                    all_diffs.append(listi)
+            mean_diffs = np.nanmean((np.sqrt(all_diffs))**4) / np.nanvar(array)
 
-def worker_test(array, pixel_value, pixel_coords, distance):
+def worker_test(array, pixel_value, pixel_coords):
     sub = []
     nan_bool = ~np.isnan(array)
     for pixel, coords in zip(array[nan_bool].flatten(), np.argwhere(nan_bool)):
         dist = np.sqrt(np.sum((pixel_coords - coords)**2))
-        if dist == distance and not np.isnan(pixel):
+        if dist == 156 and not np.isnan(pixel):
             sub.append(pixel_value - pixel)
     return sub
 
