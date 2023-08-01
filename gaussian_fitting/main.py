@@ -322,63 +322,63 @@ def get_courtes_temperature(settings: dict):
     temperature_map.plot_map((0,20000))
     temperature_map.save_as_fits_file(settings["save_file_name"])
 
+"""
+# These se ttings allow for the computation of the temperature map using the Halpha and NII emission lines present in the NII cube
+settings_Ha_NII = {
+    "map_1": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])**2 - 
+                           Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map()**2)**0.5,
+              "global_temperature_was_substracted": False,
+              "peak_wavelength_AA": 6562.78,
+              "element": "Ha",
+              "fine_structure": True},
+    "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0])**2 -
+                           Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map()**2)**0.5,
+              "global_temperature_was_substracted": False,
+              "peak_wavelength_AA": 6583.41,
+              "element": "NII",
+              "fine_structure": False},
+    "subtraction": "1-2",
+    "turbulence_consideration" : True,
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/Ha_NII.fits"
+}
 
-# # These settings allow for the computation of the temperature map using the Halpha and NII emission lines present in the NII cube
-# settings_Ha_NII = {
-#     "map_1": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])**2 - 
-#                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map()**2)**0.5,
-#               "global_temperature_was_substracted": False,
-#               "peak_wavelength_AA": 6562.78,
-#               "element": "Ha",
-#               "fine_structure": True},
-#     "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits")[0])**2 -
-#                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map()**2)**0.5,
-#               "global_temperature_was_substracted": False,
-#               "peak_wavelength_AA": 6583.41,
-#               "element": "NII",
-#               "fine_structure": False},
-#     "subtraction": "1-2",
-#     "turbulence_consideration" : True,
-#     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/Ha_NII.fits"
-# }
+# These settings allow for the computation of the temperature map using Halpha from the NII cube and OIII from Leo's data
+settings_OIII_Ha = {
+    "map_1": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/new_leo/OIII.fits")[0])**2 -
+                           (Map(fits.open("gaussian_fitting/leo/OIII/M2_cal.fits")[0])*8.79)**2)**0.5,
+              "global_temperature_was_substracted": False,
+              "peak_wavelength_AA": 5007,
+              "element": "OIII",
+              "fine_structure": False},
+    "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])**2 - 
+                           Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
+              "global_temperature_was_substracted": False,
+              "peak_wavelength_AA": 6562.78,
+              "element": "Ha",
+              "fine_structure": True},
+    "subtraction": "2-1",
+    "turbulence_consideration" : True,
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits"
+}
 
-# # These settings allow for the computation of the temperature map using Halpha from the NII cube and OIII from Leo's data
-# settings_OIII_Ha = {
-#     "map_1": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/new_leo/OIII.fits")[0])**2 -
-#                            (Map(fits.open("gaussian_fitting/leo/OIII/M2_cal.fits")[0])*8.79)**2)**0.5,
-#               "global_temperature_was_substracted": False,
-#               "peak_wavelength_AA": 5007,
-#               "element": "OIII",
-#               "fine_structure": False},
-#     "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])**2 - 
-#                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
-#               "global_temperature_was_substracted": False,
-#               "peak_wavelength_AA": 6562.78,
-#               "element": "Ha",
-#               "fine_structure": True},
-#     "subtraction": "2-1",
-#     "turbulence_consideration" : True,
-#     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits"
-# }
-
-# # These settings allow for the computation of the temperature map using NII from the NII cube and SII from Leo's data
-# settings_SII_NII = {
-#     "map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/leo/SII/SII_sigma+header.fits")[0]) * 2*np.sqrt(2*np.log(2)),
-#               "global_temperature_was_substracted": True,
-#               "peak_wavelength_AA": 6717,
-#               "element": "SII",
-#               "fine_structure": False},
-#     "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data_2p/NII_fwhm.fits")[0])**2 - 
-#                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
-#               "global_temperature_was_substracted": False,
-#               "peak_wavelength_AA": 6583.41,
-#               "element": "NII",
-#               "fine_structure": False},
-#     "subtraction": "2-1",
-#     "turbulence_consideration" : False,
-#     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/SII_NII_2peaks.fits"
-# }
-
+# These settings allow for the computation of the temperature map using NII from the NII cube and SII from Leo's data
+settings_SII_NII = {
+    "map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/leo/SII/SII_sigma+header.fits")[0]) * 2*np.sqrt(2*np.log(2)),
+              "global_temperature_was_substracted": True,
+              "peak_wavelength_AA": 6717,
+              "element": "SII",
+              "fine_structure": False},
+    "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data_2p/NII_fwhm.fits")[0])**2 - 
+                           Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
+              "global_temperature_was_substracted": False,
+              "peak_wavelength_AA": 6583.41,
+              "element": "NII",
+              "fine_structure": False},
+    "subtraction": "2-1",
+    "turbulence_consideration" : False,
+    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/SII_NII_2peaks.fits"
+}
+"""
 
 # get_courtes_temperature(settings_SII_NII)
 
@@ -514,14 +514,41 @@ def get_temperature_from_SII_broadening():
 # get_temperature_from_SII_broadening()
 
 
+def get_ACF_plot():
+    """
+    In this example, the ACF is plotted for different steps.
+    """
+    turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+    step = None
+    np.save(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", turbulence_map.get_autocovariance_function_array(step))
+    for step in np.round(np.arange(0.1,1.6,0.1), 1):
+        # The output array is saved for later use
+        print("Current bin:", step)
+        np.save(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", turbulence_map.get_autocovariance_function_array(step))
+    step = None
+    data_array = np.load(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", allow_pickle=True)
+    plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+    plt.title(step)
+    plt.show()
+    for step in np.round(np.arange(0.1,1.6,0.1), 1):
+        data_array = np.load(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", allow_pickle=True)
+        plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+        plt.title(step)
+        plt.show()
+
+
+if __name__ == "__main__":
+    get_ACF_plot()
+
+
 def get_structure_function_plot():
     """
-    In this example, the structure function is plotted for many different steps.
+    In this example, the structure function is plotted for different steps.
     """
     turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])[175:315,230:365]
     for step in np.round(np.arange(0.1,1.6,0.1), 1):
         # The output array is saved for later use
-        print("Current:", step)
+        print("Current bin:", step)
         np.save(f"gaussian_fitting/data_arrays_slice/data_array_{step}.npy", turbulence_map.get_structure_function_array(step))
     for step in np.arange(0.1,5.1,0.1):
         data_array = np.load(f"gaussian_fitting/data_arrays/data_array_b{step}.npy", allow_pickle=True)
@@ -530,5 +557,5 @@ def get_structure_function_plot():
         plt.show()
 
 
-if __name__ == "__main__":
-    get_structure_function_plot()
+# if __name__ == "__main__":
+#     get_structure_function_plot()

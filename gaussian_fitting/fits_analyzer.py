@@ -868,44 +868,12 @@ class Map(Fits_file):
                     dists = np.sqrt((x-xx)**2 + (y-yy)**2)
                     # The multiplication's result is linked to the pixels' distance
                     dists_and_multiplication.append(np.stack((dists, multiplication), axis=2))
-        
-        pool = multiprocessing.Pool()
-        print("Number of processes:", pool._processes)
-        dist_and_vals = []
-        start = time.time()
-        # Calculate the mean multiplication per distance of every pixel
-        dist_and_vals.append(pool.map(worker_regroup_distances_of_pixel, dists_and_multiplication))
-        dist_and_vals = dist_and_vals[0]
 
-        group_size = 10
-        dist_and_vals_group_1 = []
-        # Regroup all the multiplication's results per distance of groups of [group_size] pixels, in this case 10
-        dist_and_vals_group_1.append(pool.map(worker_regroup_pixels,
-                                              np.array_split(dist_and_vals, len(dist_and_vals)//group_size)))
-        dist_and_vals_group_1 = dist_and_vals_group_1[0]
-
-        dists_and_vals_group_2 = []
-        # From the already grouped pixels, regroup another [group_size] arrays
-        dists_and_vals_group_2.append(pool.map(worker_regroup_pixels,
-                                                np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size)))
-        dists_and_vals_group_2 = dists_and_vals_group_2[0]
-        pool.close()
-
-        # Group all the remaining arrays
-        dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
-        
-        bins = np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step)
-        regrouped_dict = {}
-        for distance, values in dists_and_vals_group_3.items():
-            # Get the closest value to bin to and append the values
-            closest_bin = bins[(np.abs(bins-distance)).argmin()]
-            regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
+        regrouped_dict = self.sort_distances_and_values(dists_and_multiplication, step)
 
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
         mean_values = np.array([np.nanmean((np.sqrt(array))**2) for array in list(regrouped_dict.values())])
-
-        print("\nAll calculations completed in", time.time() - start, "s.")
 
         # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
         x_values = np.array(list(regrouped_dict.keys()))
@@ -922,8 +890,8 @@ class Map(Fits_file):
         
         Arguments
         ---------
-        step: float, default=0.5. Specifies the bin steps that are to be used to regroup close distances. This helps in smoothing
-        the curve and preventing great bumps with large distances.
+        step: float, default=None. Specifies the bin steps that are to be used to regroup close distances. This helps in smoothing
+        the curve and preventing great bumps with large distances. When equal to None, no bin is made.
 
         Returns
         -------
@@ -947,55 +915,54 @@ class Map(Fits_file):
                     # The subtraction's result is linked to the pixels' distance
                     dists_and_subtraction.append(np.stack((dists, subtraction), axis=2))
         
-        pool = multiprocessing.Pool()
-        print("Number of processes:", pool._processes)
-        dist_and_vals = []
-        start = time.time()
-        # Calculate the mean subtraction per distance of every pixel
-        dist_and_vals.append(pool.map(worker_regroup_distances_of_pixel, dists_and_subtraction))
-        dist_and_vals = dist_and_vals[0]
-
-        group_size = 10
-        dist_and_vals_group_1 = []
-        # Regroup all the subtraction's results per distance of groups of [group_size] pixels, in this case 10
-        dist_and_vals_group_1.append(pool.map(worker_regroup_pixels,
-                                              np.array_split(dist_and_vals, len(dist_and_vals)//group_size)))
-        dist_and_vals_group_1 = dist_and_vals_group_1[0]
-
-        dists_and_vals_group_2 = []
-        # From the already grouped pixels, regroup another [group_size] arrays
-        dists_and_vals_group_2.append(pool.map(worker_regroup_pixels,
-                                                np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size)))
-        dists_and_vals_group_2 = dists_and_vals_group_2[0]
-        pool.close()
-
-        # Group all the remaining arrays
-        dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
-        
-        bins = np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step)
-        regrouped_dict = {}
-        for distance, values in dists_and_vals_group_3.items():
-            # Get the closest value to bin to and append the values
-            closest_bin = bins[(np.abs(bins-distance)).argmin()]
-            regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
+        regrouped_dict = self.sort_distances_and_values(dists_and_subtraction, step)
 
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
         mean_values = np.array([np.nanmean((np.sqrt(array))**4) for array in list(regrouped_dict.values())])
-
-        print("\nAll calculations completed in", time.time() - start, "s.")
 
         # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
         x_values = np.array(list(regrouped_dict.keys()))
         y_values = mean_values / np.nanvar(cropped_array)
         return np.stack((x_values, y_values), axis=1)
 
+    def sort_distances_and_values(self, pixel_list, step) -> dict:
+        pool = multiprocessing.Pool()
+        print(pool._processes)
+        start = time.time()
 
+        # Calculate the mean subtraction per distance of every pixel
+        dist_and_vals = pool.map(worker_regroup_distances_of_pixel, pixel_list)
+        
+        group_size = 15
+        # Regroup all the subtraction's results per distance of groups of [group_size] pixels, in this case 10
+        iterable = np.array_split(dist_and_vals, len(dist_and_vals)//group_size)
+        dist_and_vals_group_1 = pool.map(worker_regroup_pixels, iterable)
+
+        # From the already grouped pixels, regroup another [group_size] arrays
+        dists_and_vals_group_2 = pool.map(worker_regroup_pixels,
+                                                np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size))
+        pool.close()
+
+        # Group all the remaining arrays
+        dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
+        if step is None:
+            print("\nAll calculations completed in", time.time() - start, "s.")
+            return dists_and_vals_group_3
+        else:
+            bins = np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step)
+            regrouped_dict = {}
+            for distance, values in dists_and_vals_group_3.items():
+                # Get the closest value to bin to and append the values
+                closest_bin = bins[(np.abs(bins-distance)).argmin()]
+                regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
+            print("\nAll calculations completed in", time.time() - start, "s.")
+            return regrouped_dict
 
 def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     """
     Regroup all the values that correspond to the same distance between pixels in the form of a dictionary. Print a 
-    "." everytime an array a pixel's analysis has been completed.
+    "." every time an array a pixel's analysis has been completed.
     
     Arguments
     ---------
