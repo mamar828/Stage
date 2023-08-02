@@ -504,3 +504,6 @@ plt.show()
 
 
 # print(np.concatenate(np.array((None)), np.linspace(1,167,167)))
+
+f = np.array([1,2,3,4])
+print(f[np.array([1,0,2])])

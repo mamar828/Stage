@@ -540,8 +540,8 @@ def get_ACF_plot(calc=False):
             plt.show()
 
 
-if __name__ == "__main__":
-    get_ACF_plot()
+# if __name__ == "__main__":
+#     get_ACF_plot()
 
 
 def get_structure_function_plot(calc=False):
@@ -573,8 +573,8 @@ def get_structure_function_plot(calc=False):
             plt.show()
 
 
-if __name__ == "__main__":
-    get_structure_function_plot()
+# if __name__ == "__main__":
+#     get_structure_function_plot()
 
 
 def test_structure():
@@ -587,3 +587,28 @@ def test_structure():
     
 # if __name__ == "__main__":
 #     test_structure()
+
+
+def get_fit_function(array):
+    spline = scipy.interpolate.CubicSpline(array[:,0], array[:,1])
+    plt.plot(array, "ro")
+    plt.plot(array[:,0], spline(array[:,0]), "g-")
+    plt.show()
+
+# from pprint import pprint
+# pprint(np.load("gaussian_fitting/arrays/turbulence_map/ACF/bin=0.7.npy"))
+# get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/ACF/bin=0.7.npy"))
+
+import os
+
+directory = "gaussian_fitting/arrays/turbulence_map/structure_function"
+files = os.listdir(directory)
+for file in files:
+    print(file)
+    data = np.load(f"{directory}/{file}")
+    # ax1 = plt.subplot(1,2,1)
+    # ax2 = plt.subplot(1,2,2)
+    # ax1.plot(data[:,0], data[:,1], "ro", markersize=1)
+    sorted_data = data[np.argsort(data[:,0])]
+    # ax2.plot(sorted_data[:,0], sorted_data[:,1], "go", markersize=1)
+    np.save(f"{directory}/{file}", sorted_data)
