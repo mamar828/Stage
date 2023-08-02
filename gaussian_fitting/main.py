@@ -514,51 +514,67 @@ def get_temperature_from_SII_broadening():
 # get_temperature_from_SII_broadening()
 
 
-def get_ACF_plot():
+def get_ACF_plot(calc=False):
     """
-    In this example, the ACF is plotted for different steps.
+    In this example, the ACF is plotted for different steps. If calc is True, the function is calculated but not plotted.
     """
-    turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
-    step = None
-    np.save(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", turbulence_map.get_autocovariance_function_array(step))
-    for step in np.round(np.arange(0.1,1.6,0.1), 1):
-        # The output array is saved for later use
+    step_range = np.round(np.arange(0.1,1.6,0.1), 1)
+    if calc:
+        turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+        step = None
         print("Current bin:", step)
-        np.save(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", turbulence_map.get_autocovariance_function_array(step))
-    step = None
-    data_array = np.load(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", allow_pickle=True)
-    plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
-    plt.title(step)
-    plt.show()
-    for step in np.round(np.arange(0.1,1.6,0.1), 1):
-        data_array = np.load(f"gaussian_fitting/ACF_data_arrays/data_array_{step}.npy", allow_pickle=True)
+        np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+        for step in step_range:
+            print("Current bin:", step)
+            np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+    else:
+        step = None
+        data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
         plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
         plt.title(step)
         plt.show()
+        for step in step_range:
+            data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
+            plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+            plt.title(step)
+            plt.show()
 
 
-# if __name__ == "__main__":
-#     get_ACF_plot()
+if __name__ == "__main__":
+    get_ACF_plot()
 
 
-def get_structure_function_plot():
+def get_structure_function_plot(calc=False):
     """
-    In this example, the structure function is plotted for different steps.
+    In this example, the structure function is plotted for different steps. If calc is True, the function is calculated
+    but not plotted.
     """
-    turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])                  # [175:315,230:365]
-    # for step in np.round(np.arange(0.1,1.6,0.1), 1):
-    #     # The output array is saved for later use
-    #     print("Current bin:", step)
-    #     np.save(f"gaussian_fitting/data_arrays_slice/data_array_{step}.npy", turbulence_map.get_structure_function_array(step))
-    # for step in np.round(np.arange(0.1,5.1,0.1), 1):
-    #     data_array = np.load(f"gaussian_fitting/data_arrays/data_array_{step}.npy", allow_pickle=True)
-    #     plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
-    #     plt.title(step)
-    #     plt.show()
+    step_range = np.round(np.arange(0.1,1.6,0.1), 1)
+    if calc:
+        turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+        step = None
+        print("Current bin:", step)
+        np.save(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
+                turbulence_map.get_structure_function_array(step))
+        for step in step_range:
+            print("Current bin:", step)
+            np.save(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
+                    turbulence_map.get_structure_function_array(step))
+    else:
+        step = None
+        data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", allow_pickle=True)
+        plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+        plt.title(step)
+        plt.show()
+        for step in step_range:
+            data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", allow_pickle=True)
+            plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+            plt.title(step)
+            plt.show()
 
 
-# if __name__ == "__main__":
-#     get_structure_function_plot()
+if __name__ == "__main__":
+    get_structure_function_plot()
 
 
 def test_structure():

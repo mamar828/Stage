@@ -857,7 +857,7 @@ class Map(Fits_file):
         # Create arrays that will be useful for computing distances
         x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
         xx, yy = np.meshgrid(x, y)
-        dists_and_multiplication = []
+        dists_and_multiplications = []
 
         for y in range(cropped_array.shape[0]):
             if np.nansum(cropped_array[y,:]) == 0.0:        # The row is empty
@@ -867,13 +867,13 @@ class Map(Fits_file):
                     multiplication = cropped_array[y, x] * cropped_array
                     dists = np.sqrt((x-xx)**2 + (y-yy)**2)
                     # The multiplication's result is linked to the pixels' distance
-                    dists_and_multiplication.append(np.stack((dists, multiplication), axis=2))
+                    dists_and_multiplications.append(np.stack((dists, multiplication), axis=2))
 
-        regrouped_dict = self.sort_distances_and_values(dists_and_multiplication, step)
+        regrouped_dict = self.sort_distances_and_values(dists_and_multiplications, step)
 
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
-        mean_values = np.array([np.nanmean((np.sqrt(array))**2) for array in list(regrouped_dict.values())])
+        mean_values = np.array([np.nanmean(array) for array in list(regrouped_dict.values())])
 
         # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
         x_values = np.array(list(regrouped_dict.keys()))
@@ -903,7 +903,7 @@ class Map(Fits_file):
         # Create arrays that will be useful for computing distances
         x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
         xx, yy = np.meshgrid(x, y)
-        dists_and_subtraction = []
+        dists_and_subtractions = []
         
         for y in range(cropped_array.shape[0]):
             if np.nansum(cropped_array[y,:]) == 0.0:        # The row is empty
@@ -913,10 +913,10 @@ class Map(Fits_file):
                     subtraction = cropped_array[y, x] - cropped_array
                     dists = np.sqrt((x-xx)**2 + (y-yy)**2)
                     # The subtraction's result is linked to the pixels' distance
-                    dists_and_subtraction.append(np.stack((dists, subtraction), axis=2))
+                    dists_and_subtractions.append(np.stack((dists, subtraction), axis=2))
         
-        regrouped_dict = self.sort_distances_and_values(dists_and_subtraction, step)
-
+        regrouped_dict = self.sort_distances_and_values(dists_and_subtractions, step)
+        
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
         mean_values = np.array([np.nanmean((np.sqrt(array))**4) for array in list(regrouped_dict.values())])
@@ -928,16 +928,15 @@ class Map(Fits_file):
 
     def sort_distances_and_values(self, pixel_list, step) -> dict:
         pool = multiprocessing.Pool()
-        print(pool._processes)
+        print(f"Processes used: {pool._processes}")
         start = time.time()
 
         # Calculate the mean subtraction per distance of every pixel
         dist_and_vals = pool.map(worker_regroup_distances_of_pixel, pixel_list)
         
         group_size = 15
-        # Regroup all the subtraction's results per distance of groups of [group_size] pixels, in this case 10
-        iterable = np.array_split(dist_and_vals, len(dist_and_vals)//group_size)
-        dist_and_vals_group_1 = pool.map(worker_regroup_pixels, iterable)
+        # Regroup all the subtraction's results per distance of groups of [group_size] pixels, in this case 15
+        dist_and_vals_group_1 = pool.map(worker_regroup_pixels, np.array_split(dist_and_vals, len(dist_and_vals)//group_size))
 
         # From the already grouped pixels, regroup another [group_size] arrays
         dists_and_vals_group_2 = pool.map(worker_regroup_pixels,
@@ -958,7 +957,7 @@ class Map(Fits_file):
                 regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
             print("\nAll calculations completed in", time.time() - start, "s.")
             return regrouped_dict
-        
+
     def test_structure_func(self):
         # cropped_array = self.get_cropped_NaNs_array()
         array = np.copy(self.data)
@@ -986,7 +985,7 @@ def worker_test(array, pixel_value, pixel_coords):
 def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     """
     Regroup all the values that correspond to the same distance between pixels in the form of a dictionary. Print a 
-    "." every time an array a pixel's analysis has been completed.
+    "." every time a pixel's analysis has been completed.
     
     Arguments
     ---------
@@ -1025,7 +1024,7 @@ def worker_regroup_pixels(pixel_list: list) -> dict:
     for pixel in pixel_list:
         if pixel is not None:
             for key, value in pixel.items():
-                if key is not None and value is not None:
+                if key is not None and value is not None and value != []:
                     # If the key is already present, the new value is appended to the global dict
                     pixel_list_means[key] = np.append(pixel_list_means.get(key, np.array([])), value)
     return pixel_list_means

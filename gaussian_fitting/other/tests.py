@@ -503,4 +503,4 @@ plt.show()
 # print(np.arange(0.1,1.6,0.1), 1)
 
 
-print(np.linspace(1,167,167))
+# print(np.concatenate(np.array((None)), np.linspace(1,167,167)))
