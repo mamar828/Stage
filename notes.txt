@@ -124,7 +124,7 @@ seven_components_fit inclusion
 Turbulence map:
         Fix structure function with ^2, only same pixels once and only entire distances
         Calculate ACF
-Fit -> Calc derivatives
+        Fit -> Calc derivatives
 
 NII centroid in km/s map:
 Remove flow contribution with Zurflueh filter

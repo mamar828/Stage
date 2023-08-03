@@ -593,18 +593,25 @@ def test_structure():
     # data_array = np.load(f"gaussian_fitting/data_arrays/data_array_b{step}.npy", allow_pickle=True)
     # plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
     # plt.show()
-    
+
+
 # if __name__ == "__main__":
 #     test_structure()
 
 
 def get_fit_function(array, s_factor):
+    """
+    In this example, the data of a certain statistical method is fitted using an spline, and the data, spline and spline derivative
+    are plotted.
+    """
     spline = scipy.interpolate.splrep(array[:,0], array[:,1], s=s_factor)
-    plt.plot(array[:,0], array[:,1], "ro", markersize=1)
+    plt.plot(array[:,0], array[:,1], "ro", markersize=1, label="Data")
     x_sample = np.linspace(1, array[-1,0], 10000)
-    plt.plot(x_sample, scipy.interpolate.BSpline(*spline)(x_sample), "g")
+    plt.plot(x_sample, scipy.interpolate.BSpline(*spline)(x_sample), "g", label=f"Fitted spline with s={s_factor}")
+    plt.plot(x_sample, scipy.interpolate.BSpline(*spline)(x_sample, 1), "y", label=f"Fitted spline's derivative")
+    plt.legend()
     plt.show()
 
 
-get_fit_function(np.load("gaussian_fitting/bin=0.1.npy"), 1000)
+# get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/ACF/bin=1.2.npy"), 100)
 

@@ -976,13 +976,15 @@ class Map(Fits_file):
                 for listi in list_of_lists:
                     all_diffs.append(listi)
             mean_diffs = np.nanmean((np.sqrt(all_diffs))**4) / np.nanvar(array)
+            print(mean_diffs)
 
 def worker_test(array, pixel_value, pixel_coords):
     sub = []
     nan_bool = ~np.isnan(array)
     for pixel, coords in zip(array[nan_bool].flatten(), np.argwhere(nan_bool)):
+        # print(pixel, coords)
         dist = np.sqrt(np.sum((pixel_coords - coords)**2))
-        if dist == 156 and not np.isnan(pixel):
+        if dist == 150 and not np.isnan(pixel):
             sub.append(pixel_value - pixel)
     return sub
 
