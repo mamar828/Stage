@@ -541,7 +541,16 @@ def get_ACF_plot(calc=False):
 
 
 # if __name__ == "__main__":
-#     get_ACF_plot()
+    # turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+    # step = 0.7
+    # print("Current bin:", step)
+    # np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+    # d = np.load("gaussian_fitting/bin=0.7.npy")
+    # plt.plot(d[:,0], d[:,1], "mo", markersize=1)
+
+    # plt.show()
+
+    # get_ACF_plot(calc=True)
 
 
 def get_structure_function_plot(calc=False):
@@ -589,26 +598,14 @@ def test_structure():
 #     test_structure()
 
 
-def get_fit_function(array):
-    spline = scipy.interpolate.CubicSpline(array[:,0], array[:,1])
-    plt.plot(array, "ro")
-    plt.plot(array[:,0], spline(array[:,0]), "g-")
+def get_fit_function(array, s_factor):
+    print(array)
+    spline = scipy.interpolate.splrep(array[:,0], array[:,1], s=s_factor)
+    plt.plot(array[:,0], array[:,1], "ro", markersize=1)
+    x_sample = np.linspace(1, array[-1,0], 10000)
+    plt.plot(x_sample, scipy.interpolate.BSpline(*spline)(x_sample), "g")
     plt.show()
 
-# from pprint import pprint
-# pprint(np.load("gaussian_fitting/arrays/turbulence_map/ACF/bin=0.7.npy"))
-# get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/ACF/bin=0.7.npy"))
 
-import os
+# get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/structure_function/bin=0.7.npy"), 1)
 
-directory = "gaussian_fitting/arrays/turbulence_map/structure_function"
-files = os.listdir(directory)
-for file in files:
-    print(file)
-    data = np.load(f"{directory}/{file}")
-    # ax1 = plt.subplot(1,2,1)
-    # ax2 = plt.subplot(1,2,2)
-    # ax1.plot(data[:,0], data[:,1], "ro", markersize=1)
-    sorted_data = data[np.argsort(data[:,0])]
-    # ax2.plot(sorted_data[:,0], sorted_data[:,1], "go", markersize=1)
-    np.save(f"{directory}/{file}", sorted_data)

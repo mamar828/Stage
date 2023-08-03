@@ -11,6 +11,7 @@ from astropy.wcs import WCS
 from astropy import units as u
 from reproject import reproject_interp
 import pyregion
+from pprint import pprint
 
 from cube_spectrum import Spectrum
 
@@ -875,10 +876,12 @@ class Map(Fits_file):
         # This allows the pixel difference to be considered only once
         mean_values = np.array([np.nanmean(array) for array in list(regrouped_dict.values())])
 
-        # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
+        # Extract the x values (distances) and y values (multiplication means divided by the variance)
         x_values = np.array(list(regrouped_dict.keys()))
         y_values = mean_values / np.nanvar(cropped_array)
-        return np.stack((x_values, y_values), axis=1)
+        stacked_values = np.stack((x_values, y_values), axis=1)
+        sorted_values = stacked_values[np.argsort(stacked_values[:,0])]
+        return sorted_values
 
     def get_structure_function_array(self, step: float=None) -> np.ndarray:
         """ 
@@ -924,7 +927,9 @@ class Map(Fits_file):
         # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
         x_values = np.array(list(regrouped_dict.keys()))
         y_values = mean_values / np.nanvar(cropped_array)
-        return np.stack((x_values, y_values), axis=1)
+        stacked_values = np.stack((x_values, y_values), axis=1)
+        sorted_values = stacked_values[np.argsort(stacked_values[:,0])]
+        return sorted_values
 
     def sort_distances_and_values(self, pixel_list, step) -> dict:
         pool = multiprocessing.Pool()
@@ -945,6 +950,7 @@ class Map(Fits_file):
 
         # Group all the remaining arrays
         dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
+        
         if step is None:
             print("\nAll calculations completed in", time.time() - start, "s.")
             return dists_and_vals_group_3
@@ -980,7 +986,7 @@ def worker_test(array, pixel_value, pixel_coords):
             sub.append(pixel_value - pixel)
     return sub
 
-    
+
 
 def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     """
@@ -1004,7 +1010,8 @@ def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
         # The indices variable refers to the flattened array
         flat_values = pixel_array[:,:,1].flatten()
         corresponding_values = flat_values[indices == i]
-        dist_and_vals[unique_distance] = corresponding_values[~np.isnan(corresponding_values)]
+        if corresponding_values[~np.isnan(corresponding_values)].shape != (0,):     # Filter empty arrays
+            dist_and_vals[unique_distance] = corresponding_values[~np.isnan(corresponding_values)]
     print(".", end="", flush=True)
     return dist_and_vals
 
@@ -1022,11 +1029,11 @@ def worker_regroup_pixels(pixel_list: list) -> dict:
     """
     pixel_list_means = {}
     for pixel in pixel_list:
-        if pixel is not None:
-            for key, value in pixel.items():
-                if key is not None and value is not None and value != []:
-                    # If the key is already present, the new value is appended to the global dict
-                    pixel_list_means[key] = np.append(pixel_list_means.get(key, np.array([])), value)
+        for key, value in pixel.items():
+            if key is not None and value is not None and value.any() and key != 0:
+                # Remove empty data and operations calculated with the pixel itself
+                # If the key is already present, the new value is appended to the global dict
+                pixel_list_means[key] = np.append(pixel_list_means.get(key, np.array([])), value)
     return pixel_list_means
 
 
