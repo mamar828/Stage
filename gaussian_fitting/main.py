@@ -615,3 +615,15 @@ def get_fit_function(array, s_factor):
 
 # get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/ACF/bin=1.2.npy"), 100)
 
+
+# if __name__ == "__main__":
+#     nii_centroid = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits"))
+#     nii_fwhm = Map_usnr(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
+#     nii_centroid_snr = Map_usnr.from_Map_u_object(nii_centroid, nii_fwhm[2])
+#     filtered_nii = nii_centroid_snr.filter_snr(6)[130:380,70:410]
+#     filtered_nii.plot_map()
+#     np.save("gaussian_fitting/bin=None.npy", filtered_nii.get_autocovariance_function_array())
+#     # np.save("gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", filtered_nii.get_autocovariance_function_array())
+#     data_array = np.load(f"gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", allow_pickle=True)
+#     plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+#     plt.show()

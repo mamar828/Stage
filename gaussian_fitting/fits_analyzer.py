@@ -517,8 +517,8 @@ class Map(Fits_file):
     def __eq__(self, other):
         return np.nanmax(np.abs((self.data - other.data) / self.data)) <= 10**(-6) or np.array_equal(self.data, other.data)
     
-    def __getitem__(self, key_slice):
-        return Map(fits.PrimaryHDU(self.data[key_slice], None))
+    def __getitem__(self, key):
+        return Map(fits.PrimaryHDU(self.data[key], None))
 
     def copy(self):
         return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()))
@@ -919,7 +919,6 @@ class Map(Fits_file):
                     dists_and_subtractions.append(np.stack((dists, subtraction), axis=2))
         
         regrouped_dict = self.sort_distances_and_values(dists_and_subtractions, step)
-        
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
         mean_values = np.array([np.nanmean((np.sqrt(array))**4) for array in list(regrouped_dict.values())])
@@ -1134,9 +1133,11 @@ class Map_u(Map):
         return (np.nanmax(np.abs((self.data - other.data) / self.data)) <= 1**(-5) and 
                 np.nanmax(np.abs((self.uncertainties - other.uncertainties) / self.uncertainties)) <= 1**(-5))
     
-    def __getitem__(self, key_slice):
-        return self.from_Map_objects(Map(fits.PrimaryHDU(self.data, None))[key_slice], 
-                                     Map(fits.PrimaryHDU(self.uncertainties, None))[key_slice])
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return Map(self.object[key])
+        return self.from_Map_objects(Map(fits.PrimaryHDU(self.data, None))[key], 
+                                     Map(fits.PrimaryHDU(self.uncertainties, None))[key])
     
     def copy(self):
         return Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), self.header.copy()),
@@ -1153,9 +1154,6 @@ class Map_u(Map):
         else:
             return Map(fits.PrimaryHDU(self.object[self.n].data, self.header))
         
-    def __getitem__(self, index):
-        return Map(self.object[index])
-
     def add_new_axis(self, new_axis_shape: int) -> Map_u:
         """
         Reshape a Map_u object by adding one dimension and filling this axis with preexisting data.
@@ -1378,10 +1376,12 @@ class Map_usnr(Map_u):
         return super().__eq__(other) and (np.nanmax(np.abs((self.snr - other.snr) / self.snr)) <= 10**(-6)
                                           or self.snr == other.snr)
     
-    def __getitem__(self, key_slice):
-        return self.from_Map_objects(Map(fits.PrimaryHDU(self.data, None))[key_slice],
-                                     Map(fits.PrimaryHDU(self.uncertainties, None))[key_slice],
-                                     Map(fits.PrimaryHDU(self.snr, None))[key_slice])
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return Map(self.object[key])
+        return self.from_Map_objects(Map(fits.PrimaryHDU(self.data, None))[key],
+                                     Map(fits.PrimaryHDU(self.uncertainties, None))[key],
+                                     Map(fits.PrimaryHDU(self.snr, None))[key])
     
     def copy(self):
         return self.from_Map_u_object(super().copy(), self.snr)
@@ -1443,7 +1443,7 @@ class Map_usnr(Map_u):
         Map_usnr object: map with the filtered data.
         """
         mask = np.ma.masked_less(self.snr, snr_threshold).mask
-        mask = np.where(mask == True, 0, 1)
+        mask = np.where(mask == True, np.NAN, 1)
         return Map_usnr(fits.HDUList([fits.PrimaryHDU(self.data * mask, self.header),
                                       fits.ImageHDU(self.uncertainties * mask, self.header),
                                       fits.ImageHDU(self.snr * mask, self.header)]))
