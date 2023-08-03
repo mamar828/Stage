@@ -599,7 +599,6 @@ def test_structure():
 
 
 def get_fit_function(array, s_factor):
-    print(array)
     spline = scipy.interpolate.splrep(array[:,0], array[:,1], s=s_factor)
     plt.plot(array[:,0], array[:,1], "ro", markersize=1)
     x_sample = np.linspace(1, array[-1,0], 10000)
@@ -607,5 +606,5 @@ def get_fit_function(array, s_factor):
     plt.show()
 
 
-# get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/structure_function/bin=0.7.npy"), 1)
+get_fit_function(np.load("gaussian_fitting/bin=0.1.npy"), 1000)
 
