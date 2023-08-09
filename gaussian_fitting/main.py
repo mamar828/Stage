@@ -645,8 +645,3 @@ def get_fit_function(array, s_factor):
 #     plt.show()
 #     print(i, np.max(old[:,1] - new[:,1]))
 
-
-# old = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin=0.1.npy")
-# new = np.load(f"gaussian_fitting/bin=0.6.npy")
-# print(new[:,1], )
-# print(np.max(old[:,1] - new[:,1]))
