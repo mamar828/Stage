@@ -44,7 +44,7 @@ class Spectrum:
             if len(self.x_values) == 48:
                 desired_peak_position = 35
                 upper_limit_mean_calculation = 25
-            if len(self.x_values) == 34:
+            if len(self.x_values) == 34:          # This is for one of Leo's cubes
                 desired_peak_position = 20
                 upper_limit_mean_calculation = 10
             # The distance between the desired peak and the current peak is calculated

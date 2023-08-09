@@ -255,7 +255,7 @@ def get_courtes_temperature(settings: dict):
             "global_temperature_was_substracted" bool is set to True. Supported names are "NII", "Ha", "OIII" and "SII".
         "fine_structure": bool. If True, the broadening associated to the fine structure in the hydrogen atom will be substracted
             from the map.
-    "map_2": informations on the second map. This has the same format as map_1.
+    "map_2": informations on the second map. It has the same format as map_1.
     "subtraction": str. Specifies which map to subtract to which map. The map which has the heaviest element should always be the 
         one subtracting the other as heavier elements have smaller ray broadening. The str format is "1-2" or "2-1".
     "turbulence_consideration: bool. If True, the broadening associated to the turbulence map will be subtracted from each map.
@@ -520,13 +520,13 @@ def get_ACF_plot(calc=False):
     """
     step_range = np.round(np.arange(0.1,1.6,0.1), 1)
     if calc:
-        turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+        turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
         step = None
         print("Current bin:", step)
-        np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+        np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
         for step in step_range:
             print("Current bin:", step)
-            np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+            np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
     else:
         step = None
         data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
@@ -545,12 +545,13 @@ def get_ACF_plot(calc=False):
     # step = 0.7
     # print("Current bin:", step)
     # np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
-    # d = np.load("gaussian_fitting/bin=0.7.npy")
+    # d = np.load("gaussian_fitting/bin=0.1.npy")
     # plt.plot(d[:,0], d[:,1], "mo", markersize=1)
 
     # plt.show()
 
     # get_ACF_plot(calc=True)
+    # get_ACF_plot()
 
 
 def get_structure_function_plot(calc=False):
@@ -560,14 +561,14 @@ def get_structure_function_plot(calc=False):
     """
     step_range = np.round(np.arange(0.1,1.6,0.1), 1)
     if calc:
-        turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
+        turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
         step = None
         print("Current bin:", step)
-        np.save(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
+        np.save(f"gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={step}.npy", 
                 turbulence_map.get_structure_function_array(step))
         for step in step_range:
             print("Current bin:", step)
-            np.save(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
+            np.save(f"gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={step}.npy", 
                     turbulence_map.get_structure_function_array(step))
     else:
         step = None
@@ -582,8 +583,12 @@ def get_structure_function_plot(calc=False):
             plt.show()
 
 
+# data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/structure_function/ints.npy", allow_pickle=True)
+# plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
+# plt.show()
+
 # if __name__ == "__main__":
-#     get_structure_function_plot()
+#     get_structure_function_plot(calc=True)
 
 
 def test_structure():
@@ -613,7 +618,7 @@ def get_fit_function(array, s_factor):
     plt.show()
 
 
-# get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/ACF/bin=1.2.npy"), 100)
+# get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/structure_function/bin=1.2.npy"), 15)
 
 
 # if __name__ == "__main__":
@@ -627,3 +632,21 @@ def get_fit_function(array, s_factor):
 #     data_array = np.load(f"gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", allow_pickle=True)
 #     plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
 #     plt.show()
+
+
+# for i in np.round(np.arange(1.2,1.6,0.1), 1):
+#     old = np.load(f"gaussian_fitting/bin={i}.npy")
+#     new = np.load(f"gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={i}.npy")
+#     ax1 = plt.subplot(1,2,1)
+#     ax2 = plt.subplot(1,2,2)
+#     ax1.plot(old[:,0], old[:,1], "o", markersize=1)
+#     ax2.plot(new[:,0], new[:,1], "o", markersize=1)
+#     plt.title(i)
+#     plt.show()
+#     print(i, np.max(old[:,1] - new[:,1]))
+
+
+# old = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin=0.1.npy")
+# new = np.load(f"gaussian_fitting/bin=0.6.npy")
+# print(new[:,1], )
+# print(np.max(old[:,1] - new[:,1]))

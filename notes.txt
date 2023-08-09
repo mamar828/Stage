@@ -121,20 +121,21 @@ seven_components_fit inclusion
                PLAN                
 -----------------------------------
 
-Turbulence map:
-        Fix structure function with ^2, only same pixels once and only entire distances
-        Calculate ACF
-        Fit -> Calc derivatives
-
-NII centroid in km/s map:
-Remove flow contribution with Zurflueh filter
-Calculate structure function and ACF
-
-Write article (1 page)
-
-HI cube:
-Find HI line breaks with memoir and calc derivative (2 may not be visible)
-Get cold component's centroid maps with Aricia
-
-7.852269688779581
-134.21251805
+Turbulence map:                                                                                  
+        Fix structure function with ^2, only same pixels once and only entire distances          
+        Calculate ACF                                                                            
+        Fit -> Calc derivatives                                                                  
+                                                                                                 
+NII centroid in km/s map:                                                                        
+Remove flow contribution with Zurflueh filter                                                    
+Calculate structure function and ACF                                                             
+                                                                                                 
+        Write article (1 page)                                                                   
+                                                                                                 
+HI cube:                                                                                         
+Find HI line breaks with memoir and calc derivative (2 may not be visible)                       -
+Get cold component's centroid maps with Aricia                                                   -
+                                                                                                 
+Read Zurflueh                                                                                    
+Right wavelengths + send                                                                         -
+Uncertainties                                                                                    -

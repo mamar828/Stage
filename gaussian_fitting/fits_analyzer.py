@@ -849,11 +849,12 @@ class Map(Fits_file):
         min_row, max_row = np.min(non_nan_indices[0]), np.max(non_nan_indices[0])
         min_col, max_col = np.min(non_nan_indices[1]), np.max(non_nan_indices[1])
         # Extract the subarray that has been trimmed from the nan ocean
-        cropped_array = self.data[min_row:max_row + 1, min_col:max_col + 1]
+        cropped_array = self[min_row:max_row + 1, min_col:max_col + 1]
         return cropped_array
 
     def get_autocovariance_function_array(self, step: float=None) -> np.ndarray:
-        cropped_array = self.get_cropped_NaNs_array()
+        cropped_map = self.get_cropped_NaNs_array()
+        cropped_array = cropped_map.data
 
         # Create arrays that will be useful for computing distances
         x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
@@ -874,12 +875,11 @@ class Map(Fits_file):
 
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
-        mean_values = np.array([np.nanmean(array) for array in list(regrouped_dict.values())])
+        mean_values = np.array([(np.append(distance, np.nanmean(array))) for distance, array in regrouped_dict.items()])
 
         # Extract the x values (distances) and y values (multiplication means divided by the variance)
-        x_values = np.array(list(regrouped_dict.keys()))
-        y_values = mean_values / np.nanvar(cropped_array)
-        stacked_values = np.stack((x_values, y_values), axis=1)
+        y_values = mean_values[:,1] / np.nanvar(cropped_array)
+        stacked_values = np.stack((mean_values[:,0], y_values), axis=1)
         sorted_values = stacked_values[np.argsort(stacked_values[:,0])]
         return sorted_values
 
@@ -901,7 +901,8 @@ class Map(Fits_file):
         np array: two-dimensional array that contains the function structure (second element on last axis) corresponding to
         the distance between the pixels (first element on last axis).
         """
-        cropped_array = self.get_cropped_NaNs_array()
+        cropped_map = self.get_cropped_NaNs_array()
+        cropped_array = cropped_map.data
 
         # Create arrays that will be useful for computing distances
         x, y = np.arange(cropped_array.shape[1]), np.arange(cropped_array.shape[0])
@@ -921,12 +922,12 @@ class Map(Fits_file):
         regrouped_dict = self.sort_distances_and_values(dists_and_subtractions, step)
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
-        mean_values = np.array([np.nanmean((np.sqrt(array))**4) for array in list(regrouped_dict.values())])
+        mean_values = np.array([(np.append(distance, np.nanmean((np.sqrt(array))**4)))
+                                           for distance, array in list(regrouped_dict.items())])
 
-        # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
-        x_values = np.array(list(regrouped_dict.keys()))
-        y_values = mean_values / np.nanvar(cropped_array)
-        stacked_values = np.stack((x_values, y_values), axis=1)
+        # Extract the x values (distances) and y values (multiplication means divided by the variance)
+        y_values = mean_values[:,1] / np.nanvar(cropped_array)
+        stacked_values = np.stack((mean_values[:,0], y_values), axis=1)
         sorted_values = stacked_values[np.argsort(stacked_values[:,0])]
         return sorted_values
 
@@ -1303,6 +1304,186 @@ class Map_u(Map):
         reprojected_uncertainties = reproject_interp(self.object[1], other.header, return_footprint=False, order="nearest-neighbor")
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]))
+    
+    def get_autocovariance_function_array(self, step: float=None) -> np.ndarray:
+        cropped_map = self.get_cropped_NaNs_array()
+        cropped_vals = cropped_map.data
+        cropped_uncs = cropped_map.uncertainties
+
+        # Create arrays that will be useful for computing distances
+        x, y = np.arange(cropped_vals.shape[1]), np.arange(cropped_vals.shape[0])
+        xx, yy = np.meshgrid(x, y)
+        dists_and_multiplications = []
+
+        for y in range(cropped_vals.shape[0]):
+            if np.nansum(cropped_vals[y,:]) == 0.0:        # The row is empty
+                continue
+            for x in range(cropped_vals.shape[1]):
+                if not np.isnan(cropped_vals[y,x]):
+                    multiplication_val = cropped_vals[y,x] * cropped_vals
+                    multiplication_unc = (cropped_uncs[y,x]/cropped_vals[y,x] + cropped_uncs/cropped_vals) * multiplication_val
+                    dists = np.sqrt((x-xx)**2 + (y-yy)**2)
+                    # The multiplication's result is linked to the pixels' distance
+                    dists_and_multiplications.append(np.stack((dists, multiplication_val, multiplication_unc), axis=2))
+        
+        regrouped_dict = self.sort_distances_and_values(dists_and_multiplications, step)
+        
+        # The square root of each value is computed first to eliminate all negative data
+        # This allows the pixel difference to be considered only once
+        mean_values = np.array([(np.append(distance, np.nanmean(array, axis=0))) for distance, array in regrouped_dict.items()])
+
+        # Extract the x values (distances) and y values (multiplication means divided by the variance)
+        y_values = mean_values[:,1:] / np.nanvar(cropped_vals)
+        stacked_values = np.stack((mean_values[:,0], y_values[:,0], y_values[:,1]), axis=1)
+        sorted_values = stacked_values[np.argsort(stacked_values[:,0])]
+        return sorted_values
+
+    def get_structure_function_array(self, step: float=None) -> np.ndarray:
+        """ 
+        Get the array that represents the structure function.
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
+        state with the following phrasing:
+        if __name__ == "__main__":
+        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
+        
+        Arguments
+        ---------
+        step: float, default=None. Specifies the bin steps that are to be used to regroup close distances. This helps in smoothing
+        the curve and preventing great bumps with large distances. When equal to None, no bin is made.
+
+        Returns
+        -------
+        np array: two-dimensional array that contains the function structure (second element on last axis) corresponding to
+        the distance between the pixels (first element on last axis).
+        """
+        cropped_map = self.get_cropped_NaNs_array()
+        cropped_vals = cropped_map.data
+        cropped_uncs = cropped_map.uncertainties
+
+        # Create arrays that will be useful for computing distances
+        x, y = np.arange(cropped_vals.shape[1]), np.arange(cropped_vals.shape[0])
+        xx, yy = np.meshgrid(x, y)
+        dists_and_subtractions = []
+
+        for y in range(cropped_vals.shape[0]):
+            if np.nansum(cropped_vals[y,:]) == 0.0:        # The row is empty
+                continue
+            for x in range(cropped_vals.shape[1]):
+                if not np.isnan(cropped_vals[y,x]):
+                    subtraction_val = cropped_vals[y,x] - cropped_vals
+                    subtraction_unc = cropped_uncs[y,x] + cropped_uncs
+                    dists = np.sqrt((x-xx)**2 + (y-yy)**2)
+                    # The multiplication's result is linked to the pixels' distance
+                    dists_and_subtractions.append(np.stack((dists, subtraction_val, subtraction_unc), axis=2))
+        
+        regrouped_dict = self.sort_distances_and_values(dists_and_subtractions, step)
+
+        # The square root of each value is computed first to eliminate all negative data
+        # This allows the pixel difference to be considered only once
+        mean_values = np.array([(np.append(distance, np.nanmean((np.sqrt(array))**4, axis=0))) 
+                                 for distance, array in list(regrouped_dict.items())])
+
+        # Extract the x values (distances) and y values (subtraction means divided by the variance, squared)
+        y_values = mean_values[:,1:] / np.nanvar(cropped_vals)
+        stacked_values = np.stack((mean_values[:,0], y_values[:,0], y_values[:,1]), axis=1)
+        sorted_values = stacked_values[np.argsort(stacked_values[:,0])]
+        return sorted_values
+
+    def sort_distances_and_values(self, pixel_list, step) -> dict:
+        pool = multiprocessing.Pool()
+        print(f"Processes used: {pool._processes}")
+        start = time.time()
+
+        # Calculate the mean subtraction per distance of every pixel
+        dist_and_vals = pool.map(worker_regroup_distances_of_pixel_u, pixel_list)
+
+        group_size = 15
+        # Regroup all the subtraction's results per distance of groups of [group_size] pixels, in this case 15
+        dist_and_vals_group_1 = pool.map(worker_regroup_pixels_u, np.array_split(dist_and_vals, len(dist_and_vals)//group_size))
+
+        # From the already grouped pixels, regroup another [group_size] arrays
+        dists_and_vals_group_2 = pool.map(worker_regroup_pixels_u,
+                                                np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size))
+        pool.close()
+
+        # Group all the remaining arrays
+        dists_and_vals_group_3 = worker_regroup_pixels_u(dists_and_vals_group_2)
+
+        if step is None:
+            print("\nAll calculations completed in", time.time() - start, "s.")
+            return dists_and_vals_group_3
+        else:
+            bins = np.round(np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step),1)
+            regrouped_dict = {}
+            for distance, values_and_uncert in dists_and_vals_group_3.items():
+                # Get the closest value to bin to and append the values
+                closest_bin = bins[(np.abs(bins-distance)).argmin()]
+
+                preexisting_data = regrouped_dict.get(closest_bin, None)
+                if preexisting_data is not None:
+                    regrouped_dict[closest_bin] = np.vstack((preexisting_data, values_and_uncert))
+                else:
+                    regrouped_dict[closest_bin] = values_and_uncert
+                
+            print("\nAll calculations completed in", time.time() - start, "s.")
+            return regrouped_dict
+
+
+
+def worker_regroup_distances_of_pixel_u(pixel_array: np.ndarray) -> dict:
+    """
+    Regroup all the values that correspond to the same distance between pixels in the form of a dictionary. Print a 
+    "." every time a pixel's analysis has been completed.
+    
+    Arguments
+    ---------
+    pixel_array: numpy array. Array whose mean values must be calculated.
+    
+    Returns
+    -------
+    dict: the keys are the unique distances between pixels and the values are numpy arrays and correspond to the operation's
+    result from the pixels that are separated by that same distance.
+    """
+    # The unique distances and their positions in the array are extracted
+    unique_distances, indices = np.unique(pixel_array[:,:,0], return_inverse=True)
+    dist_and_vals = {}
+    for i, unique_distance in enumerate(unique_distances):
+        # if unique_distance % 1 == 0:                      # Only get integer distances
+        # The indices variable refers to the flattened array
+        flat_values = pixel_array[:,:,1].flatten()
+        corresponding_values = flat_values[indices == i]
+        if corresponding_values[~np.isnan(corresponding_values)].shape != (0,):     # Filter empty arrays
+            flat_uncertainties = pixel_array[:,:,2].flatten()
+            corresponding_uncertainties = flat_uncertainties[indices == i]
+            dist_and_vals[unique_distance] = np.transpose(np.array((corresponding_values[~np.isnan(corresponding_values)],
+                                                             corresponding_uncertainties[~np.isnan(corresponding_uncertainties)])))
+    print(".", end="", flush=True)
+    return dist_and_vals
+
+def worker_regroup_pixels_u(pixel_list: list) -> dict:
+    """
+    Regroup the dictionary values that are linked to the same key.
+    
+    Arguments
+    ---------
+    pixel_list: list of dicts. List of dictionaries in which all the values attributed to the same key will be regrouped.
+    
+    Returns
+    -------
+    dict: Single dictionary containing the data of all dictionaries in the pixel_list list of dicts.
+    """
+    pixel_list_means = {}
+    for pixel in pixel_list:
+        for key, value_and_uncert in pixel.items():
+            if key is not None and value_and_uncert[0] is not None and value_and_uncert[0].any() and key != 0:
+                # Remove empty data and operations calculated with the pixel itself (when the distance equals 0)
+                # If the key is already present, the new value is appended to the global dict
+                preexisting_means = pixel_list_means.get(key, None)
+                if preexisting_means is not None:
+                    pixel_list_means[key] = np.vstack((preexisting_means, value_and_uncert))
+                else:
+                    pixel_list_means[key] = value_and_uncert
+    return pixel_list_means
 
 
 

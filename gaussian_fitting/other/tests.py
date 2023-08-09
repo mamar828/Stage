@@ -505,5 +505,34 @@ plt.show()
 
 # print(np.concatenate(np.array((None)), np.linspace(1,167,167)))
 
-f = np.array([1,2,3,4])
-print(f[np.array([1,0,2])])
+# f = np.array([1,2,3,4])
+# print(f[np.array([1,0,2])])
+
+# a = np.array([1,2,3])
+# b = np.array([0.1,0.2,0.3])
+
+# print(np.stack((a,b)).transpose())
+
+# a = np.array([1,2])
+# print(np.vstack((np.array([[3,4],[5,6]]), a)))
+
+# c = np.array([[1,2],[3,4]])
+# print(c)
+# print(np.sum(c, axis=1))
+
+
+# array1 = np.array([1, 2, 3, 4, 5, 6])
+# array2 = np.array([[3, 4, 5, 6, 7, 8], [5, 6, 7, 8, 9, 0]])
+
+# Use np.block to concatenate the arrays
+# result = np.block([[array1], [array2]])
+# print(result)
+# print(array2.transpose())
+
+# print(np.array([[1,2,3],[4,5,6]]).shape)
+
+
+a = np.array([[1,2],[3,4],[5,6]])
+b = np.array([[7,8],[9,0]])
+
+print(np.vstack((a,b)))
