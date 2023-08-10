@@ -308,15 +308,13 @@ class NII_spectrum(Spectrum):
         else:
             self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit(self, stddev_mins: dict=None, number_of_components: int=6) -> models:
+    def fit(self, number_of_components: int=6) -> models:
         """
         Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the
         variable self.fitted_gaussian.
 
         Arguments
         ---------
-        stddev_mins: dict, default=None. Specifies the standard deviation's minimum value of every gaussian component.
-        This is used in the fit_iteratively method to increase the fit's accuracy.
         number_of_components: int, default=6. Number of initial guesses that need to be returned. This integer may be 6 or 7
         depending on if a double NII peak is detected. The user may leave the default value as it is as the program will
         attempt a seven components fit if allowed and if needed.
@@ -372,11 +370,6 @@ class NII_spectrum(Spectrum):
         gi_OH1.mean.max = 3*u.um
         gi_OH4.mean.min = 47*u.um
 
-        # Set the standard deviation's minimum of the gaussians of the corresponding rays if the dict is present
-        if stddev_mins:
-            for ray, min_guess in stddev_mins.items():
-                exec(f"gi_{ray}.stddev.min = {min_guess}*u.um")
-        
         if number_of_components == 6:
             self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
                                              fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
@@ -671,7 +664,7 @@ class SII_spectrum(Spectrum):
     Encapsulate the methods specific to SII spectrums.
     """
 
-    def __init__(self, data: np.ndarray, header):
+    def __init__(self, data: np.ndarray, header, seven_components_fit_authorized: bool=False):
         """
         Initialize a NII_spectrum object. The fitter will use multiple gaussians.
         
@@ -679,9 +672,13 @@ class SII_spectrum(Spectrum):
         ---------
         data: numpy array. Detected intensity at each channel.
         header: astropy.io.fits.header.Header. Allows for the calculation of the FWHM using the interferometer's settings.
+        seven_components_fit_authorized: bool, default=False. Specifies if a fit with seven components, i.e. two NII components,
+        can be detected and used.
         """
         super().__init__(data, header)
         # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
+        self.seven_components_fit = 0
+        self.seven_components_fit_authorized = seven_components_fit_authorized
 
         # All y values are shifted downwards by the mean calculated in the channels 25 to 35
         self.downwards_shift = np.sum(self.y_values[24:34]) / 10
@@ -719,15 +716,13 @@ class SII_spectrum(Spectrum):
         else:
             self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit(self, stddev_mins: dict=None, number_of_components: int=6) -> models:
+    def fit(self, number_of_components: int=6) -> models:
         """
         Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the
         variable self.fitted_gaussian.
 
         Arguments
         ---------
-        stddev_mins: dict, default=None. Specifies the standard deviation's minimum value of every gaussian component.
-        This is used in the fit_iteratively method to increase the fit's accuracy.
         number_of_components: int, default=6. Number of initial guesses that need to be returned. This integer may be 6 or 7
         depending on if a double NII peak is detected. The user may leave the default value as it is as the program will
         attempt a seven components fit if allowed and if needed.
@@ -783,11 +778,6 @@ class SII_spectrum(Spectrum):
         gi_OH1.mean.max = 3*u.um
         gi_OH4.mean.min = 47*u.um
 
-        # Set the standard deviation's minimum of the gaussians of the corresponding rays if the dict is present
-        if stddev_mins:
-            for ray, min_guess in stddev_mins.items():
-                exec(f"gi_{ray}.stddev.min = {min_guess}*u.um")
-        
         if number_of_components == 6:
             self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
                                              fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
