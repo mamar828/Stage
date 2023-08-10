@@ -523,10 +523,10 @@ def get_ACF_plot(calc=False):
         turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
         step = None
         print("Current bin:", step)
-        np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+        np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocorrelation_function_array(step))
         for step in step_range:
             print("Current bin:", step)
-            np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+            np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocorrelation_function_array(step))
     else:
         step = None
         data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
@@ -544,7 +544,7 @@ def get_ACF_plot(calc=False):
     # turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
     # step = 0.7
     # print("Current bin:", step)
-    # np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocovariance_function_array(step))
+    # np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.get_autocorrelation_function_array(step))
     # d = np.load("gaussian_fitting/bin=0.1.npy")
     # plt.plot(d[:,0], d[:,1], "mo", markersize=1)
 
@@ -627,8 +627,8 @@ def get_fit_function(array, s_factor):
 #     nii_centroid_snr = Map_usnr.from_Map_u_object(nii_centroid, nii_fwhm[2])
 #     filtered_nii = nii_centroid_snr.filter_snr(6)[130:380,70:410]
 #     filtered_nii.plot_map()
-#     np.save("gaussian_fitting/bin=None.npy", filtered_nii.get_autocovariance_function_array())
-#     # np.save("gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", filtered_nii.get_autocovariance_function_array())
+#     np.save("gaussian_fitting/bin=None.npy", filtered_nii.get_autocorrelation_function_array())
+#     # np.save("gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", filtered_nii.get_autocorrelation_function_array())
 #     data_array = np.load(f"gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", allow_pickle=True)
 #     plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
 #     plt.show()

@@ -852,7 +852,7 @@ class Map(Fits_file):
         cropped_array = self[min_row:max_row + 1, min_col:max_col + 1]
         return cropped_array
 
-    def get_autocovariance_function_array(self, step: float=None) -> np.ndarray:
+    def get_autocorrelation_function_array(self, step: float=None) -> np.ndarray:
         cropped_map = self.get_cropped_NaNs_array()
         cropped_array = cropped_map.data
 
@@ -1305,7 +1305,7 @@ class Map_u(Map):
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]))
     
-    def get_autocovariance_function_array(self, step: float=None) -> np.ndarray:
+    def get_autocorrelation_function_array(self, step: float=None) -> np.ndarray:
         cropped_map = self.get_cropped_NaNs_array()
         cropped_vals = cropped_map.data
         cropped_uncs = cropped_map.uncertainties
