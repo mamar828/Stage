@@ -28,8 +28,6 @@ The following file is used to modify any map. It is primarily used for WCS adjus
 
 
 
-
-
 """
 file_night_34 = fits.open("night_34.fits")
 
@@ -228,6 +226,26 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 ---------------------------------------------------------------------------------------------------------------------------
 """
 
+# The maps are adjusted on the NII data cube
+# first_dc = Data_cube(fits.open("gaussian_fitting/data_cubes/SII/SII_1/lambda.fits"))
+# first_dc.set_WCS({"CRPIXS": (481, 582),
+#                   "CRVALS": (RA("23:13:29.9717"), DEC("61:30:09.503")), 
+#                   "CDELTS": (0.00025585460831683, -0.000242454913562753)})
+# first_dc.save_as_fits_file("gaussian_fitting/data_cubes/SII/SII_wcs_1.fits", True)
 
+# second_dc = Data_cube(fits.open("gaussian_fitting/data_cubes/SII/SII_2/lambda.fits"))
+# second_dc.set_WCS({"CRPIXS": (398, 588),
+#                    "CRVALS": (RA("23:13:29.9717"), DEC("61:30:09.503")), 
+#                    "CDELTS": (0.00025585460831683, -0.000242454913562753)})
+# second_dc.header.remove("CD1_1")                              # The original map strangely has rotation coefficients ????
+# second_dc.header.remove("CD1_2")
+# second_dc.header.remove("CD2_1")
+# second_dc.header.remove("CD2_2")
+# second_dc.save_as_fits_file("gaussian_fitting/data_cubes/SII/SII_wcs_2.fits", True)
 
+# third_dc = Data_cube(fits.open("gaussian_fitting/data_cubes/SII/SII_3/lambda.fits"))
+# third_dc.set_WCS({"CRPIXS": (403, 590),
+#                   "CRVALS": (RA("23:13:29.9717"), DEC("61:30:09.503")), 
+#                   "CDELTS": (0.00025585460831683, -0.000242454913562753)})
+# third_dc.save_as_fits_file("gaussian_fitting/data_cubes/SII/SII_wcs_3.fits", True)
 

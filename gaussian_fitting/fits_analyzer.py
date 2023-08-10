@@ -23,8 +23,12 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
+class celestial_coords():
+    pass
 
-class RA():
+
+
+class RA(celestial_coords):
     """
     Encapsulate the methods specific to right ascension coordinates.
     """
@@ -37,7 +41,8 @@ class RA():
         ---------
         time: str. Specifies the right ascension in clock format (HH:MM:SS.SSS -> Hours, Minutes, Seconds)
         """
-        self.hours, self.minutes, self.seconds = time.split(":")
+        # Split and convert each element in the time str to floats
+        self.hours, self.minutes, self.seconds = [float(element) for element in time.split(":")]
     
     def to_deg(self) -> float:
         """
@@ -51,7 +56,7 @@ class RA():
 
 
 
-class DEC():
+class DEC(celestial_coords):
     """
     Encapsulate the methods specific to declination coordinates.
     """
@@ -64,7 +69,8 @@ class DEC():
         ---------
         time: str. Specifies the declination in clock format (AA:MM:SS.SSS -> Angle, Minutes, Seconds)
         """
-        self.angle, self.minutes, self.seconds = time.split(":")
+        # Split and convert each element in the time str to floats
+        self.angle, self.minutes, self.seconds = [float(element) for element in time.split(":")]
     
     def to_deg(self) -> float:
         """
@@ -111,7 +117,7 @@ class Fits_file():
             pass
         return header_copy
     
-    def save_as_fits_file(self, filename: str):
+    def save_as_fits_file(self, filename: str, overwrite: bool=False):
         """
         Write an array as a fits file of the specified name with or without a header. If the object has a header, it will be saved.
 
@@ -119,13 +125,17 @@ class Fits_file():
         ---------
         filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
         file can be overwritten.
+        overwrite: bool, default=False. If True, automatically overwrites files without asking for user input.
         """
         # Check if the file already exists
         try:
             fits.open(filename)[0]
             # The file already exists
             while True:
-                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                if overwrite:
+                    answer = "y"
+                else:
+                    answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
                 if answer == "y":
                     fits.writeto(filename, self.data, self.header, overwrite=True)
                     print("File overwritten.")
@@ -140,14 +150,27 @@ class Fits_file():
 
     def set_WCS(self, values: dict):
         """
-        Set the WCS of a Fits_file object by using RA and DEC objects to modify CRVAL or CDELT values.
+        Set the WCS of a Fits_file object by using RA and DEC objects to modify CRVAL or CDELT values. The CRPIX values can also be
+        modified with floats. If a tuple is offered as value, both axes can be modified at once.
 
         Arguments
         ---------
-        values: dict. Contains the keyword to modify and the RA or DEC object.
+        values: dict. Contains the keyword to modify and the value it may take. Supported keywords for tuple assignment are "CRPIXS",
+        "CRVALS" and "CDELTS". With these keywords, the value of the first and second axes respectively may be given in a tuple.
         """
         for key, value in values.items():
-            self.header[key] = value.to_deg()
+            if isinstance(value, tuple):
+                if isinstance(value[0], celestial_coords):
+                    self.header[f"{key[:-1]}1"] = value[0].to_deg()
+                    self.header[f"{key[:-1]}2"] = value[1].to_deg()
+                else:
+                    self.header[f"{key[:-1]}1"] = value[0]
+                    self.header[f"{key[:-1]}2"] = value[1]
+            else:
+                if isinstance(value, celestial_coords):
+                    self.header[key] = value.to_deg()
+                else:
+                    self.header[key] = value
 
     def reset_update_file(self):
         """
