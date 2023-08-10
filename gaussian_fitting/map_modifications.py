@@ -8,7 +8,7 @@ import numpy as np
 import sys
 import scipy
 
-from fits_analyzer import Data_cube, Map
+from fits_analyzer import *
 
 
 # nuit_3 = fits.open("lambda_3.fits")[0].data
@@ -21,6 +21,13 @@ from fits_analyzer import Data_cube, Map
 # # fits.writeto("night_34.fits", nuit_34, header, overwrite=True)
 
 # dc = Data_cube()
+
+"""
+The following file is used to modify any map. It is primarily used for WCS adjustments.
+"""
+
+
+
 
 
 """
@@ -138,11 +145,11 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 # ax1.imshow(reprojected_global_map, vmin=0, vmax=40, origin="lower")
 # plt.show()
 
-
-# --------------------------
-# MODIFICATION OF LEO'S MAPS
-# --------------------------
-
+""" 
+------------------------------------------------------------------------------------------------------------------------------
+                                                  MODIFICATION OF LEO'S MAPS
+------------------------------------------------------------------------------------------------------------------------------
+"""
 # ref = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
 # cube = Data_cube(fits.open("gaussian_fitting/leo/SII/cube_nouveau.fits")[0])
 # cube.header = cube.get_header_without_third_dimension()
@@ -209,8 +216,18 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
         wavelength_channel_1 = self.header["FP_B_L"]
 """
 
-cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits"))
-cube.header["FP_I_A"] = (8.79 * 1000 / scipy.constants.c * 5007 * 34, "Interfringe (Angstrom)")
-cube.header["FP_B_L"] = (5007 - 8.79 * 1000 / scipy.constants.c * 5007 * 18, "Lambda of the first channel (Angstrom)")
-cube.save_as_fits_file("gaussian_fitting/leo/OIII/reference_cube_with_header.fits")
+# cube = Data_cube(fits.open("gaussian_fitting/leo/OIII/reference_cube.fits"))
+# cube.header["FP_I_A"] = (8.79 * 1000 / scipy.constants.c * 5007 * 34, "Interfringe (Angstrom)")
+# cube.header["FP_B_L"] = (5007 - 8.79 * 1000 / scipy.constants.c * 5007 * 18, "Lambda of the first channel (Angstrom)")
+# cube.save_as_fits_file("gaussian_fitting/leo/OIII/reference_cube_with_header.fits")
+
+
+"""
+---------------------------------------------------------------------------------------------------------------------------
+                                                OMM SII MAPS WCS ADJUSTMENT
+---------------------------------------------------------------------------------------------------------------------------
+"""
+
+
+
 

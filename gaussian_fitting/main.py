@@ -24,7 +24,7 @@ def get_maps():
     # The cube is binned, then fitted, and the FWHM, mean and amplitude of every gaussian is stored
     # The extract argument specifies the order in which the Maps will be returned
     # Note that the extract argument can have fewer elements if not all Maps are desired
-    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit_all(extract=["FWHM", "mean", "amplitude"])
+    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit_NII_cube(extract=["FWHM", "mean", "amplitude"])
     # All fwhm_maps are saved
     fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
     # Only the NII and Ha maps for mean and amplitude are saved
@@ -34,9 +34,9 @@ def get_maps():
     amplitude_maps["Ha_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/Ha_amplitude.fits")
 
 
-# Note that function are called in a if __name__ == "__main__" block because the fitting algorithm uses the multiprocessing
-# library which creates multiple instances of the same code. Without this condition, the program would multiply itself
-# recursively.
+# Note that some functions are called in a if __name__ == "__main__" block because the fitting algorithm uses the multiprocessing
+# library which creates multiple instances of the same code to allow parallel computation. Without this condition, the program would
+# multiply itself recursively.
 # if __name__ == "__main__":
 #     get_maps()
 

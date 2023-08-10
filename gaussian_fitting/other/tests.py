@@ -532,7 +532,12 @@ plt.show()
 # print(np.array([[1,2,3],[4,5,6]]).shape)
 
 
-a = np.array([[1,2],[3,4],[5,6]])
-b = np.array([[7,8],[9,0]])
+# a = np.array([[1,2],[3,4],[5,6]])
+# b = np.array([[7,8],[9,0]])
 
-print(np.vstack((a,b)))
+# print(np.vstack((a,b)))
+
+def test(f):
+    print("yoyooy")
+
+test(None)

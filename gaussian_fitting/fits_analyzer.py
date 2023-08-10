@@ -13,7 +13,7 @@ from reproject import reproject_interp
 import pyregion
 from pprint import pprint
 
-from cube_spectrum import Spectrum
+from cube_spectrum import *
 
 import multiprocessing
 import time
@@ -24,12 +24,66 @@ if not sys.warnoptions:
 
 
 
+class RA():
+    """
+    Encapsulate the methods specific to right ascension coordinates.
+    """
+
+    def __init__(self, time: str):
+        """
+        Initialize a RA object.
+
+        Arguments
+        ---------
+        time: str. Specifies the right ascension in clock format (HH:MM:SS.SSS -> Hours, Minutes, Seconds)
+        """
+        self.hours, self.minutes, self.seconds = time.split(":")
+    
+    def to_deg(self) -> float:
+        """
+        Convert the time to degrees.
+
+        Returns
+        -------
+        float: converted time in degrees.
+        """
+        return (self.hours*3600 + self.minutes*60 + self.seconds)/(24*3600) * 360
+
+
+
+class DEC():
+    """
+    Encapsulate the methods specific to declination coordinates.
+    """
+
+    def __init__(self, time: str):
+        """
+        Initialize a DEC object.
+
+        Arguments
+        ---------
+        time: str. Specifies the declination in clock format (AA:MM:SS.SSS -> Angle, Minutes, Seconds)
+        """
+        self.angle, self.minutes, self.seconds = time.split(":")
+    
+    def to_deg(self) -> float:
+        """
+        Convert the time to degrees.
+
+        Returns
+        -------
+        float: converted time in degrees.
+        """
+        return self.angle + (self.minutes*60 + self.seconds)/(3600)
+
+
+
 class Fits_file():
     """
     Encapsulate the methods specific to .fits files that can be used both in data cube and map analysis.
     """
 
-    def bin_header(self, nb_pix_bin: int=2) -> fits.header:
+    def bin_header(self, nb_pix_bin: int=2) -> fits.Header:
         """
         Bin the header to make the WCS match with a binned map.
         Note that this method only works if the binned map has not been cropped in the binning process. Otherwise, the WCS will
@@ -44,7 +98,7 @@ class Fits_file():
 
         Returns
         -------
-        astropy.io.fits.header.Header: binned header.
+        astropy.io.fits.Header: binned header.
         """
         header_copy = self.header.copy()
         # The try statement makes it so calibration maps/cubes can also be binned
@@ -84,10 +138,21 @@ class Fits_file():
             # The file does not yet exist
             fits.writeto(filename, self.data, self.header, overwrite=True)
 
+    def set_WCS(self, values: dict):
+        """
+        Set the WCS of a Fits_file object by using RA and DEC objects to modify CRVAL or CDELT values.
+
+        Arguments
+        ---------
+        values: dict. Contains the keyword to modify and the RA or DEC object.
+        """
+        for key, value in values.items():
+            self.header[key] = value.to_deg()
+
     def reset_update_file(self):
         """
         Reset the update output file. If the file does not yet exist, it is created. This method should always be called before
-        a loop.
+        a loop. This offers feedback when fitting large maps.
         """
         file = open("output.txt", "w")
         file.write("0")
@@ -160,23 +225,20 @@ class Data_cube(Fits_file):
         Map_u object: map of the FWHM value and its associated uncertainty.
         """
         data = np.copy(self.data)
-        fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "calibration", self.header) 
+        fit_fwhm_map = (np.array(pool.starmap(worker_fit, list((y, data, "calibration", self.header) 
                                                                  for y in range(data.shape[1])))))
         stop = time.time()
         print("\nFinished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
-        # The map is temporarily stored in a simple format to facilitate extraction
-        fit_fwhm_map = np.squeeze(np.array(fit_fwhm_list), axis=0)
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
 
-    def fit_all(self, extract: list, seven_components_fit_authorized: bool=False) -> tuple:
+    def fit_NII_cube(self, extract: list, seven_components_fit_authorized: bool=False) -> tuple:
         """
         Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha peak and
         one NII peak (sometimes two) are present.
@@ -209,79 +271,74 @@ class Data_cube(Fits_file):
             assert element == "mean" or element == "amplitude" or element == "FWHM", "Unsupported element in extract list."
 
         data = np.copy(self.data)
-        fit_fwhm_list = []
         pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
         print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
         if seven_components_fit_authorized:
-            fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_2", self.header)
-                                                                    for y in range(data.shape[1])))))
+            fit_fwhm_map = np.array(pool.starmap(worker_fit, list((y, data, "NII_2", self.header) for y in range(data.shape[1]))))
         else:
-            fit_fwhm_list.append(np.array(pool.map(worker_fit, list((y, data, "NII_1", self.header)
-                                                                    for y in range(data.shape[1])))))
+            fit_fwhm_map = np.array(pool.starmap(worker_fit, list((y, data, "NII_1", self.header) for y in range(data.shape[1]))))
         stop = time.time()
         print("\nFinished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
-        # The list containing the fit results is transformed into a numpy array to facilitate extraction
-        fit_fwhm_array = np.squeeze(fit_fwhm_list)
-        # The fit_fwhm_array has 5 dimensions (x_shape,y_shape,3,7,3) and the last three dimensions are given at every pixel
+        # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,7,3) and the last three dimensions are given at every pixel
         # Third dimension: all three gaussian parameters. 0: fwhm, 1: amplitude, 2: mean
         # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: OH3, 3: OH4, 4: NII, 5: Ha, 6: 7 components fit map
         # Fifth dimension: 0: data, 1: uncertainties, 2: snr (only when associated to fwhm values)
         # The 7 components fit map is a map taking the value 0 if a single component was fitted onto NII and the value 1 if
         # two components were considered
         fwhm_maps = Maps([
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,0,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,0,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,0,2])]), name="OH1_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,1,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,1,2])]), name="OH2_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,2,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,2,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,2,2])]), name="OH3_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,3,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,3,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,3,2])]), name="OH4_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,4,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,4,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,4,2])]), name="NII_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,0,5,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,5,1]),
-                                   fits.ImageHDU(fit_fwhm_array[:,:,0,5,2])]), name="Ha_fwhm"),
-            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,0,6,0], new_header), name="7_components_fit")
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,0,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,1]),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,2])]), name="OH1_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,1,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,1]),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,2])]), name="OH2_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,2,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,1]),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,2])]), name="OH3_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,3,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,1]),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,2])]), name="OH4_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,4,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,4,1]),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,4,2])]), name="NII_fwhm"),
+            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,5,0], new_header),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,5,1]),
+                                   fits.ImageHDU(fit_fwhm_map[:,:,0,5,2])]), name="Ha_fwhm"),
+            Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0,6,0], new_header), name="7_components_fit")
         ])
         amplitude_maps = Maps([
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,0,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,1,0,1])]), name="OH1_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,1,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,1,1,1])]), name="OH2_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,2,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,1,2,1])]), name="OH3_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,3,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,1,3,1])]), name="OH4_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,4,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,1,4,1])]), name="NII_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,1,5,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,1,5,1])]), name="Ha_amplitude"),
-            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,1,6,0], new_header), name="7_components_fit")
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,0,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,1,0,1])]), name="OH1_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,1,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,1,1,1])]), name="OH2_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,2,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,1,2,1])]), name="OH3_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,3,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,1,3,1])]), name="OH4_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,4,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,1,4,1])]), name="NII_amplitude"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,5,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,1,5,1])]), name="Ha_amplitude"),
+            Map(fits.PrimaryHDU(fit_fwhm_map[:,:,1,6,0], new_header), name="7_components_fit")
         ])
         mean_maps = Maps([
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,0,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,2,0,1])]), name="OH1_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,1,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,2,1,1])]), name="OH2_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,2,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,2,2,1])]), name="OH3_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,3,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,2,3,1])]), name="OH4_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,4,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,2,4,1])]), name="NII_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_array[:,:,2,5,0], new_header),
-                                fits.ImageHDU(fit_fwhm_array[:,:,2,5,1])]), name="Ha_mean"),
-            Map(fits.PrimaryHDU(fit_fwhm_array[:,:,2,6,0], new_header), name="7_components_fit")
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,0,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,2,0,1])]), name="OH1_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,1,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,2,1,1])]), name="OH2_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,2,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,2,2,1])]), name="OH3_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,3,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,2,3,1])]), name="OH4_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,4,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,2,4,1])]), name="NII_mean"),
+            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,5,0], new_header),
+                                fits.ImageHDU(fit_fwhm_map[:,:,2,5,1])]), name="Ha_mean"),
+            Map(fits.PrimaryHDU(fit_fwhm_map[:,:,2,6,0], new_header), name="7_components_fit")
         ])
         parameter_names = {"FWHM": fwhm_maps, "amplitude": amplitude_maps, "mean": mean_maps}
         return_list = []
@@ -376,13 +433,13 @@ class Data_cube(Fits_file):
         x_uncertainty, y_uncertainty = np.std(distances["x"], axis=(0,1)), np.std(distances["y"], axis=(0,1))
         return [x_mean, x_uncertainty], [y_mean, y_uncertainty]
     
-    def get_header_without_third_dimension(self) -> fits.header:
+    def get_header_without_third_dimension(self) -> fits.Header:
         """
         Get the adaptation of a Data_cube object's header for a Map object by removing the spectral axis.
 
         Returns
         -------
-        astropy.io.fits.header.Header: header with the same but with the third axis removed.
+        astropy.io.fits.Header: header with the same but with the third axis removed.
         """
         header = self.header.copy()
         wcs = WCS(header)
@@ -393,16 +450,17 @@ class Data_cube(Fits_file):
 
 
 
-def worker_fit(args: tuple) -> list:
+def worker_fit(y: int, data: np.ndarray, cube_type: str, header: fits.Header) -> list:
     """
     Fit an entire line of a Data_cube.
 
     Arguments
     ---------
-    args: tuple. The first element is the y value of the line to be fitted, the second element is the data of the Data_cube used,
-    the third element is a string specifying if the cube is a calibration cube or a NII cube and if a double NII components fit
-    should be made: "calibration", "NII_1" or "NII_2" and the fourth element is the Data_cube's header.
-    Note that arguments are given in tuple due to the way the multiprocessing library operates.
+    y: int. y value of the line to be fitted.
+    data: numpy array. Data of the Data_cube used.
+    cube_type: str. Specifies if the cube is a calibration cube or a NII cube and if a double NII components fit
+    should be made. Supported inputs are "calibration", "NII_1" or "NII_2".
+    header: fits.Header. Data_cube's header.
 
     Returns
     -------
@@ -411,13 +469,12 @@ def worker_fit(args: tuple) -> list:
     the first six are the peaks' FWHM with their uncertainty and signal to noise ratio and the last one is a map indicating where
     fits with sevent components were done. The last map outputs 0 for a six components fit and 1 for a seven components fit.
     """
-    y, data, cube_type, header = args
     line = []
     if cube_type == "calibration":
         # A single fit will be made and the FWHM value will be extracted
         for x in range(data.shape[2]):
-            spec = Spectrum(data[:,y,x], header, calibration=True)
-            spec.fit_calibration()
+            spec = Calibration_spectrum(data[:,y,x], header)
+            spec.fit()
             try:
                 line.append(spec.get_FWHM_speed())
             except:
@@ -431,9 +488,10 @@ def worker_fit(args: tuple) -> list:
         elif cube_type[-1] == "2":
             # A multi-gaussian fit with 7 components will be made and every values will be extracted
             seven_components = True
+
         for x in range(data.shape[2]):
-            spec = Spectrum(data[:,y,x], header, calibration=False, seven_components_fit_authorized=seven_components)
-            spec.fit_NII_cube()
+            spec = NII_spectrum(data[:,y,x], header, seven_components_fit_authorized=seven_components)
+            spec.fit()
             # Numpy arrays are used to facilitate extraction
             line.append([
                 spec.get_FWHM_snr_7_components_array(),
@@ -1679,16 +1737,18 @@ class Maps():
         return self(maps)
 
     def __eq__(self, other):
+        return_str = ""
         for Map in self:
             name = Map.name
             if name not in other.names.values():
-                print(f"{name} not present in both Maps.")
+                return_str += f"{name} not present in both Maps.\n"
             elif self[name].data.shape != other[name].data.shape:
-                print(f"{name} does not have the same shape in both Maps.")
+                return_str += f"{name} does not have the same shape in both Maps.\n"
             elif self[name] == other[name]:
-                print(f"{name} equal.")
+                return_str += f"{name} equal.\n"
             else:
-                print(f"{name} not equal.")
+                return_str += f"{name} not equal.\n"
+        return return_str[:-2]
 
     def __iter__(self):
         self.n = -1
