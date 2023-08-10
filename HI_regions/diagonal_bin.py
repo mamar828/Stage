@@ -5,6 +5,7 @@ import numpy as np
 import sys
 import warnings
 import scipy
+import astropy
 
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -49,6 +50,20 @@ class Fits_file():
             pass
         return header_copy
     
+    def get_header_in_equatorial_coords(self):
+        # Convert CRVALs and CDELTs in equatorial coordinates
+        galactic_CRVALS = astropy.coordinates.SkyCoord(l=self.header["CRVAL1"]*u.degree, 
+                                                       b=self.header["CRVAL2"]*u.degree, frame="galactic")
+        galactic_CDELTS = astropy.coordinates.SkyCoord(l=self.header["CDELT1"]*u.degree, 
+                                                       b=self.header["CDELT2"]*u.degree, frame="galactic")
+        equatorial_CRVALS, equatorial_CDELTS = galactic_CRVALS.transform_to("fk5"), galactic_CDELTS.transform_to("fk5")
+
+        new_header = self.header.copy()
+        new_header["CRVAL1"], new_header["CRVAL2"] = equatorial_CRVALS.ra, equatorial_CRVALS.dec
+        new_header["CDELT1"], new_header["CDELT2"] = equatorial_CDELTS.ra, equatorial_CDELTS.dec
+        new_header["CTYPE1"], new_header["CTYPE2"] = "RA---TAN", "DEC--TAN"
+        return new_header
+    
     def save_as_fits_file(self, filename: str):
         """
         Write an array as a fits file of the specified name with or without a header. If the object has a header, it will be saved.
@@ -63,8 +78,8 @@ class Fits_file():
             fits.open(filename)[0]
             # The file already exists
             while True:
-                answer = "y"
-                # answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                # answer = "y"
+                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
                 if answer == "y":
                     fits.writeto(filename, self.data, self.header, overwrite=True)
                     print("File overwritten.")
@@ -95,9 +110,14 @@ class Data_cube(Fits_file):
         represented by which axis and the three str then represent the x, y and z axes respectively. This argument is stored
         in the info attribute.
         """
-        self.object = fits_object
-        self.data = fits_object.data
-        self.header = fits_object.header
+        try:
+            self.object = fits_object
+            self.data = fits_object.data
+            self.header = fits_object.header
+        except:
+            self.object = fits_object[0]
+            self.data = fits_object[0].data
+            self.header = fits_object[0].header
         self.info = axes_info
 
     def __str__(self):
@@ -215,8 +235,12 @@ class Data_cube(Fits_file):
 
 
 
-data_cube = Data_cube(fits.open("HI_regions/LOOP4_cube.fits")[0])
-data_cube.bin_cube(2).save_as_fits_file("HI_regions/LOOP4_cube_bin2_wcs.fits")
+data_cube = Data_cube(fits.open("HI_regions/LOOP4_cube_bin2_wcs.fits"))
+data_cube.header = data_cube.get_header_in_equatorial_coords()
+data_cube.save_as_fits_file("test_wcs.fits")
+
+# data_cube = Data_cube(fits.open("HI_regions/LOOP4_cube.fits")[0])
+# data_cube.bin_cube(2).save_as_fits_file("HI_regions/LOOP4_cube_bin2_wcs.fits")
 # data_cube.bin_cube(4).rotate(45).rotate(30).plot_cube()
 # data_cube.bin_cube_diagonally(4, 30).save_as_fits_file("bin.fits")
 # data_cube.bin_cube(2).save_as_fits_file("bin.fits")
