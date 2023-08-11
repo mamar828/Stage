@@ -248,4 +248,3 @@ dc.save_as_fits_file("maps/data/fwhm_NII_unc_wcs.fits",
 #                   "CRVALS": (RA("23:13:29.9717"), DEC("61:30:09.503")), 
 #                   "CDELTS": (0.00025585460831683, -0.000242454913562753)})
 # third_dc.save_as_fits_file("gaussian_fitting/data_cubes/SII/SII_wcs_3.fits", True)
-

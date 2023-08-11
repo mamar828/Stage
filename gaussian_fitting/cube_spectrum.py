@@ -28,7 +28,6 @@ class Spectrum():
         header: astropy.io.fits.header.Header. Allows for the calculation of the FWHM using the interferometer's settings.
         """
         self.x_values, self.y_values = np.arange(len(data)) + 1, data
-        self.data = data
         self.header = header
         
     def plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
@@ -41,8 +40,8 @@ class Spectrum():
         coords: tuple of ints, default=None. x and y coordinates of the evaluated point that serve as a landmark in the cube
         and will appear on screen. This is used for debugging purposes.
         fullscreen: bool, default=False. Specifies if the graph must be opened in fullscreen.
-        other_values: default=None. This argument may take any distribution to be plotted and is used to plot all the gaussian
-        fits on the same plot.
+        other_values. This argument may take any distribution to be plotted and is used to plot all the gaussian fits on the same
+        plot. The name used for each keyword argument will be present in the plot's legend.
         """
         fig, axs = plt.subplots(2)
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
@@ -60,6 +59,9 @@ class Spectrum():
             elif name == "NII_2":
                 # Second NII gaussian
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=name, linewidth="1")
+            elif name == "initial_guesses":
+                # Simple points plotting
+                axs[0].plot(value[0], value[1], "kx", label=name, markersize="10")
             else:
                 # Fitted individual gaussians
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=name, linewidth="1")
@@ -664,24 +666,20 @@ class SII_spectrum(Spectrum):
     Encapsulate the methods specific to SII spectrums.
     """
 
-    def __init__(self, data: np.ndarray, header, seven_components_fit_authorized: bool=False):
+    def __init__(self, data: np.ndarray, header):
         """
-        Initialize a NII_spectrum object. The fitter will use multiple gaussians.
+        Initialize a SII_spectrum object. The fitter will use multiple gaussians.
         
         Arguments
         ---------
         data: numpy array. Detected intensity at each channel.
         header: astropy.io.fits.header.Header. Allows for the calculation of the FWHM using the interferometer's settings.
-        seven_components_fit_authorized: bool, default=False. Specifies if a fit with seven components, i.e. two NII components,
-        can be detected and used.
         """
         super().__init__(data, header)
         # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
-        self.seven_components_fit = 0
-        self.seven_components_fit_authorized = seven_components_fit_authorized
 
-        # All y values are shifted downwards by the mean calculated in the channels 25 to 35
-        self.downwards_shift = np.sum(self.y_values[24:34]) / 10
+        # All y values are shifted downwards by the mean calculated in the channels 20 to 30
+        self.downwards_shift = np.sum(self.y_values[19:29]) / 10
         self.y_values -= self.downwards_shift
 
     def plot_fit(self, coords: tuple=None, fullscreen: bool=False, plot_all: bool=False):
@@ -716,23 +714,17 @@ class SII_spectrum(Spectrum):
         else:
             self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
 
-    def fit(self, number_of_components: int=6) -> models:
+    def fit(self) -> models:
         """
         Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to the
         variable self.fitted_gaussian.
-
-        Arguments
-        ---------
-        number_of_components: int, default=6. Number of initial guesses that need to be returned. This integer may be 6 or 7
-        depending on if a double NII peak is detected. The user may leave the default value as it is as the program will
-        attempt a seven components fit if allowed and if needed.
 
         Returns
         -------
         astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 or 7 gaussian functions.
         """
         # Initialize the six gaussians using the params dict
-        params = self.get_initial_guesses(number_of_components)
+        params = self.get_initial_guesses()
         # The parameter bounds dictionary allows for greater accuracy and limits each parameters with values found 
         # by trial and error
         parameter_bounds = {
@@ -747,20 +739,8 @@ class SII_spectrum(Spectrum):
             "OH4": {"amplitude": (0, 100)*u.Jy,
                     "stddev": (np.sqrt(params["OH4"]["a"])/5, np.sqrt(params["OH4"]["a"])/2)*u.um}
         }
-        if number_of_components == 6:
-            parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,17)*u.um}
-            parameter_bounds["Ha"]  = {"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um}
-        else:
-            amplitude_mean = np.mean((params["NII"]["a"], params["NII_2"]["a"]))
-            parameter_bounds["NII"]   = {"amplitude": (amplitude_mean/1.6, amplitude_mean*1.6)*u.Jy,
-                                         "stddev": (np.sqrt(params["NII"]["a"])/6, np.sqrt(params["NII"]["a"])/2)*u.um,
-                                         "mean": (12,14.5)*u.um}
-            parameter_bounds["NII_2"] = {"amplitude": (amplitude_mean/1.6, amplitude_mean*1.6)*u.Jy,
-                                         "stddev": (np.sqrt(params["NII_2"]["a"])/6, np.sqrt(params["NII_2"]["a"])/2)*u.um,
-                                         "mean": (14.5,17)*u.um}
-            parameter_bounds["Ha"]    = {"amplitude": (0,100)*u.Jy,
-                                         "stddev": (np.sqrt(params["Ha"]["a"])/10, np.sqrt(params["Ha"]["a"])/1.6),
-                                         "mean": (41,45)*u.um}
+        parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,17)*u.um}
+        parameter_bounds["Ha"]  = {"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um}
         
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         gi_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
@@ -778,43 +758,25 @@ class SII_spectrum(Spectrum):
         gi_OH1.mean.max = 3*u.um
         gi_OH4.mean.min = 47*u.um
 
-        if number_of_components == 6:
-            self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
-                                             fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
-            if not self.seven_components_fit_authorized:
-                return self.fitted_gaussian
-            else:
-                # Check the possibility of a double-component NII peak
-                nii_FWHM = self.get_FWHM_speed("NII")[0]
-                ha_FWHM  = self.get_FWHM_speed("Ha")[0]
-                if nii_FWHM > ha_FWHM or nii_FWHM > 40:
-                    self.seven_components_fit = 1
-                    return self.fit_NII_cube(number_of_components=7)
-                else:
-                    return self.fitted_gaussian
+        self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
+                                            fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
+        return self.fitted_gaussian
         
-        else:   # Seven components fit
-            gi_NII_2 = models.Gaussian1D(amplitude=params["NII_2"]["a"]*u.Jy, mean=params["NII_2"]["x0"]*u.um,
-                                         bounds=parameter_bounds["NII_2"])
-            self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha + gi_NII_2,
-                                             fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
-            return self.fitted_gaussian
-        
-    def get_initial_guesses(self, number_of_components: int=6) -> dict:
+    def get_initial_guesses(self) -> dict:
         """
         Find the most plausible initial guess for the amplitude and mean value of every gaussian function representing a peak in the
         spectrum.
-
-        Arguments
-        ---------
-        number_of_components: int, default=6. Number of initial guesses that need to be returned. This integer may be 6 or 7
-        depending on if a double NII peak is visible.
 
         Returns
         -------
         dict: to every ray (key) is associated another dict in which the keys are the amplitude "a" and the mean value "x0".
         """
-        params = {}
+        # Both SII rays' initial guesses are set at the maximum value in a certain range
+        params = {
+            "SII1": {"x0": np.argmax(self.y_values[6:13])+7, "a": np.max(self.y_values[6:13])},
+            "SII2": {"x0": np.argmax(self.y_values[34:41])+35, "a": np.max(self.y_values[34:41])}
+        }
+
         # Trial and error determined value that allows the best detection of a peak by measuring the difference between
         # consecutive derivatives
         diff_threshold = -0.45
@@ -833,60 +795,27 @@ class SII_spectrum(Spectrum):
             # Simplify the indices in lists (channel one is element zero of a list)
             x_list = x - 1
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
-        # Note that the first element of the list is the derivative difference between channels 2 and 3 and channels 1 and 2
-        
+
         x_peaks = {}
-        for ray, bounds in [("OH1", (1,5)), ("OH2", (19,21)), ("OH3", (36,39)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
-            if ray == "NII" and number_of_components == 7:
-                # If a double peak was detected, the initial guesses are hard-coded to obtain better results
-                x_peaks["NII"], x_peaks["NII_2"] = 13, 16
-                continue
+        for ray, bounds in [("OH1", (13,16)), ("OH2", (42,45))]:
             # Initial x value of the peak
             x_peak = 0
-            # Separate value for the OH3 ray that predominates on x_peak if a distinct peak is found
-            x_peak_OH3 = 0
-            # Specify when a big difference in derivatives has been detected and allows to keep the x_value
-            stop_OH3 = False
-            # For the OH1 and OH4 rays, the maximum intensity is used as the initial guess
-            if ray != "OH1" and ray != "OH4":
-                for x in range(bounds[0], bounds[1]):
-                    # Variables used to ease the use of lists
-                    x_list_deriv = x - 2
-                    x_list = x - 1
-                    if ray == "OH3":
-                        # First condition checks if a significant change in derivative is noticed which could indicate a peak
-                        # Also makes sure that the peak is higher than any peak that might have been found previously
-                        if derivatives_diff[x_list_deriv] < diff_threshold and (
-                            self.y_values[x_list] > self.y_values[x_peak_OH3-1] or x_peak_OH3 == 0):
-                            x_peak_OH3 = x
-
-                        # In the case that no peak is noticed, the second condition checks when the derivative suddenly rises
-                        # This can indicate a "bump" in the emission ray's shape, betraying the presence of another component
-                        # This condition is only True once as the derivatives keep rising after the "bump"
-                        if derivatives_diff[x_list_deriv] > diff_threshold_OH3 and not stop_OH3:
-                            x_peak = x
-                            stop_OH3 = True
-
-                    else:
-                        # For other rays, only a significant change in derivative is checked while making sure it is the max value
-                        if derivatives_diff[x_list_deriv] < diff_threshold and (
-                            self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
-                            x_peak = x
+            for x in range(bounds[0], bounds[1]):
+                # Create variables used to ease the use of lists
+                x_list_deriv = x - 2
+                x_list = x - 1
+                if derivatives_diff[x_list_deriv] < diff_threshold and (
+                    self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
+                    x_peak = x
 
             # If no peak is found, the peak is chosen to be the maximum value within the bounds
             if x_peak == 0:
-                x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
+                x_peak = bounds[0] + np.argmax(self.y_values[bounds[0]-1:bounds[1]-1])
             
-            # If a real peak has been found for the OH3 ray, it predominates over a big rise in derivative
-            if x_peak_OH3 != 0:
-                x_peak = x_peak_OH3
-
             x_peaks[ray] = x_peak
-        
-        for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
-            params[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
-        if number_of_components == 7:
-            params["NII_2"] = {"x0": x_peaks["NII_2"], "a": self.y_values[x_peaks["NII_2"]-1]}
+
+        for ray in ["OH1", "OH2"]:
+            params[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]} 
         return params
     
     def get_fit_parameters(self, peak_name: str=None) -> models:
@@ -1079,37 +1008,21 @@ class SII_spectrum(Spectrum):
 
 
 
-""" 
+
 def loop_di_loop(filename, calib=False):
-    x = 300
-    iter = open("gaussian_fitting/other/iter_number.txt", "r").read()
-    for y in range(int(iter), 1013):
+    x = 250
+    iter_n = open("gaussian_fitting/other/iter_number.txt", "r").read()
+    for y in range(int(iter_n), 1013):
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         header = fits.open(filename)[0].header
-        spectrum = Spectrum(data[:,y-1,x-1], header, calibration=calib)
-        spectrum.fit_NII_cube()
-        # spectrum.fit_iteratively()
-        # print("FWHM NII:", spectrum.get_FWHM_speed(spectrum.get_fit_parameters()[4], spectrum.get_uncertainties()["g4"]["stddev"]))
-        # print("FWHM Ha:", spectrum.get_FWHM_speed(spectrum.get_fit_parameters()[5], spectrum.get_uncertainties()["g5"]["stddev"]))
-        # print("standard deviation:", spectrum.get_residue_stddev())
-        print(spectrum.fitted_gaussian)
-        try:
-            print("mean FWHM:", spectrum.get_FWHM_speed("NII"))
-        except:
-            try:
-                print("mean FWHM:", (spectrum.get_FWHM_speed()))
-            except:
-                pass
-        # spectrum.plot(coords=(x,y))
-        # M0 = np.sum(spectrum.get_fit_parameters('NII')(np.linspace(1,48,48)*u.um)*header['CDELT3']*u.um)
-        # print(f"M0: {M0}")
-        # M1 = np.sum(spectrum.get_fit_parameters('NII')(np.linspace(1,48,48)*u.um)*header['CDELT3']*u.um*np.linspace(header["CRVAL3"], header["CRVAL3"]+header["CDELT3"]*47, 48)) / M0
-        # print(f"M1: {M1}")
-        spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
-        file = open("gaussian_fitting/other/iter_number.txt", "w")
-        file.write(str(y+1))
-        file.close()
-loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
-# loop_di_loop("gaussian_fitting/leo/OIII/reference_cube_with_header.fits", calib=True)
- """
+        spectrum = SII_spectrum(data[:,y-1,x-1], header)
+        i = spectrum.get_initial_guesses()
+        initial_guesses_array = np.array([[i["SII1"]["x0"], i["SII2"]["x0"], i["OH1"]["x0"], i["OH2"]["x0"]],
+                                          [i["SII1"]["a"], i["SII2"]["a"], i["OH1"]["a"], i["OH2"]["a"]]])
+        spectrum.plot(coords=(x,y), initial_guesses=initial_guesses_array)
+        # spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
+        # file = open("gaussian_fitting/other/iter_number.txt", "w")
+        # file.write(str(y+1))
+        # file.close()
+loop_di_loop("bin.fits")

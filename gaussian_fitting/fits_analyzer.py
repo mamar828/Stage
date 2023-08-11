@@ -23,7 +23,9 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
+
 class celestial_coords():
+    # This class is inherited by the following two classes and allows using of isinstance() in Fits_file.set_wcs() method
     pass
 
 
