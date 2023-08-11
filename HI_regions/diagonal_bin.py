@@ -52,15 +52,17 @@ class Fits_file():
     
     def get_header_in_equatorial_coords(self):
         # Convert CRVALs and CDELTs in equatorial coordinates
+        print(repr(self.header))
         galactic_CRVALS = astropy.coordinates.SkyCoord(l=self.header["CRVAL1"]*u.degree, 
                                                        b=self.header["CRVAL2"]*u.degree, frame="galactic")
         galactic_CDELTS = astropy.coordinates.SkyCoord(l=self.header["CDELT1"]*u.degree, 
                                                        b=self.header["CDELT2"]*u.degree, frame="galactic")
-        equatorial_CRVALS, equatorial_CDELTS = galactic_CRVALS.transform_to("fk5"), galactic_CDELTS.transform_to("fk5")
+        intermediate_CRVALS, intermediate_CDELTS = galactic_CRVALS.transform_to("icrs"), galactic_CDELTS.transform_to("icrs")
+        equatorial_CRVALS, equatorial_CDELTS = intermediate_CRVALS.transform_to("fk5"), intermediate_CDELTS.transform_to("fk5")
 
         new_header = self.header.copy()
-        new_header["CRVAL1"], new_header["CRVAL2"] = equatorial_CRVALS.ra, equatorial_CRVALS.dec
-        new_header["CDELT1"], new_header["CDELT2"] = equatorial_CDELTS.ra, equatorial_CDELTS.dec
+        new_header["CRVAL1"], new_header["CRVAL2"] = equatorial_CRVALS.ra.deg, equatorial_CRVALS.dec.deg
+        new_header["CDELT1"], new_header["CDELT2"] = equatorial_CDELTS.ra.deg, equatorial_CDELTS.dec.deg
         new_header["CTYPE1"], new_header["CTYPE2"] = "RA---TAN", "DEC--TAN"
         return new_header
     

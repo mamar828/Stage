@@ -69,7 +69,7 @@ class DEC(celestial_coords):
 
         Arguments
         ---------
-        time: str. Specifies the declination in clock format (AA:MM:SS.SSS -> Angle, Minutes, Seconds)
+        time: str. Specifies the declination in clock format (DD:MM:SS.SSS -> Degrees, Minutes, Seconds)
         """
         # Split and convert each element in the time str to floats
         self.angle, self.minutes, self.seconds = [float(element) for element in time.split(":")]
