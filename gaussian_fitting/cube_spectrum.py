@@ -46,7 +46,11 @@ class Spectrum():
         fig, axs = plt.subplots(2)
         axs[0].plot(self.x_values, self.y_values, "g-", label="ds9 spectrum", linewidth=3, alpha=0.6)
         for name, value in other_values.items():
+            if value is None:
+                continue
             x_plot_gaussian = np.arange(1,self.x_values[-1]+0.05,0.05)
+            # The following conditions only allow to use a specific color when plotting certain gaussian functions or other
+            # distributions or to choose a particular subplot
             if name == "fit":
                 # Fitted entire function
                 axs[0].plot(x_plot_gaussian*u.Jy, value(x_plot_gaussian*u.um), "r-", label=name)
@@ -58,6 +62,12 @@ class Spectrum():
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=name, linewidth="1")
             elif name == "NII_2":
                 # Second NII gaussian
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=name, linewidth="1")
+            elif name == "SII1":
+                # First SII gaussian
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=name, linewidth="1")
+            elif name == "SII2":
+                # Second SII gaussian
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=name, linewidth="1")
             elif name == "initial_guesses":
                 # Simple points plotting
@@ -278,7 +288,7 @@ class NII_spectrum(Spectrum):
         self.downwards_shift = np.sum(self.y_values[24:34]) / 10
         self.y_values -= self.downwards_shift
 
-    def plot_fit(self, coords: tuple=None, fullscreen: bool=False, plot_all: bool=False):
+    def plot_fit(self, coords: tuple=None, fullscreen: bool=False, plot_all: bool=False, plot_initial_guesses: bool=False):
         """
         Send the fitted functions and the subtracted fit to the plot() method.
 
@@ -289,7 +299,16 @@ class NII_spectrum(Spectrum):
         fullscreen: bool, default=False. Specifies if the graph must be opened in fullscreen.
         plot_all: bool, default=False. Specifies if all gaussian functions contributing to the main fit must be plotted
         individually.
+        plot_initial_guesses: bool, default=False. Specifies if the initial guesses should be plotted.
         """
+        if plot_initial_guesses:
+            i = self.get_initial_guesses()
+            initial_guesses_array = np.array(
+                [[i["OH1"]["x0"], i["OH2"]["x0"], i["OH3"]["x0"], i["OH4"]["x0"], i["NII"]["x0"], i["Ha"]["x0"]],
+                 [i["OH1"]["a"], i["OH2"]["a"], i["OH3"]["a"], i["OH4"]["a"], i["NII"]["a"], i["Ha"]["a"]]])
+        else:
+            initial_guesses_array = None
+
         if plot_all:
             g = self.fitted_gaussian
             # Define the functions to be plotted
@@ -302,13 +321,15 @@ class NII_spectrum(Spectrum):
             try:
                 nii_2 = models.Gaussian1D(amplitude=g.amplitude_6.value, mean=g.mean_6.value, stddev=g.stddev_6.value)
                 self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
-                          OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha, NII_2=nii_2)
+                          OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha, NII_2=nii_2, 
+                          initial_guesses=initial_guesses_array)
             except:
                 self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
-                        OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
+                        OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha, initial_guesses=initial_guesses_array)
         
         else:
-            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
+            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(), 
+                      initial_guesses=initial_guesses_array)
 
     def fit(self, number_of_components: int=6) -> models:
         """
@@ -538,7 +559,6 @@ class NII_spectrum(Spectrum):
         -------
         numpy array: array of the FWHM and its uncertainty measured in km/s.
         """
-        # The two following values are provided in the cube's header
         spectral_length = self.header["FP_I_A"]
         wavelength_channel_1 = self.header["FP_B_L"]
         number_of_channels = self.header["NAXIS3"]
@@ -567,11 +587,11 @@ class NII_spectrum(Spectrum):
         
         Returns
         -------
-        numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
-        the FWHM value in km/s, the second element is the uncertainty in km/s and the third element is the snr of the peak. The
-        peaks are in the following order: OH1, OH2, OH3, OH4, NII and Ha. The last row has only a relevant element in the first
-        column: it takes the value 1 if a double NII peak was considered and 0 otherwise. The two other rows are filled with 
-        False only to make the array have the same length in every dimension.
+        numpy array: all values in the array are specific to a certain pixel that was fitted. For the first six rows, the first
+        element is the FWHM value in km/s, the second element is the uncertainty in km/s and the third element is the snr of the
+        peak. The peaks are in the following order: OH1, OH2, OH3, OH4, NII and Ha. The last row has only a relevant element in
+        the first column: it takes the value 1 if a double NII peak was considered and 0 otherwise. The two other elements are filled
+        with False only to make the array have the same length in every dimension.
         """
         return np.array((
             np.concatenate((self.get_FWHM_speed("OH1"), np.array([self.get_snr("OH1")]))),
@@ -585,17 +605,17 @@ class NII_spectrum(Spectrum):
     
     def get_amplitude_7_components_array(self):
         """
-        Get the 7x3 dimensional array representing the amplitude and 7 components fit. 
+        Get the 7x3 dimensional array representing the amplitude of every fitted gaussian function and 7 components fit. 
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
         
         Returns
         -------
-        numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
-        the amplitude value, the second element is the uncertainty and a False, present to make the array have the same shape
-        then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the following order: OH1, OH2,
-        OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes the value 1 if a double
-        NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
-        length in every dimension.
+        numpy array: all values in the array are specific to a certain pixel that was fitted. For the first six rows, the first 
+        element is the amplitude value, the second element is the uncertainty and the third element is False, present to make the
+        array have the same shape then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the
+        following order: OH1, OH2, OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes
+        the value 1 if a double NII peak was considered and 0 otherwise. The two other elements are filled with False only to make
+        the array have the same length in every dimension.
         """
         # If a double NII peak was considered, the mean value between both NII peaks needs to be considered
         if self.seven_components_fit == 0:
@@ -623,17 +643,17 @@ class NII_spectrum(Spectrum):
         
     def get_mean_7_components_array(self):
         """
-        Get the 7x3 dimensional array representing the mean and 7 components fit. 
+        Get the 7x3 dimensional array representing the mean of every fitted gaussian function and 7 components fit. 
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
         
         Returns
         -------
-        numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
-        the mean value, the second element is the uncertainty and a False, present to make the array have the same shape
-        then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the following order: OH1, OH2,
-        OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes the value 1 if a double
-        NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
-        length in every dimension.
+        numpy array: all values in the array are specific to a certain pixel that was fitted. For the first six rows, the first 
+        element is the mean value, the second element is the uncertainty and the third element is False, present to make the array
+        have the same shape then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the following
+        order: OH1, OH2, OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes the value 1
+        if a double NII peak was considered and 0 otherwise. The two other elements are filled with False only to make the array
+        have the same length in every dimension.
         """
         # If a double NII peak was considered, the mean value between both NII peaks needs to be considered
         if self.seven_components_fit == 0:
@@ -682,7 +702,7 @@ class SII_spectrum(Spectrum):
         self.downwards_shift = np.sum(self.y_values[19:29]) / 10
         self.y_values -= self.downwards_shift
 
-    def plot_fit(self, coords: tuple=None, fullscreen: bool=False, plot_all: bool=False):
+    def plot_fit(self, coords: tuple=None, fullscreen: bool=False, plot_all: bool=False, plot_initial_guesses: bool=False):
         """
         Send the fitted functions and the subtracted fit to the plot() method.
 
@@ -693,26 +713,28 @@ class SII_spectrum(Spectrum):
         fullscreen: bool, default=False. Specifies if the graph must be opened in fullscreen.
         plot_all: bool, default=False. Specifies if all gaussian functions contributing to the main fit must be plotted
         individually.
+        plot_initial_guesses: bool, default=False. Specifies if the initial guesses should be plotted.
         """
+        if plot_initial_guesses:
+            i = self.get_initial_guesses()
+            initial_guesses_array = np.array([[i["OH1"]["x0"], i["OH2"]["x0"], i["SII1"]["x0"], i["SII2"]["x0"]],
+                                              [i["OH1"]["a"], i["OH2"]["a"], i["SII1"]["a"], i["SII2"]["a"]]])
+        else:
+            initial_guesses_array = None
+
         if plot_all:
             g = self.fitted_gaussian
             # Define the functions to be plotted
-            oh1 = models.Gaussian1D(amplitude=g.amplitude_0.value, mean=g.mean_0.value, stddev=g.stddev_0.value)
-            oh2 = models.Gaussian1D(amplitude=g.amplitude_1.value, mean=g.mean_1.value, stddev=g.stddev_1.value)
-            oh3 = models.Gaussian1D(amplitude=g.amplitude_2.value, mean=g.mean_2.value, stddev=g.stddev_2.value)
-            oh4 = models.Gaussian1D(amplitude=g.amplitude_3.value, mean=g.mean_3.value, stddev=g.stddev_3.value)
-            nii = models.Gaussian1D(amplitude=g.amplitude_4.value, mean=g.mean_4.value, stddev=g.stddev_4.value)
-            ha  = models.Gaussian1D(amplitude=g.amplitude_5.value, mean=g.mean_5.value, stddev=g.stddev_5.value)
-            try:
-                nii_2 = models.Gaussian1D(amplitude=g.amplitude_6.value, mean=g.mean_6.value, stddev=g.stddev_6.value)
-                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
-                          OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha, NII_2=nii_2)
-            except:
-                self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
-                        OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
+            oh1  = models.Gaussian1D(amplitude=g.amplitude_0.value, mean=g.mean_0.value, stddev=g.stddev_0.value)
+            oh2  = models.Gaussian1D(amplitude=g.amplitude_1.value, mean=g.mean_1.value, stddev=g.stddev_1.value)
+            sii1 = models.Gaussian1D(amplitude=g.amplitude_2.value, mean=g.mean_2.value, stddev=g.stddev_2.value)
+            sii2 = models.Gaussian1D(amplitude=g.amplitude_3.value, mean=g.mean_3.value, stddev=g.stddev_3.value)
+            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                      OH1=oh1, OH2=oh2, SII1=sii1, SII2=sii2, initial_guesses=initial_guesses_array)
         
         else:
-            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit())
+            self.plot(coords, fullscreen, fit=self.fitted_gaussian, subtracted_fit=self.get_subtracted_fit(),
+                      initial_guesses=initial_guesses_array)
 
     def fit(self) -> models:
         """
@@ -721,44 +743,34 @@ class SII_spectrum(Spectrum):
 
         Returns
         -------
-        astropy.modeling.core.CompoundModel: model of the fitted distribution using 6 or 7 gaussian functions.
+        astropy.modeling.core.CompoundModel: model of the fitted distribution using 4 gaussian functions.
         """
         # Initialize the six gaussians using the params dict
         params = self.get_initial_guesses()
         # The parameter bounds dictionary allows for greater accuracy and limits each parameters with values found 
         # by trial and error
         parameter_bounds = {
-            "OH1": {"amplitude": (0, 100)*u.Jy,
-                    "stddev": (np.sqrt(params["OH1"]["a"])/5, np.sqrt(params["OH1"]["a"])/2)*u.um},
-            "OH2": {"amplitude": (0, 15-self.downwards_shift)*u.Jy,
-                    "stddev": (np.sqrt(params["OH2"]["a"])/5, np.sqrt(params["OH2"]["a"])/2)*u.um,
-                    "mean": (19,21)*u.um},
-            "OH3": {"amplitude": (0, 13-self.downwards_shift)*u.Jy,
-                    "stddev": (np.sqrt(params["OH3"]["a"])/5, np.sqrt(params["OH3"]["a"])/2)*u.um,
-                    "mean": (36,39)*u.um},
-            "OH4": {"amplitude": (0, 100)*u.Jy,
-                    "stddev": (np.sqrt(params["OH4"]["a"])/5, np.sqrt(params["OH4"]["a"])/2)*u.um}
+            "OH1" : {"amplitude": (0,10-self.downwards_shift)*u.Jy, "mean": (13,16)*u.um,
+                     "stddev": (np.sqrt(params["OH1"]["a"])/5, np.sqrt(params["OH1"]["a"]))*u.um},
+            "OH2" : {"amplitude": (0,9-self.downwards_shift)*u.Jy, "mean": (41,44)*u.um,
+                     "stddev": (np.sqrt(params["OH2"]["a"])/5, np.sqrt(params["OH2"]["a"]))*u.um},
+            "SII1": {"amplitude": (0,100)*u.Jy, "mean": (7,12)*u.um,
+                     "stddev": (np.sqrt(params["SII1"]["a"])/5, np.sqrt(params["SII1"]["a"]))*u.um},
+            "SII2": {"amplitude": (0,100)*u.Jy, "mean": (35,40)*u.um,
+                     "stddev": (np.sqrt(params["SII2"]["a"])/5, np.sqrt(params["SII2"]["a"]))*u.um}
         }
-        parameter_bounds["NII"] = {"amplitude": (0,100)*u.Jy, "mean": (12,17)*u.um}
-        parameter_bounds["Ha"]  = {"amplitude": (0,100)*u.Jy, "mean": (41,45)*u.um}
-        
+        print(parameter_bounds)
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
-        gi_OH1 = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
-                                   bounds=parameter_bounds["OH1"])
-        gi_OH2 = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
-                                   bounds=parameter_bounds["OH2"])
-        gi_OH3 = models.Gaussian1D(amplitude=params["OH3"]["a"]*u.Jy, mean=params["OH3"]["x0"]*u.um, 
-                                   bounds=parameter_bounds["OH3"])
-        gi_OH4 = models.Gaussian1D(amplitude=params["OH4"]["a"]*u.Jy, mean=params["OH4"]["x0"]*u.um, 
-                                   bounds=parameter_bounds["OH4"])
-        gi_NII = models.Gaussian1D(amplitude=params["NII"]["a"]*u.Jy, mean=params["NII"]["x0"]*u.um,
-                                   bounds=parameter_bounds["NII"])
-        gi_Ha  = models.Gaussian1D(amplitude=params["Ha"]["a"] *u.Jy, mean=params["Ha"]["x0"] *u.um,
-                                   bounds=parameter_bounds["Ha"])
-        gi_OH1.mean.max = 3*u.um
-        gi_OH4.mean.min = 47*u.um
+        gi_OH1  = models.Gaussian1D(amplitude=params["OH1"]["a"]*u.Jy, mean=params["OH1"]["x0"]*u.um, 
+                                    bounds=parameter_bounds["OH1"])
+        gi_OH2  = models.Gaussian1D(amplitude=params["OH2"]["a"]*u.Jy, mean=params["OH2"]["x0"]*u.um,
+                                    bounds=parameter_bounds["OH2"])
+        gi_SII1 = models.Gaussian1D(amplitude=params["SII1"]["a"]*u.Jy, mean=params["SII1"]["x0"]*u.um,
+                                    bounds=parameter_bounds["SII1"])
+        gi_SII2 = models.Gaussian1D(amplitude=params["SII2"]["a"] *u.Jy, mean=params["SII2"]["x0"] *u.um,
+                                    bounds=parameter_bounds["SII2"])
 
-        self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
+        self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_SII1 + gi_SII2,
                                             fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
         return self.fitted_gaussian
         
@@ -773,16 +785,13 @@ class SII_spectrum(Spectrum):
         """
         # Both SII rays' initial guesses are set at the maximum value in a certain range
         params = {
-            "SII1": {"x0": np.argmax(self.y_values[6:13])+7, "a": np.max(self.y_values[6:13])},
-            "SII2": {"x0": np.argmax(self.y_values[34:41])+35, "a": np.max(self.y_values[34:41])}
+            "SII1": {"x0": np.argmax(self.y_values[7:12])+8, "a": np.max(self.y_values[7:12])},
+            "SII2": {"x0": np.argmax(self.y_values[35:40])+36, "a": np.max(self.y_values[35:40])}
         }
 
         # Trial and error determined value that allows the best detection of a peak by measuring the difference between
         # consecutive derivatives
         diff_threshold = -0.45
-        # Trial and error determined value that acts specifically on the determination of the OH3 peak by looking at the
-        # difference between consecutive derivatives in the case that no peak is present
-        diff_threshold_OH3 = 1.8
 
         derivatives = np.zeros(shape=(47,2))
         for i in range(0, len(self.x_values)-1):
@@ -797,7 +806,7 @@ class SII_spectrum(Spectrum):
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
 
         x_peaks = {}
-        for ray, bounds in [("OH1", (13,16)), ("OH2", (42,45))]:
+        for ray, bounds in [("OH1", (13,16)), ("OH2", (41,44))]:
             # Initial x value of the peak
             x_peak = 0
             for x in range(bounds[0], bounds[1]):
@@ -806,6 +815,7 @@ class SII_spectrum(Spectrum):
                 x_list = x - 1
                 if derivatives_diff[x_list_deriv] < diff_threshold and (
                     self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
+                    # Significant change in derivatives + maximum value that has this significant bump
                     x_peak = x
 
             # If no peak is found, the peak is chosen to be the maximum value within the bounds
@@ -825,14 +835,14 @@ class SII_spectrum(Spectrum):
         Arguments
         ---------
         peak_name: str, default=None. Specifies from which peak the function needs to be extracted. The supported peaks are:
-        "OH1", "OH2", "OH3", "OH4", "NII", "Ha" and "NII_2", if a seven components fit was made. 
+        "OH1", "OH2", "SII1" and "SII2".
 
         Returns
         -------
         astropy.modeling.core.CompoundModel: function representing the specified peak
         """
         # The rays are stored in the CompoundModel in the same order than the following dict
-        peak_numbers = {"OH1": 0, "OH2": 1, "OH3": 2, "OH4": 3, "NII": 4, "Ha": 5, "NII_2": 6}
+        peak_numbers = {"OH1": 0, "OH2": 1, "SII1": 2, "SII2": 3}
         return self.fitted_gaussian[peak_numbers[peak_name]]
     
     def get_uncertainties(self) -> dict:
@@ -848,14 +858,9 @@ class SII_spectrum(Spectrum):
         uncertainty_matrix = np.sqrt(np.diag(cov_matrix))
         # The uncertainty matrix is stored as a_0, x0_0, sigma_0, a_1, x0_1, sigma_1, ...
         ordered_uncertainties = {}
-        for i, peak_name in zip(range(int(len(uncertainty_matrix)/3)), (["OH1", "OH2", "OH3", "OH4", "NII", "Ha"])):
+        for i, peak_name in zip(range(int(len(uncertainty_matrix)/3)), (["OH1", "OH2", "SII1", "SII2"])):
             ordered_uncertainties[peak_name] = {
                 "amplitude": uncertainty_matrix[3*i], "mean": uncertainty_matrix[3*i+1], "stddev": uncertainty_matrix[3*i+2]
-            }
-        # Check if the fit was done with seven components
-        if len(uncertainty_matrix)/3 == 7:
-            ordered_uncertainties["NII_2"] = {
-                "amplitude": uncertainty_matrix[3*6], "mean": uncertainty_matrix[3*6+1], "stddev": uncertainty_matrix[3*6+2]
             }
         return ordered_uncertainties
 
@@ -866,14 +871,12 @@ class SII_spectrum(Spectrum):
         Arguments
         ---------
         peak_name: str default=None. Name of the peak whose FWHM in km/s is desired. The supported peaks are:
-        "OH1", "OH2", "OH3", "OH4", "NII" and "Ha". If a two-components NII fit was made, the FWHM value is the mean value
-        of both NII peaks.
+        "OH1", "OH2", "SII1" and "SII2".
 
         Returns
         -------
         numpy array: array of the FWHM and its uncertainty measured in km/s.
         """
-        # The two following values are provided in the cube's header
         spectral_length = self.header["FP_I_A"]
         wavelength_channel_1 = self.header["FP_B_L"]
         number_of_channels = self.header["NAXIS3"]
@@ -887,117 +890,63 @@ class SII_spectrum(Spectrum):
         speed_FWHM = scipy.constants.c * angstroms_FWHM[0] / angstroms_center[0] / 1000
         speed_FWHM_uncertainty = speed_FWHM * (angstroms_FWHM[1]/angstroms_FWHM[0] + angstroms_center[1]/angstroms_center[0])
         speed_array = np.array((speed_FWHM, speed_FWHM_uncertainty))
-        # Check if the NII peak is used and if a double fit was done
-        if peak_name == "NII":
-            try:
-                return np.mean((speed_array, self.get_FWHM_speed("NII_2")), axis=0)
-            except:
-                pass
         return speed_array
     
-    def get_FWHM_snr_7_components_array(self):
+    def get_FWHM_snr_array(self):
         """
-        Get the 7x3 dimensional array representing the FWHM, snr and 7 components fit. 
+        Get the 4x3 dimensional array representing the FWHM and snr of each element in the Spectrum.
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
         
         Returns
         -------
-        numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
-        the FWHM value in km/s, the second element is the uncertainty in km/s and the third element is the snr of the peak. The
-        peaks are in the following order: OH1, OH2, OH3, OH4, NII and Ha. The last row has only a relevant element in the first
-        column: it takes the value 1 if a double NII peak was considered and 0 otherwise. The two other rows are filled with 
-        False only to make the array have the same length in every dimension.
+        numpy array: all values in the array are specific to a certain pixel that was fitted. For all four rows, the first element
+        is the FWHM value in km/s, the second element is the uncertainty in km/s and the third element is the snr of the peak. The
+        peaks are in the following order: OH1, OH2, SII1 and SII2.
         """
         return np.array((
             np.concatenate((self.get_FWHM_speed("OH1"), np.array([self.get_snr("OH1")]))),
             np.concatenate((self.get_FWHM_speed("OH2"), np.array([self.get_snr("OH2")]))),
-            np.concatenate((self.get_FWHM_speed("OH3"), np.array([self.get_snr("OH3")]))),
-            np.concatenate((self.get_FWHM_speed("OH4"), np.array([self.get_snr("OH4")]))),
-            np.concatenate((self.get_FWHM_speed("NII"), np.array([self.get_snr("NII")]))),
-            np.concatenate((self.get_FWHM_speed("Ha"), np.array([self.get_snr("Ha")]))),
-            np.array([self.seven_components_fit, False, False])
+            np.concatenate((self.get_FWHM_speed("SII1"), np.array([self.get_snr("SII1")]))),
+            np.concatenate((self.get_FWHM_speed("SII2"), np.array([self.get_snr("SII2")])))
         ))
     
-    def get_amplitude_7_components_array(self):
+    def get_amplitude_array(self):
         """
-        Get the 7x3 dimensional array representing the amplitude and 7 components fit. 
+        Get the 4x3 dimensional array representing the amplitude of each fitted gaussian function. 
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
         
         Returns
         -------
-        numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
-        the amplitude value, the second element is the uncertainty and a False, present to make the array have the same shape
-        then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the following order: OH1, OH2,
-        OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes the value 1 if a double
-        NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
-        length in every dimension.
+        numpy array: all values in the array are specific to a certain pixel that was fitted. For all four rows, the first element
+        is the amplitude value, the second element is the uncertainty and the third element is False, present to make the array
+        have the same shape then the array given by the get_FWHM_snr_array() method. The peaks are in the following order: OH1, OH2,
+        SII1 and SII2.
         """
-        # If a double NII peak was considered, the mean value between both NII peaks needs to be considered
-        if self.seven_components_fit == 0:
-            return np.array((
-                [self.get_fit_parameters("OH1").amplitude.value, self.get_uncertainties()["OH1"]["amplitude"], False],
-                [self.get_fit_parameters("OH2").amplitude.value, self.get_uncertainties()["OH2"]["amplitude"], False],
-                [self.get_fit_parameters("OH3").amplitude.value, self.get_uncertainties()["OH3"]["amplitude"], False],
-                [self.get_fit_parameters("OH4").amplitude.value, self.get_uncertainties()["OH4"]["amplitude"], False],
-                [self.get_fit_parameters("NII").amplitude.value, self.get_uncertainties()["NII"]["amplitude"], False],
-                [self.get_fit_parameters("Ha").amplitude.value, self.get_uncertainties()["Ha"]["amplitude"], False],
-                [self.seven_components_fit, False, False]   
-            ))
-        else:
-            return np.array((
-                [self.get_fit_parameters("OH1").amplitude.value, self.get_uncertainties()["OH1"]["amplitude"], False],
-                [self.get_fit_parameters("OH2").amplitude.value, self.get_uncertainties()["OH2"]["amplitude"], False],
-                [self.get_fit_parameters("OH3").amplitude.value, self.get_uncertainties()["OH3"]["amplitude"], False],
-                [self.get_fit_parameters("OH4").amplitude.value, self.get_uncertainties()["OH4"]["amplitude"], False],
-                [np.nanmean((self.get_fit_parameters("NII").amplitude.value, self.get_fit_parameters("NII_2").amplitude.value)),
-                 np.nanmean((self.get_uncertainties()["NII"]["amplitude"], self.get_uncertainties()["NII_2"]["amplitude"])), 
-                 False],
-                [self.get_fit_parameters("Ha").amplitude.value, self.get_uncertainties()["Ha"]["amplitude"], False],
-                [self.seven_components_fit, False, False]
-            ))
+        return np.array((
+            [self.get_fit_parameters("OH1").amplitude.value, self.get_uncertainties()["OH1"]["amplitude"], False],
+            [self.get_fit_parameters("OH2").amplitude.value, self.get_uncertainties()["OH2"]["amplitude"], False],
+            [self.get_fit_parameters("SII1").amplitude.value, self.get_uncertainties()["SII1"]["amplitude"], False],
+            [self.get_fit_parameters("SII2").amplitude.value, self.get_uncertainties()["SII2"]["amplitude"], False]
+        ))
         
-    def get_mean_7_components_array(self):
+    def get_mean_array(self):
         """
-        Get the 7x3 dimensional array representing the mean and 7 components fit. 
+        Get the 4x3 dimensional array representing the mean of every fitted gaussian function. 
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
         
         Returns
         -------
-        numpy array: all values are specific to a certain pixel that was fitted. For the first six rows, the first element is
-        the mean value, the second element is the uncertainty and a False, present to make the array have the same shape
-        then the array given by the get_FWHM_snr_7_components_array() method. The peaks are in the following order: OH1, OH2,
-        OH3, OH4, NII and Ha. The last row has only a relevant element in the first column: it takes the value 1 if a double
-        NII peak was considered and 0 otherwise. The two other rows are filled with False only to make the array have the same
-        length in every dimension.
+        numpy array: all values in the array are specific to a certain pixel that was fitted. For all four six rows, the first element
+        is the mean value, the second element is the uncertainty and the third element is False, present to make the array have the
+        same shape then the array given by the get_FWHM_snr_array() method. The peaks are in the following order: OH1, OH2, SII1 and
+        SII2.
         """
-        # If a double NII peak was considered, the mean value between both NII peaks needs to be considered
-        if self.seven_components_fit == 0:
-            return np.array((
-                [self.get_fit_parameters("OH1").mean.value, self.get_uncertainties()["OH1"]["mean"], False],
-                [self.get_fit_parameters("OH2").mean.value, self.get_uncertainties()["OH2"]["mean"], False],
-                [self.get_fit_parameters("OH3").mean.value, self.get_uncertainties()["OH3"]["mean"], False],
-                [self.get_fit_parameters("OH4").mean.value, self.get_uncertainties()["OH4"]["mean"], False],
-                [self.get_fit_parameters("NII").mean.value, self.get_uncertainties()["NII"]["mean"], False],
-                [self.get_fit_parameters("Ha").mean.value, self.get_uncertainties()["Ha"]["mean"], False],
-                [self.seven_components_fit, False, False]
-            ))
-        else:
-            return np.array((
-                [self.get_fit_parameters("OH1").mean.value, self.get_uncertainties()["OH1"]["mean"], False],
-                [self.get_fit_parameters("OH2").mean.value, self.get_uncertainties()["OH2"]["mean"], False],
-                [self.get_fit_parameters("OH3").mean.value, self.get_uncertainties()["OH3"]["mean"], False],
-                [self.get_fit_parameters("OH4").mean.value, self.get_uncertainties()["OH4"]["mean"], False],
-                [np.nanmean((self.get_fit_parameters("NII").mean.value, self.get_fit_parameters("NII_2").mean.value)), 
-                 np.nanmean((self.get_uncertainties()["NII"]["mean"], self.get_uncertainties()["NII_2"]["mean"])), 
-                 False],
-                [self.get_fit_parameters("Ha").mean.value, self.get_uncertainties()["Ha"]["mean"], False],
-                [self.seven_components_fit, False, False]
-            ))
-
-
-
-
-
+        return np.array((
+            [self.get_fit_parameters("OH1").mean.value, self.get_uncertainties()["OH1"]["mean"], False],
+            [self.get_fit_parameters("OH2").mean.value, self.get_uncertainties()["OH2"]["mean"], False],
+            [self.get_fit_parameters("SII1").mean.value, self.get_uncertainties()["SII1"]["mean"], False],
+            [self.get_fit_parameters("SII2").mean.value, self.get_uncertainties()["SII2"]["mean"], False]
+        ))
 
 
 
@@ -1017,12 +966,9 @@ def loop_di_loop(filename, calib=False):
         data = fits.open(filename)[0].data
         header = fits.open(filename)[0].header
         spectrum = SII_spectrum(data[:,y-1,x-1], header)
-        i = spectrum.get_initial_guesses()
-        initial_guesses_array = np.array([[i["SII1"]["x0"], i["SII2"]["x0"], i["OH1"]["x0"], i["OH2"]["x0"]],
-                                          [i["SII1"]["a"], i["SII2"]["a"], i["OH1"]["a"], i["OH2"]["a"]]])
-        spectrum.plot(coords=(x,y), initial_guesses=initial_guesses_array)
-        # spectrum.plot_fit(fullscreen=False, coords=(x,y), plot_all=True)
-        # file = open("gaussian_fitting/other/iter_number.txt", "w")
-        # file.write(str(y+1))
-        # file.close()
+        spectrum.fit()
+        spectrum.plot_fit(fullscreen=True, coords=(x,y), plot_all=True, plot_initial_guesses=True)
+        file = open("gaussian_fitting/other/iter_number.txt", "w")
+        file.write(str(y+1))
+        file.close()
 loop_di_loop("bin.fits")
