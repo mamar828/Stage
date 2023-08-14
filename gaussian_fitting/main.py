@@ -2,7 +2,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.visualization.wcsaxes import WCSAxes
 
-from fits_analyzer import Data_cube, Map, Map_u, Map_usnr, Maps
+from fits_analyzer import *
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,11 +20,11 @@ def get_maps():
     """
     In this example, all important maps that will be used later are computed once.
     """
-    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    nii_cube = NII_data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The cube is binned, then fitted, and the FWHM, mean and amplitude of every gaussian is stored
     # The extract argument specifies the order in which the Maps will be returned
     # Note that the extract argument can have fewer elements if not all Maps are desired
-    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit_NII_cube(extract=["FWHM", "mean", "amplitude"])
+    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit_test(extract=["FWHM", "mean", "amplitude"])
     # All fwhm_maps are saved
     fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
     # Only the NII and Ha maps for mean and amplitude are saved
@@ -37,8 +37,8 @@ def get_maps():
 # Note that some functions are called in a if __name__ == "__main__" block because the fitting algorithm uses the multiprocessing
 # library which creates multiple instances of the same code to allow parallel computation. Without this condition, the program would
 # multiply itself recursively.
-# if __name__ == "__main__":
-#     get_maps()
+if __name__ == "__main__":
+    get_maps()
 
 
 def example_fitting():

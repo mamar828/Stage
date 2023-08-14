@@ -537,7 +537,10 @@ plt.show()
 
 # print(np.vstack((a,b)))
 
-def test(f):
-    print("yoyooy")
+def test(f, g):
+    print(f, g)
 
 test(None)
+
+boo = False
+a = test("a", "b" if boo else None)

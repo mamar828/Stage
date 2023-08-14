@@ -52,7 +52,6 @@ class Fits_file():
     
     def get_header_in_equatorial_coords(self):
         # Convert CRVALs and CDELTs in equatorial coordinates
-        print(repr(self.header))
         galactic_CRVALS = astropy.coordinates.SkyCoord(l=self.header["CRVAL1"]*u.degree, 
                                                        b=self.header["CRVAL2"]*u.degree, frame="galactic")
         galactic_CDELTS = astropy.coordinates.SkyCoord(l=self.header["CDELT1"]*u.degree, 

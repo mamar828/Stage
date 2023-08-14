@@ -957,9 +957,9 @@ class SII_spectrum(Spectrum):
 
 
 
-
-def loop_di_loop(filename, calib=False):
-    x = 250
+""" 
+def loop_di_loop(filename):
+    x = 125
     iter_n = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter_n), 1013):
         print(f"\n----------------\ncoords: {x,y}")
@@ -971,4 +971,5 @@ def loop_di_loop(filename, calib=False):
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()
-loop_di_loop("bin.fits")
+loop_di_loop("bin4x4.fits")
+ """
