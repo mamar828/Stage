@@ -26,6 +26,9 @@ class Fits_file():
     def bin_header(self, nb_pix_bin: int) -> fits.Header:
         """
         Bin the header to make the WCS match with a binned map.
+        Note that this method is more advanced than the one present in gaussian_fitting/fits_analyzer as this one is able
+        to correct for the microscopic distortions that affect the WCS. These distortions are better perceived when reducing
+        considerably the map's size.
 
         Arguments
         ---------
@@ -164,23 +167,6 @@ class Data_cube(Fits_file):
                                                 int(data.shape[2]/nb_pix_bin), nb_pix_bin)
         
         return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
-
-    def rotate(self, angle) -> Data_cube:
-        rotated_data = scipy.ndimage.rotate(self.data.swapaxes(0,2).swapaxes(0,1), angle=angle)
-        return Data_cube(fits.PrimaryHDU(rotated_data.swapaxes(0,1).swapaxes(0,2), self.header))
-
-    def bin_cube_diagonally(self, nb_pix_bin: int, angle: float) -> Data_cube:
-        """
-        Bin a Data_cube diagonally. This takes the values of the cube in a diagonal manner.
-        """
-        # The old shape is stored to make the array reshaping easier
-        old_shape = np.array(self.data.shape) / nb_pix_bin
-        rotated_data = self.rotate(angle).bin_cube(nb_pix_bin).rotate(-angle).data
-        new_shape = np.array(rotated_data.shape)
-        # The pixels that need to be cropped are calculated and a slice tuple is made
-        crop_pix = np.floor((new_shape[1:] - old_shape[1:]) / 2)
-        slices = np.array((crop_pix[0]+1, new_shape[1]-crop_pix[0]-1,crop_pix[1]+1,new_shape[2]-crop_pix[1]-1)).astype(int)
-        return Data_cube(fits.PrimaryHDU(rotated_data[:,slices[0]:slices[1],slices[2]:slices[3]], self.bin_header(nb_pix_bin)))
 
     def plot_cube(self):
         plt.imshow(self.data[13,:,:], origin="lower")

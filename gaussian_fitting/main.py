@@ -24,7 +24,7 @@ def get_maps():
     # The cube is binned, then fitted, and the FWHM, mean and amplitude of every gaussian is stored
     # The extract argument specifies the order in which the Maps will be returned
     # Note that the extract argument can have fewer elements if not all Maps are desired
-    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit_test(extract=["FWHM", "mean", "amplitude"])
+    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit(extract=["FWHM", "mean", "amplitude"])
     # All fwhm_maps are saved
     fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
     # Only the NII and Ha maps for mean and amplitude are saved
@@ -37,17 +37,17 @@ def get_maps():
 # Note that some functions are called in a if __name__ == "__main__" block because the fitting algorithm uses the multiprocessing
 # library which creates multiple instances of the same code to allow parallel computation. Without this condition, the program would
 # multiply itself recursively.
-if __name__ == "__main__":
-    get_maps()
+# if __name__ == "__main__":
+#     get_maps()
 
 
 def example_fitting():
     """
     This example is never used but is intended to clarify the fitting method and the returned objects.
     """
-    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    nii_cube = NII_data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     # The extract argument controls what will be returned and in what order by the fit_all() method
-    mean_maps, amplitude_maps = nii_cube.fit_all(extract=["mean", "amplitude"])
+    mean_maps, amplitude_maps = nii_cube.fit(extract=["mean", "amplitude"])
     # The fit_all() method returns Maps objects which are a list of Map objects and its subclasses
     # Each_map can be accessed as done below
     mean_maps["OH1_mean"].plot_map()            # The first OH peak's mean value is plotted
@@ -65,13 +65,10 @@ def get_smoothed_instr_f():
     """
     In this example, the smooth instrumental function map is calculated from the calibration_cube.
     """
-    calibration_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/calibration.fits")[0])
-    calibration_map = calibration_cube.fit_calibration()
-    # For smoothing the change of interference order, a center pixel is required
-    calibration_center_pixel = calibration_cube.get_center_point(center_guess=(527,484))
-    calibration_center_pixel_rounded = round(calibration_center_pixel[0][0]), round(calibration_center_pixel[1][0])
-    smoothed_instr_f = calibration_map.smooth_order_change(center=calibration_center_pixel_rounded)
-    smoothed_instr_f.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")
+    calibration_cube = Calibration_data_cube(fits.open("gaussian_fitting/data_cubes/calibration.fits")[0])
+    calibration_map = calibration_cube.fit()
+    smoothed_instr_f = calibration_map.smooth_order_change(calibration_cube.get_center_tuple())
+    smoothed_instr_f.save_as_fits_file("gaussian_fitting/test/smoothed_instr_f.fits")
 
 
 # if __name__ == "__main__":
@@ -84,7 +81,7 @@ def get_NII_flux_maps():
     is equation 2.
     The NII intensity-weighted centroid velocity map is also obtained. This correspond to M1 which is equation 3.
     """
-    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits"))
+    nii_cube = NII_data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits"))
     speed_per_channel = nii_cube.header["CDELT3"]
     speed_channel_1 = nii_cube.header["CRVAL3"]
     spectral_length = nii_cube.header["FP_I_A"]
@@ -130,7 +127,7 @@ def get_NII_Doppler_shift():
     In this example, the NII Doppler shift is computed.
     """
     # The NII cube is opened so spectral data provided in its header can be used
-    nii_cube = Data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    nii_cube = NII_data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
     mean_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits"))
     spectral_length = nii_cube.header["FP_I_A"]
     wavelength_channel_1 = nii_cube.header["FP_B_L"]
@@ -241,6 +238,79 @@ def get_turbulence_map(temp_map):
 #                                        fits.open("gaussian_fitting/maps/external_maps/temp_it_nii_err_8300.fits")[0]])))
 
 
+def get_SII_fwhm_map():
+    maps = {}
+    
+#     for night_id in ["SII_1", "SII_2", "SII_3"]:
+#     # for night_id in ["SII_2", "SII_3"]:
+#     # for night_id in ["SII_3"]:
+#         # print(night_id)
+# # s = SII_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/{night_id}_wcs.fits")
+# # ).bin_cube(4)
+# # s.save_as_fits_file("ref2e.fits")
+# # maps[night_id] = s.fit(extract=["FWHM","mean","amplitude"])
+#         maps[night_id] = SII_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/{night_id}_wcs.fits")
+#                                        ).bin_cube(4).fit(extract=["FWHM","mean","amplitude"], cube_number=int(night_id[-1]))
+#         # calib = Calibration_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/calibration.fits"))
+#         # maps[night_id].append(Maps.build_from_dict({"instr_f": calib.fit().smooth_order_change(calib.get_center_tuple())}))
+#         [maps[night_id][i].save_as_fits_file(f"gaussian_fitting/maps/SII/{night_id}") for i in range(4)]
+
+    """ 
+    calib_maps = Maps.build_from_dict({
+        "calibration_1": Map_u(fits.open("gaussian_fitting/maps/SII/SII_1/calibration.fits")).bin_map(4),
+        "calibration_2": Map_u(fits.open("gaussian_fitting/maps/SII/SII_2/calibration.fits")).bin_map(4),
+        "calibration_3": Map_u(fits.open("gaussian_fitting/maps/SII/SII_3/calibration.fits")).bin_map(4)
+    })
+    
+    fwhm_maps = Maps.build_from_dict({
+        "FWHM_1_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_1/SII1_fwhm.fits")),
+        "FWHM_1_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_1/SII2_fwhm.fits")),
+        "FWHM_2_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_2/SII1_fwhm.fits")),
+        "FWHM_2_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_2/SII2_fwhm.fits")),
+        "FWHM_3_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_3/SII1_fwhm.fits")),
+        "FWHM_3_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_3/SII2_fwhm.fits"))
+    })
+
+    calibration_subtracted = Maps([
+        (fwhm_maps["FWHM_1_1"]**2 - calib_maps["calibration_1"]**2)**0.5,
+        (fwhm_maps["FWHM_1_2"]**2 - calib_maps["calibration_1"]**2)**0.5,
+        (fwhm_maps["FWHM_2_1"]**2 - calib_maps["calibration_2"]**2)**0.5,
+        (fwhm_maps["FWHM_2_2"]**2 - calib_maps["calibration_2"]**2)**0.5,
+        (fwhm_maps["FWHM_3_1"]**2 - calib_maps["calibration_3"]**2)**0.5,
+        (fwhm_maps["FWHM_3_2"]**2 - calib_maps["calibration_3"]**2)**0.5
+    ])
+    """
+    calib_maps = Maps.build_from_dict({
+        "calibration_1": Map_u(fits.open("gaussian_fitting/maps/SII/SII_1/calibration.fits")).bin_map(4),
+        "calibration_3": Map_u(fits.open("gaussian_fitting/maps/SII/SII_3/calibration.fits")).bin_map(4)
+    })
+
+    fwhm_maps = Maps.build_from_dict({
+        "FWHM_1_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_1/SII1_fwhm.fits")),
+        "FWHM_1_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_1/SII2_fwhm.fits")),
+        "FWHM_3_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_3/SII1_fwhm.fits")),
+        "FWHM_3_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_3/SII2_fwhm.fits"))
+    })
+
+    calibration_subtracted = Maps([
+        (fwhm_maps["FWHM_1_1"]**2 - calib_maps["calibration_1"]**2)**0.5,
+        (fwhm_maps["FWHM_1_2"]**2 - calib_maps["calibration_1"]**2)**0.5,
+        (fwhm_maps["FWHM_3_1"]**2 - calib_maps["calibration_3"]**2)**0.5,
+        (fwhm_maps["FWHM_3_2"]**2 - calib_maps["calibration_3"]**2)**0.5
+    ])
+
+    reprojected_maps = Maps([(mapi.reproject_on(calibration_subtracted["FWHM_1_1"])) for mapi in calibration_subtracted])
+    header = reprojected_maps["FWHM_1_1"].header
+    data = Map(fits.PrimaryHDU(np.nanmean([mapi.data for mapi in reprojected_maps], axis=0), header))
+    uncertainties = Map(fits.PrimaryHDU(np.nanmean([mapi.uncertainties for mapi in reprojected_maps], axis=0), header))
+    mean_map = Map_u.from_Map_objects(data, uncertainties)
+    mean_map.save_as_fits_file("gaussian_fitting/maps/SII/mean_fwhm.fits")
+
+
+if __name__ == "__main__":
+    get_SII_fwhm_map()
+
+
 def get_courtes_temperature(settings: dict):
     """
     In this example, the pre-rendered maps are used to calculate a temperature map using Courtes's method and suppositions.
@@ -251,8 +321,8 @@ def get_courtes_temperature(settings: dict):
         "global_temperature_was_substracted": bool. If True, the broadening associated to a temperature of 8500K will be added to
             the current broadening.
         "peak_wavelength_AA": int. Wavelength of the element's emission peak in Angstroms.
-        "element": str. Name of the element whose broadening is present in the map. This is used to add a global temperature if the
-            "global_temperature_was_substracted" bool is set to True. Supported names are "NII", "Ha", "OIII" and "SII".
+        "element": str. Name of the element whose broadening is present in the map. This is used to add a global temperature if
+            the "global_temperature_was_substracted" bool is set to True. Supported names are "NII", "Ha", "OIII" and "SII".
         "fine_structure": bool. If True, the broadening associated to the fine structure in the hydrogen atom will be substracted
             from the map.
     "map_2": informations on the second map. It has the same format as map_1.
@@ -323,7 +393,7 @@ def get_courtes_temperature(settings: dict):
     temperature_map.save_as_fits_file(settings["save_file_name"])
 
 """
-# These se ttings allow for the computation of the temperature map using the Halpha and NII emission lines present in the NII cube
+# These settings allow for the computation of the temperature map using the Halpha and NII emission lines present in the NII cube
 settings_Ha_NII = {
     "map_1": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])**2 - 
                            Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map()**2)**0.5,

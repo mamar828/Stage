@@ -9,7 +9,7 @@ import sys
 import scipy
 
 from fits_analyzer import *
-
+from celestial_coords import *
 
 # nuit_3 = fits.open("lambda_3.fits")[0].data
 # nuit_4 = fits.open("lambda_4.fits")[0].data

@@ -537,10 +537,25 @@ plt.show()
 
 # print(np.vstack((a,b)))
 
-def test(f, g):
-    print(f, g)
+# def test(f, g):
+#     print(f, g)
 
-test(None)
+# test(None)
 
-boo = False
-a = test("a", "b" if boo else None)
+# boo = False
+# a = test("a", "b" if boo else None)
+
+# list1 = [1, 2, 3, 4, 5, 6]
+# list2 = ['A', 'B', 'C']
+
+# result = [(list1[i], list2[i // (len(list1) // len(list2))]) for i in range(len(list1))]
+
+# print(result)
+
+
+# a, b = [2,3]
+# print(b,a)
+
+a = [i for i in range(10)]
+f = (1,4)
+print(a[slice(*f)])

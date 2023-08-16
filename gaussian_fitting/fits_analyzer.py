@@ -14,6 +14,7 @@ import pyregion
 from pprint import pprint
 
 from cube_spectrum import *
+from celestial_coords import *
 
 import multiprocessing
 import time
@@ -24,79 +25,14 @@ if not sys.warnoptions:
 
 
 
-class celestial_coords():
-    # This class is inherited by the following two classes and allows using of isinstance() in Fits_file.set_wcs() method
-    pass
-
-
-
-class RA(celestial_coords):
-    """
-    Encapsulate the methods specific to right ascension coordinates.
-    """
-
-    def __init__(self, time: str):
-        """
-        Initialize a RA object.
-
-        Arguments
-        ---------
-        time: str. Specifies the right ascension in clock format (HH:MM:SS.SSS -> Hours, Minutes, Seconds)
-        """
-        # Split and convert each element in the time str to floats
-        self.hours, self.minutes, self.seconds = [float(element) for element in time.split(":")]
-    
-    def to_deg(self) -> float:
-        """
-        Convert the time to degrees.
-
-        Returns
-        -------
-        float: converted time in degrees.
-        """
-        return (self.hours*3600 + self.minutes*60 + self.seconds)/(24*3600) * 360
-
-
-
-class DEC(celestial_coords):
-    """
-    Encapsulate the methods specific to declination coordinates.
-    """
-
-    def __init__(self, time: str):
-        """
-        Initialize a DEC object.
-
-        Arguments
-        ---------
-        time: str. Specifies the declination in clock format (DD:MM:SS.SSS -> Degrees, Minutes, Seconds)
-        """
-        # Split and convert each element in the time str to floats
-        self.angle, self.minutes, self.seconds = [float(element) for element in time.split(":")]
-    
-    def to_deg(self) -> float:
-        """
-        Convert the time to degrees.
-
-        Returns
-        -------
-        float: converted time in degrees.
-        """
-        return self.angle + (self.minutes*60 + self.seconds)/(3600)
-
-
-
 class Fits_file():
     """
     Encapsulate the methods specific to .fits files that can be used both in data cube and map analysis.
     """
 
-    def bin_header(self, nb_pix_bin: int=2) -> fits.Header:
+    def bin_header(self, nb_pix_bin: int) -> fits.Header:
         """
         Bin the header to make the WCS match with a binned map.
-        Note that this method creates minor WCS displacement but this is only considerable when reducing greatly the map's size. When
-        binning only 2x2 pixels, the displacement is negligible. This method has been enhanced in the HI_regions' version of the
-        Data_cube object and now prevents WCS displacement with any nb_pix_bin.
 
         Arguments
         ---------
@@ -107,12 +43,13 @@ class Fits_file():
         astropy.io.fits.Header: binned header.
         """
         header_copy = self.header.copy()
-        # The try statement makes it so calibration maps/cubes can also be binned
+        # The try statement makes it so calibration maps/cubes, which don't have WCS, can also be binned
         try:
             header_copy["CDELT1"] *= nb_pix_bin
             header_copy["CDELT2"] *= nb_pix_bin
-            header_copy["CRPIX1"] /= nb_pix_bin
-            header_copy["CRPIX2"] /= nb_pix_bin
+            # The CRPIX values correspond to the pixel's center and this must be accounted for when binning
+            header_copy["CRPIX1"] = (self.header["CRPIX1"] - 0.5) / nb_pix_bin + 0.5
+            header_copy["CRPIX2"] = (self.header["CRPIX2"] - 0.5) / nb_pix_bin + 0.5
         except:
             pass
         return header_copy
@@ -160,14 +97,14 @@ class Fits_file():
         """
         for key, value in values.items():
             if isinstance(value, tuple):
-                if isinstance(value[0], celestial_coords):
+                if isinstance(value[0], Celestial_coords):
                     self.header[f"{key[:-1]}1"] = value[0].to_deg()
                     self.header[f"{key[:-1]}2"] = value[1].to_deg()
                 else:
                     self.header[f"{key[:-1]}1"] = value[0]
                     self.header[f"{key[:-1]}2"] = value[1]
             else:
-                if isinstance(value, celestial_coords):
+                if isinstance(value, Celestial_coords):
                     self.header[key] = value.to_deg()
                 else:
                     self.header[key] = value
@@ -239,9 +176,7 @@ class Data_cube(Fits_file):
 
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
-        Bin a specific cube by the amount of pixels given for every channel.
-        Note that this works with every square cube, even though the number of pixels to bin cannot fully divide the cube's size. In
-        the case of a rectangular cube, it cannot always find a suitable reshape size.
+        Bin a specific cube by the amount of pixels given for every channel. Rectangular cubes will be automatically cropped
 
         Arguments
         ---------
@@ -251,23 +186,22 @@ class Data_cube(Fits_file):
 
         Returns
         -------
-        Data_cube object: binned cube with the same header.
+        Data_cube object: binned cube with a binned header.
         """
-        data = np.copy(self.data)
-        # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
-        for i in range(nb_pix_bin):
-            try:
-                # Create a 5 dimensional array that regroups, for every channel, every group of pixels (2 times the nb_pix_bin)
-                # into a new grid whose size has been divided by the number of pixels to bin
-                bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
-                                                        int(data.shape[2]/nb_pix_bin), nb_pix_bin)
-                break
-            except ValueError:
-                # This error occurs if the nb_pix_bin integer cannot fully divide the cube's size
-                print(f"Cube to bin will be cut by {i+1} pixel(s).")
-                data = data[:,:-1,:-1]
-        # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
-        return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
+        # Calculate the pixels that must be cropped to permit the bin
+        cropped_pixels = self.data.shape[1]%nb_pix_bin, self.data.shape[2]%nb_pix_bin
+        data = np.copy(self.data)[:, :self.data.shape[1] - cropped_pixels[0], :self.data.shape[2] - cropped_pixels[1]]
+        if cropped_pixels[0] != 0:
+            print(f"Cube to bin will be cut horizontally by {cropped_pixels[0]} pixel(s).")
+        if cropped_pixels[1] != 0:
+            print(f"Cube to bin will be cut vertically by {cropped_pixels[1]} pixel(s).")
+
+        # Create a 5 dimensional array that regroups, for every channel, every group of pixels (2 times the nb_pix_bin)
+        # into a new grid whose size has been divided by the number of pixels to bin
+        bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
+                                                int(data.shape[2]/nb_pix_bin), nb_pix_bin)
+        
+        return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
     
     def get_header_without_third_dimension(self) -> fits.Header:
         """
@@ -298,6 +232,16 @@ class Data_cube(Fits_file):
         assert isinstance(extract, list), f"Extract argument must be a list, not {type(extract).__name__}."
         for element in extract:
             assert element == "mean" or element == "amplitude" or element == "FWHM", "Unsupported element in extract list."
+    
+    def get_center_tuple(self) -> tuple[int]:
+        """
+        Get the coordinates of the calibration's center in the form of a tuple.
+        
+        Returns
+        -------
+        tuple: rounded coordinates.
+        """
+        return  round(self.header["CAL_CEN1"]), round(self.header["CAL_CEN2"])
 
 
 
@@ -306,87 +250,7 @@ class Calibration_data_cube(Data_cube):
     Encapsulate all the methods specific to calibration data cubes.
     """
 
-    def get_center_point(self, center_guess: tuple=(527, 484)) -> tuple[list[float]]:
-        """
-        Get the center coordinates of the calibration cube. This method works with a center guess that allows for greater accuracy.
-        The center is found by looking at the distances between intensity peaks of the concentric rings.
-
-        Arguments
-        ---------
-        center_guess: tuple, optional. Defines the point from which intensity maxima will be searched. Any guess close to the center
-        may be provided first, but better results will be obtained by re-feeding the function with its own output a few times. The
-        arguments' default value is the center coordinates already obtained.
-
-        Returns
-        -------
-        tuple: the calculated center coordinates with their uncertainty. This is an approximation based on the center_guess provided.
-        The tuple's first element is a list with the center point's x coordinate and its uncertainty whilst the second element has
-        the same structure but corresponds to the y coordinate.
-        """
-        distances = {"x": [], "y": []}
-        # The success int will be used to measure how many distances are utilized to calculate the average center
-        success = 0
-        for channel in range(1,49):
-            # channel_dist = {}
-            # The intensity_max dict isolates the x and y axis that pass through the center_guess
-            intensity_max = {
-                "intensity_x": self.data[channel-1, center_guess[1], :],
-                "intensity_y": self.data[channel-1, :, center_guess[0]]
-            }
-            for name, axis_list in intensity_max.items():
-                # The axes_pos list collects the detected intensity peaks along each axis
-                axes_pos = []
-                for coord in range(1, 1023):
-                    if (axis_list[coord-1] < axis_list[coord] > axis_list[coord+1]
-                         and axis_list[coord] > 500):
-                        axes_pos.append(coord)
-                # Here the peaks are verified to make sure they correspond to the max intensity of each ring
-                for i in range(len(axes_pos)-1):
-                    # If two peaks are too close to each other, they cannot both be real peaks
-                    if axes_pos[i+1] - axes_pos[i] < 50:
-                        if axis_list[axes_pos[i]] > axis_list[axes_pos[i+1]]:
-                            axes_pos[i+1] = 0
-                        else:
-                            axes_pos[i] = 0
-                # The fake peaks are removed from the list
-                axes_pos = np.setdiff1d(axes_pos, 0)
-                
-                # Here is only considered the case where the peaks of two concentric rings have been detected in the two directions
-                if len(axes_pos) == 4:
-                    dists = [(axes_pos[3] - axes_pos[0])/2 + axes_pos[0], (axes_pos[2] - axes_pos[1])/2 + axes_pos[1]]
-                    distances[name[-1]].append(dists)
-                    success += 1
-        x_mean, y_mean = np.mean(distances["x"], axis=(0,1)), np.mean(distances["y"], axis=(0,1))
-        x_uncertainty, y_uncertainty = np.std(distances["x"], axis=(0,1)), np.std(distances["y"], axis=(0,1))
-        return [x_mean, x_uncertainty], [y_mean, y_uncertainty]
-
     def fit(self) -> Map_u:
-        """
-        Fit the whole data cube and extract the fitted gaussian's FWHM and its uncertainty at every point.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
-        if __name__ == "__main__":
-        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
-
-        Returns
-        -------
-        Map_u object: map of the FWHM value and its associated uncertainty.
-        """
-        data = np.copy(self.data)
-        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
-        print(f"Number of processes used: {pool._processes}")
-        self.reset_update_file()
-        start = time.time()
-        fit_fwhm_map = (np.array(pool.starmap(worker_fit_calibration, list((y, data, self.header)
-                                                                           for y in range(data.shape[1])))))
-        stop = time.time()
-        print("\nFinished in", stop-start, "s.")
-        pool.close()
-        new_header = self.get_header_without_third_dimension()
-        return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
-
-    def fit_test(self) -> Map_u:
         """
         Fit the whole data cube and extract the fitted gaussian's FWHM and its uncertainty at every point.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
@@ -453,7 +317,7 @@ class NII_data_cube(Data_cube):
         super().__init__(fits_object)
         self._double_NII_peak_authorized = _double_NII_peak_authorized
 
-    def fit(self, extract: list[str], double_NII_peak_authorized: bool=False) -> tuple[Maps]:
+    def fit(self, extract: list[str], double_NII_peak_authorized: bool=False) -> list[Maps]:
         """
         Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha peak and
         one NII peak (sometimes two if the seven_components_fits_authorized is set to True) are present.
@@ -472,114 +336,8 @@ class NII_data_cube(Data_cube):
 
         Returns
         -------
-        tuple of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
-        were put in argument, thus the tuple may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
-        in the provided data cube.
-        Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
-        amplitude or mean. In any case, in every Maps object is a Map object having the value 1 when a seven components fit was
-        executed and 0 otherwise.
-        """
-        self.verify_extract_list(extract)
-
-        data = np.copy(self.data)
-        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
-        print(f"Number of processes used: {pool._processes}")
-        self.reset_update_file()
-        start = time.time()
-        fit_fwhm_map = np.array(pool.starmap(worker_fit_NII, list((y, data, double_NII_peak_authorized, self.header)
-                                                                  for y in range(data.shape[1]))))
-        stop = time.time()
-        print("\nFinished in", stop-start, "s.")
-        pool.close()
-        new_header = self.get_header_without_third_dimension()
-        # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,7,3) and the last three dimensions are given at every pixel
-        # Third dimension: all three gaussian parameters. 0: fwhm, 1: amplitude, 2: mean
-        # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: OH3, 3: OH4, 4: NII, 5: Ha, 6: 7 components fit map
-        # Fifth dimension: 0: data, 1: uncertainties, 2: snr (only when associated to fwhm values)
-        # The 7 components fit map is a map taking the value 0 if a single component was fitted onto NII and the value 1 if
-        # two components were considered
-        fwhm_maps = Maps([
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,0,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,2])]), name="OH1_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,1,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,2])]), name="OH2_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,2,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,2])]), name="OH3_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,3,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,2])]), name="OH4_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,4,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,4,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,4,2])]), name="NII_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,5,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,5,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,5,2])]), name="Ha_fwhm"),
-            Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0,6,0], new_header), name="7_components_fit")
-        ])
-        amplitude_maps = Maps([
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,0,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,0,1])]), name="OH1_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,1,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,1,1])]), name="OH2_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,2,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,2,1])]), name="OH3_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,3,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,3,1])]), name="OH4_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,4,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,4,1])]), name="NII_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,5,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,5,1])]), name="Ha_amplitude"),
-            Map(fits.PrimaryHDU(fit_fwhm_map[:,:,1,6,0], new_header), name="7_components_fit")
-        ])
-        mean_maps = Maps([
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,0,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,0,1])]), name="OH1_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,1,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,1,1])]), name="OH2_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,2,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,2,1])]), name="OH3_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,3,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,3,1])]), name="OH4_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,4,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,4,1])]), name="NII_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,5,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,5,1])]), name="Ha_mean"),
-            Map(fits.PrimaryHDU(fit_fwhm_map[:,:,2,6,0], new_header), name="7_components_fit")
-        ])
-        parameter_names = {"FWHM": fwhm_maps, "amplitude": amplitude_maps, "mean": mean_maps}
-        return_list = []
-        for element in extract:
-            return_list.append(parameter_names[element])
-        if len(extract) == 1:
-            # If only a single Maps is present, the element itself needs to be returned and not a tuple of a single element
-            return return_list[-1]
-        else:
-            return tuple(return_list)
-
-    def fit_test(self, extract: list[str], double_NII_peak_authorized: bool=False) -> tuple[Maps]:
-        """
-        Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha peak and
-        one NII peak (sometimes two if the seven_components_fits_authorized is set to True) are present.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
-        if __name__ == "__main__":
-        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
-
-        Arguments
-        ---------
-        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
-        Any combination or number of these terms can be given.
-        double_NII_peak_authorized: bool, default=False. Specifies if double NII peaks are considered possible. If True,
-        the fitting algorithm may detect two components and fit these separately. The NII values in the returned maps for a
-        certain parameter will then be the mean value of the two fitted gaussians at that pixel.
-
-        Returns
-        -------
-        tuple of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
-        were put in argument, thus the tuple may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
+        list of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
+        were put in argument, thus the list may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
         in the provided data cube.
         Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
         amplitude or mean. In any case, in every Maps object is a Map object having the value 1 when a seven components fit was
@@ -661,10 +419,10 @@ class NII_data_cube(Data_cube):
         for element in extract:
             return_list.append(parameter_names[element])
         if len(extract) == 1:
-            # If only a single Maps is present, the element itself needs to be returned and not a tuple of a single element
+            # If only a single Maps is present, the element itself needs to be returned and not a list of a single element
             return return_list[-1]
         else:
-            return tuple(return_list)
+            return return_list
         
     def worker_fit(self, x: int) -> list:
         """
@@ -698,7 +456,20 @@ class SII_data_cube(Data_cube):
     Encapsulate all the methods specific to SII data cubes.
     """
 
-    def fit(self, extract: list[str]) -> tuple[Maps]:
+    def __init__(self, fits_object: fits.PrimaryHDU, _cube_number: int=None):
+        """
+        Initialize a NII_data_cube object. The data cube's file name must be given.
+
+        Arguments
+        ---------
+        fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
+        _cube_number: int, default=None. This argument is intended for internal use only. Specifies the cube's number (1, 2, 3).
+        This is used when fitting the different SII cubes which do not present the rays at the same spots.
+        """
+        super().__init__(fits_object)
+        self._cube_number = _cube_number
+
+    def fit(self, extract: list[str], cube_number: int) -> list[Maps]:
         """
         Fit the whole data cube to extract the peaks' data. This method presupposes that two OH peaks and two SII peaks are
         present.
@@ -711,11 +482,12 @@ class SII_data_cube(Data_cube):
         ---------
         extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
         Any combination or number of these terms can be given.
+        cube_number: int. Specify the number of the cube being currently fitted.
 
         Returns
         -------
-        tuple of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
-        were put in argument, thus the tuple may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
+        list of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
+        were put in argument, thus the list may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
         in the provided data cube.
         Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
         amplitude or mean.
@@ -727,7 +499,8 @@ class SII_data_cube(Data_cube):
         print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_map = np.array(pool.starmap(worker_fit_SII, list((y, data, self.header) for y in range(data.shape[1]))))
+        fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(SII_data_cube(fits.PrimaryHDU(data[:,y,:], self.header), 
+                                                   cube_number), data.shape[1]) for y in range(data.shape[1])]))
         stop = time.time()
         print("\nFinished in", stop-start, "s.")
         pool.close()
@@ -775,91 +548,9 @@ class SII_data_cube(Data_cube):
         for element in extract:
             return_list.append(parameter_names[element])
         if len(extract) == 1:
-            # If only a single Maps is present, the element itself needs to be returned and not a tuple
+            # If only a single Maps is present, the element itself needs to be returned and not a list
             return return_list[-1]
-        return tuple(return_list)
-
-    def fit_test(self, extract: list[str]) -> tuple[Maps]:
-        """
-        Fit the whole data cube to extract the peaks' data. This method presupposes that two OH peaks and two SII peaks are
-        present.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
-        if __name__ == "__main__":
-        This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
-
-        Arguments
-        ---------
-        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
-        Any combination or number of these terms can be given.
-
-        Returns
-        -------
-        tuple of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
-        were put in argument, thus the tuple may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
-        in the provided data cube.
-        Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
-        amplitude or mean.
-        """
-        self.verify_extract_list(extract)
-
-        data = np.copy(self.data)
-        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
-        print(f"Number of processes used: {pool._processes}")
-        self.reset_update_file()
-        start = time.time()
-        fit_fwhm_map = np.array(pool.starmap(worker_fit_SII, [(SII_data_cube(fits.PrimaryHDU(data[:,y,:], self.header)), 
-                                                               data.shape[1]) for y in range(data.shape[1])]))
-        stop = time.time()
-        print("\nFinished in", stop-start, "s.")
-        pool.close()
-        new_header = self.get_header_without_third_dimension()
-        # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,4,3) and the last three dimensions are given at every pixel
-        # Third dimension: all three gaussian parameters. 0: fwhm, 1: amplitude, 2: mean
-        # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: SII1, 3: SII2
-        # Fifth dimension: 0: data, 1: uncertainties, 2: snr (only when associated to fwhm values, False otherwise)
-        fwhm_maps = Maps([
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,0,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,2])]), name="OH1_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,1,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,2])]), name="OH2_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,2,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,2])]), name="SII1_fwhm"),
-            Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,3,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,2])]), name="SII2_fwhm")
-        ])
-        amplitude_maps = Maps([
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,0,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,0,1])]), name="OH1_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,1,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,1,1])]), name="OH2_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,2,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,2,1])]), name="SII1_amplitude"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,1,3,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,1,3,1])]), name="SII2_amplitude")
-        ])
-        mean_maps = Maps([
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,0,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,0,1])]), name="OH1_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,1,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,1,1])]), name="OH2_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,2,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,2,1])]), name="SII1_mean"),
-            Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,2,3,0], new_header),
-                                fits.ImageHDU(fit_fwhm_map[:,:,2,3,1])]), name="SII2_mean")
-        ])
-        parameter_names = {"FWHM": fwhm_maps, "amplitude": amplitude_maps, "mean": mean_maps}
-        return_list = []
-        for element in extract:
-            return_list.append(parameter_names[element])
-        if len(extract) == 1:
-            # If only a single Maps is present, the element itself needs to be returned and not a tuple
-            return return_list[-1]
-        return tuple(return_list)
+        return return_list
     
     def worker_fit(self, x: int) -> list:
         """
@@ -875,9 +566,13 @@ class SII_data_cube(Data_cube):
         sublists. The first has four arrays that give the peaks' FWHM with their uncertainty and signal to noise ratio. The two
         following sublists give every fitted gaussian's amplitude and mean respectively. 
         """
-        spectrum = SII_spectrum(self.data[:,x], self.header)
-        spectrum.fit()
-        return [spectrum.get_FWHM_snr_array(), spectrum.get_amplitude_array(), spectrum.get_mean_array()]
+        spectrum = SII_spectrum(self.data[:,x], self.header, self._cube_number)
+        try:
+            spectrum.fit()
+            return [spectrum.get_FWHM_snr_array(), spectrum.get_amplitude_array(), spectrum.get_mean_array()]
+        except:
+            # Sometimes the fit is unsuccessful
+            return [np.full((4,3), np.NAN), np.full((4,3), np.NAN), np.full((4,3), np.NAN)]
 
 
 
@@ -903,95 +598,6 @@ def worker_split_fit(data_cube: Data_cube, number_of_lines: int) -> list:
     for x in range(data_cube.data.shape[1]):
         line.append(data_cube.worker_fit(x))
     Fits_file.give_update(f"{type(data_cube).__name__} fitting progress /{number_of_lines}")
-    return line
-
-def worker_fit_calibration(y: int, data: np.ndarray, header: fits.Header) -> list:
-    """
-    Fit an entire line of a Calibration_data_cube.
-
-    Arguments
-    ---------
-    y: int. y value of the line to be fitted.
-    data: numpy array. Data of the Data_cube used.
-    header: fits.Header. Data_cube's header.
-
-    Returns
-    -------
-    list: fitted gaussian's FWHM value and uncertainty at every pixel along the specified line. 
-    """
-    line = []
-    # A single fit will be made and the FWHM value will be extracted
-    for x in range(data.shape[2]):
-        spec = Calibration_spectrum(data[:,y,x], header)
-        spec.fit()
-        try:
-            line.append(spec.get_FWHM_speed())
-        except:
-            line.append([np.NAN, np.NAN])
-    Data_cube.give_update(None, f"Calibration fitting progress /{data.shape[1]}")
-    return line
-
-def worker_fit_NII(y: int, data: np.ndarray, double_NII_peak_authorized: bool, header: fits.Header) -> list:
-    """
-    Fit an entire line of a NII_data_cube.
-
-    Arguments
-    ---------
-    y: int. y value of the line to be fitted.
-    data: numpy array. Data of the Data_cube used.
-    double_NII_peak_authorized: bool. Specifies if the fitting algorithm should detect when a double NII components fit should be made.
-    header: fits.Header. Data_cube's header.
-
-    Returns
-    -------
-    list: FWHM, snr, amplitude and mean value of every fitted gaussians are given for every pixel, along with a map representing
-    where double NII fits were made. Each coordinate has three sublists. The first has seven values: the first six are the peaks'
-    FWHM with their uncertainty and signal to noise ratio and the last one is a map indicating where fits with seven components
-    were done. The last map outputs 0 for a six components fit and 1 for a seven components fit. The second sublist gives the
-    fitted gaussians amplitude and the third sublist gives their mean value. The two last sublists also have the map that 
-    represents if a double NII peak was fitted.
-    """
-    line = []
-
-    for x in range(data.shape[2]):
-        spec = NII_spectrum(data[:,y,x], header, seven_components_fit_authorized=double_NII_peak_authorized)
-        spec.fit()
-        # Numpy arrays are used to facilitate extraction
-        line.append([
-            spec.get_FWHM_snr_7_components_array(),
-            spec.get_amplitude_7_components_array(),
-            spec.get_mean_7_components_array()
-        ])
-    Data_cube.give_update(None, f"NII complete cube fitting progress /{data.shape[1]}")
-    return line
-
-def worker_fit_SII(y: int, data: np.ndarray, header: fits.Header) -> list:
-    """
-    Fit an entire line of a SII_data_cube.
-
-    Arguments
-    ---------
-    y: int. y value of the line to be fitted.
-    data: numpy array. Data of the Data_cube used.
-    header: fits.Header. Data_cube's header.
-
-    Returns
-    -------
-    list: FWHM, snr, amplitude and mean value of every fitted gaussians are given for every pixel. Each coordinate has three
-    sublists. The first has four arrays that give the peaks' FWHM with their uncertainty and signal to noise ratio. The two
-    following sublists give every fitted gaussian's amplitude and mean respectively. 
-    """
-    line = []
-    for x in range(data.shape[2]):
-        spec = SII_spectrum(data[:,y,x], header)
-        spec.fit()
-        # Numpy arrays are used to facilitate extraction
-        line.append([
-            spec.get_FWHM_snr_array(),
-            spec.get_amplitude_array(),
-            spec.get_mean_array()
-        ])
-    Data_cube.give_update(None, f"SII complete cube fitting progress /{data.shape[1]}")
     return line
 
 
@@ -1020,35 +626,35 @@ class Map(Fits_file):
             self.object = fits_object[0]
             self.data = fits_object[0].data
             self.header = fits_object[0].header
-        if name is not None:
-            self.name = name
+        self.name = name
+        self.shape = self.data.shape
 
     def __add__(self, other):
         if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
-            return Map(fits.PrimaryHDU(self.data + other.data, self.header))
+            return Map(fits.PrimaryHDU(self.data + other.data, self.header), self.name)
         else:
-            return Map(fits.PrimaryHDU(self.data + other, self.header))
+            return Map(fits.PrimaryHDU(self.data + other, self.header), self.name)
     
     def __radd__(self, other):
         return self.__add__(other)
     
     def __sub__(self, other):
         assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
-        return Map(fits.PrimaryHDU(self.data - other.data, self.header))
+        return Map(fits.PrimaryHDU(self.data - other.data, self.header), self.name)
     
     def __rsub__(self, other):
         return (self.__sub__(other) * -1)
 
     def __pow__(self, power):
-        return Map(fits.PrimaryHDU(self.data ** power, self.header))
+        return Map(fits.PrimaryHDU(self.data ** power, self.header), self.name)
     
     def __mul__(self, other):
         if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being multiplied."
-            return Map(fits.PrimaryHDU(self.data * other.data, self.header))
+            return Map(fits.PrimaryHDU(self.data * other.data, self.header), self.name)
         else:
-            return Map(fits.PrimaryHDU(self.data * other, self.header))
+            return Map(fits.PrimaryHDU(self.data * other, self.header), self.name)
     
     def __rmul__(self, other):
         return self.__mul__(other)
@@ -1056,9 +662,9 @@ class Map(Fits_file):
     def __truediv__(self, other):
         if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being divided."
-            return Map(fits.PrimaryHDU(self.data / other.data, self.header))
+            return Map(fits.PrimaryHDU(self.data / other.data, self.header), self.name)
         else:
-            return Map(fits.PrimaryHDU(self.data / other, self.header))
+            return Map(fits.PrimaryHDU(self.data / other, self.header), self.name)
 
     def __rtruediv__(self, other):
         return (self.__truediv__(other))**(-1)
@@ -1070,13 +676,10 @@ class Map(Fits_file):
         return np.nanmax(np.abs((self.data - other.data) / self.data)) <= 10**(-6) or np.array_equal(self.data, other.data)
     
     def __getitem__(self, key):
-        return Map(fits.PrimaryHDU(self.data[key], None))
+        return Map(fits.PrimaryHDU(self.data[key], None), self.name)
 
     def copy(self):
-        return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()))
-    
-    def shape(self):
-        return self.data.shape
+        return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()), str(self.name))
     
     def add_new_axis(self, new_axis_shape: int) -> Map:
         """
@@ -1091,7 +694,7 @@ class Map(Fits_file):
         Map object: new map with its augmented dimension.
         """
         new_data = np.repeat(self.data, new_axis_shape).reshape(*reversed(self.data.shape), new_axis_shape)
-        return Map(fits.PrimaryHDU(new_data, self.header))
+        return Map(fits.PrimaryHDU(new_data, self.header), self.name)
 
     def plot_map(self, bounds: tuple=None):
         """
@@ -1131,40 +734,30 @@ class Map(Fits_file):
             plt.colorbar(ax2.imshow(other.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
         plt.show()
 
-    def bin_map(self, nb_pix_bin: int=2, raw_data: np.ndarray=None) -> Map:
+    def bin_map(self, nb_pix_bin: int=2) -> Map:
         """
-        Bin the map by the amount of pixels given.
-        Note that this works with every square map, even though the number of pixels to bin cannot fully divide the map's size. In
-        the case of a rectangular map, it cannot always find a suitable reshape size.
+        Bin the map by the amount of pixels given. Rectangular maps will be automatically cropped.
 
         Arguments
         ---------
         nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For example, the
         default value 2 will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
-        raw_data: numpy array, default=None. If present, specifies the data to bin. By default, the Map's data will be binned.
 
         Returns
         -------
         Map object: binned map.
         """
-        if raw_data is None:
-            data = np.copy(self.data)
-        else:
-            data = np.copy(raw_data)
-        
-        # Loop over the nb_pix_bin to find the number of pixels that needs to be cropped
-        for i in range(nb_pix_bin):
-            try:
-                # Create a 4 dimensional array that regroups every group of pixels (2 times the nb_pix_bin) into a new grid whose
-                # size has been divided by the number of pixels to bin
-                bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, int(data.shape[1]/nb_pix_bin), nb_pix_bin)
-                break
-            except ValueError:
-                # This error occurs if the nb_pix_bin integer cannot fully divide the map's size
-                print(f"Map to bin will be cut by {i+1} pixel(s).")
-                data = data[:-1,:-1]
-        # The mean value of every pixel group is calculated and the array returns to a two dimensional state
-        return Map(fits.PrimaryHDU(np.nanmean(bin_array, axis=(1,3)), self.bin_header(nb_pix_bin)))
+        cropped_pixels = self.data.shape[0]%nb_pix_bin, self.data.shape[1]%nb_pix_bin
+        data = np.copy(self.data)[:self.data.shape[0] - cropped_pixels[0], :self.data.shape[1] - cropped_pixels[1]]
+        if cropped_pixels[0] != 0:
+            print(f"Map to bin will be cut horizontally by {cropped_pixels[0]} pixel(s).")
+        if cropped_pixels[1] != 0:
+            print(f"Map to bin will be cut vertically by {cropped_pixels[1]} pixel(s).")
+
+        # Create a 5 dimensional array that regroups, for every channel, every group of pixels (2 times the nb_pix_bin)
+        # into a new grid whose size has been divided by the number of pixels to bin
+        bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, int(data.shape[1]/nb_pix_bin), nb_pix_bin)
+        return Map(fits.PrimaryHDU(np.nanmean(bin_array, axis=(1,3)), self.bin_header(nb_pix_bin)), self.name)
     
     def smooth_order_change(self, center: tuple=(527, 484)) -> Map:
         """
@@ -1219,7 +812,7 @@ class Map(Fits_file):
                     
                     data[y,x] = np.nanmean(near_pixels)
                     # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
-        return Map(fits.PrimaryHDU(data, self.header))
+        return Map(fits.PrimaryHDU(data, self.header), self.name)
 
     def reproject_on(self, other: Map) -> Map:
         """
@@ -1234,7 +827,7 @@ class Map(Fits_file):
         Map object: map with WCS aligned to the other map.
         """
         reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
-        return Map(fits.PrimaryHDU(reprojection, other.header))
+        return Map(fits.PrimaryHDU(reprojection, other.header), self.name)
     
     def align_regions(self) -> Map | Map_u:
         """
@@ -1618,8 +1211,8 @@ class Map_u(Map):
         self.uncertainties = fits_list[1].data
         self.header = fits_list[0].header
         assert self.data.shape == self.uncertainties.shape, "The data and uncertainties sizes do not match."
-        if name is not None:
-            self.name = name
+        self.name = name
+        self.shape = self.data.shape
     
     @classmethod
     def from_Map_objects(cls, map_data: Map, map_uncertainty: Map) -> Map_u:
@@ -1644,43 +1237,43 @@ class Map_u(Map):
         if issubclass(type(other), Map_u):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other.data, self.header),
-                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]))
+                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]), self.name)
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other, self.header),
-                                       fits.ImageHDU(self.uncertainties, self.header)]))
+                                       fits.ImageHDU(self.uncertainties, self.header)]), self.name)
     
     def __sub__(self, other):
         if issubclass(type(other), Map_u):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other.data, self.header),
-                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]))
+                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]), self.name)
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other, self.header),
-                                       fits.ImageHDU(self.uncertainties, self.header)]))
+                                       fits.ImageHDU(self.uncertainties, self.header)]), self.name)
 
     def __pow__(self, power):
         return Map_u(fits.HDUList([fits.PrimaryHDU(self.data ** power, self.header),
-                                   fits.ImageHDU(np.abs(self.uncertainties / self.data * power * self.data**power), self.header)]))
+                    fits.ImageHDU(np.abs(self.uncertainties / self.data * power * self.data**power), self.header)]), self.name)
     
     def __mul__(self, other):
         if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being multiplied."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other.data, self.header),
-                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data)
+                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data, self.name)
                                                       * self.data * other.data, self.header)]))
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other, self.header),
-                                       fits.ImageHDU(self.uncertainties * other, self.header)]))
+                                       fits.ImageHDU(self.uncertainties * other, self.header)]), self.name)
         
     def __truediv__(self, other):
         if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being divided."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other.data, self.header),
-                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data)
+                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data, self.name)
                                                       * self.data / other.data, self.header)]))
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other, self.header),
-                                       fits.ImageHDU(self.uncertainties / other, self.header)]))
+                                       fits.ImageHDU(self.uncertainties / other, self.header)]), self.name)
 
     def __eq__(self, other):
         return (np.nanmax(np.abs((self.data - other.data) / self.data)) <= 1**(-5) and 
@@ -1694,7 +1287,7 @@ class Map_u(Map):
     
     def copy(self):
         return Map_u(fits.HDUList([fits.PrimaryHDU(np.copy(self.data), self.header.copy()),
-                                   fits.ImageHDU(np.copy(self.uncertainties), self.header.copy())]))
+                                   fits.ImageHDU(np.copy(self.uncertainties), self.header.copy())]), self.name)
     
     def __iter__(self):
         self.n = -1
@@ -1705,7 +1298,7 @@ class Map_u(Map):
         if self.n > len(self.object) - 1:
             raise StopIteration
         else:
-            return Map(fits.PrimaryHDU(self.object[self.n].data, self.header))
+            return Map(fits.PrimaryHDU(self.object[self.n].data, self.header), self.name)
         
     def add_new_axis(self, new_axis_shape: int) -> Map_u:
         """
@@ -1764,9 +1357,7 @@ class Map_u(Map):
 
     def bin_map(self, nb_pix_bin: int=2) -> Map_u:
         """
-        Bin the data and the uncertainty by the amount of pixels given.
-        Note that this works with every square map, even though the number of pixels to bin cannot fully divide the map's size. In
-        the case of a rectangular map, it cannot always find a suitable reshape size.
+        Bin the map by the amount of pixels given. Rectangular maps will be automatically cropped.
 
         Arguments
         ---------
@@ -1777,11 +1368,10 @@ class Map_u(Map):
         -------
         Map_u object: binned map.
         """
-        binned_data, binned_uncertainties = super().bin_map(nb_pix_bin), super().bin_map(nb_pix_bin, self.uncertainties)
-        return Map_u(fits.HDUList([fits.PrimaryHDU(binned_data.data, binned_data.header),
-                                   fits.ImageHDU(binned_uncertainties.data, binned_data.header)]))
+        data_map, uncertainties_map = self
+        return self.from_Map_objects(data_map.bin_map(nb_pix_bin), uncertainties_map.bin_map(nb_pix_bin))
     
-    def smooth_order_change(self, center: int=(527, 484)) -> Map_u:
+    def smooth_order_change(self, center: tuple[int]) -> Map_u:
         """
         Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM
         is reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an
@@ -1797,7 +1387,6 @@ class Map_u(Map):
         """
         data = np.copy(self.data)
         uncertainties = np.copy(self.uncertainties)
-        center = round(center[0]), round(center[1])
         # The bin_factor corrects the distances in the case of a binned array
         bin_factor = center[0] / 527
         # The smoothing_max_thresholds list of ints is defined by trial and error and tunes the pixels to calculate the mean
@@ -1838,7 +1427,7 @@ class Map_u(Map):
                     uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
                     # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
         return Map_u(fits.HDUList([fits.PrimaryHDU(data, self.header),
-                                   fits.ImageHDU(uncertainties, self.header)]))
+                                   fits.ImageHDU(uncertainties, self.header)]), self.name)
 
     def reproject_on(self, other: Map_u) -> Map_u:
         """
@@ -1855,7 +1444,7 @@ class Map_u(Map):
         reprojected_data = reproject_interp(self.object[0], other.header, return_footprint=False, order="nearest-neighbor")
         reprojected_uncertainties = reproject_interp(self.object[1], other.header, return_footprint=False, order="nearest-neighbor")
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
-                                   fits.ImageHDU(reprojected_uncertainties, self.header)]))
+                                   fits.ImageHDU(reprojected_uncertainties, self.header)]), self.name)
     
     def get_autocorrelation_function_array(self, step: float=None) -> np.ndarray:
         cropped_map = self.get_cropped_NaNs_array()
@@ -2117,7 +1706,7 @@ class Map_usnr(Map_u):
                                      Map(fits.PrimaryHDU(self.snr, None))[key])
     
     def copy(self):
-        return self.from_Map_u_object(super().copy(), self.snr)
+        return self.from_Map_u_object(super().copy(), np.copy(self.snr))
     
     def save_as_fits_file(self, filename: str):
         """
@@ -2179,19 +1768,19 @@ class Map_usnr(Map_u):
         mask = np.where(mask == True, np.NAN, 1)
         return Map_usnr(fits.HDUList([fits.PrimaryHDU(self.data * mask, self.header),
                                       fits.ImageHDU(self.uncertainties * mask, self.header),
-                                      fits.ImageHDU(self.snr * mask, self.header)]))
+                                      fits.ImageHDU(self.snr * mask, self.header)]), self.name)
 
 
 
 class Maps():
     """ 
     Encapsulates the methods that are specific to a multitude of linked maps. This class is mainly used as the output of the
-    fit() method and allows for many convenient operations. This class can be seen as an analoguous to the list class.
+    fit() method and allows for many convenient operations. This class can be seen as an analoguous to the dict class.
     """
 
     def __init__(self, maps: list):
         """
-        Initialize a Maps object
+        Initialize a Maps object.
         
         Arguments
         ---------
@@ -2227,8 +1816,33 @@ class Maps():
                     try:
                         maps.append(Map_u(fits.open(f"{folder_path}/{file}"), name=name))
                     except:
-                        maps.append(Map(fits.open(f"{folder_path}/{file}")[0], name=name))
+                        try:
+                            maps.append(Map(fits.open(f"{folder_path}/{file}")[0], name=name))
+                        except:
+                            print(f"File {file} could not be opened.")
         return cls(maps)
+    
+    @classmethod
+    def build_from_dict(cls, dictio: dict) -> Maps:
+        """
+        Create a Maps object from a dict object. A copy of each map is used.
+        
+        Arguments
+        ---------
+        dictio: dict. Each key corresponds to the map's name and each value to the map object itself.
+        
+        Returns
+        -------
+        Maps object: newly created object."""
+        maps = []
+        for name, individual_map in dictio.items():
+            map_copy = individual_map.copy()
+            map_copy.name = name
+            maps.append(map_copy)
+        return cls(maps)
+    
+    def __str__(self):
+        return "\n".join(list(self.content.keys()))
 
     def __eq__(self, other):
         return_str = ""
@@ -2242,7 +1856,7 @@ class Maps():
                 return_str += f"{name} equal.\n"
             else:
                 return_str += f"{name} not equal.\n"
-        return return_str[:-2]
+        return return_str[:-2]          # Remove trailing "\n"
 
     def __iter__(self):
         self.n = -1
@@ -2258,14 +1872,24 @@ class Maps():
     def __getitem__(self, map_name):
         return self.content[map_name]
     
+    def __setitem__(self, map_name, map_object):
+        self.content[map_name] = map_object
+        self.names[len(self.names)] = map_name
+    
     def save_as_fits_file(self, folder_path: str):
         """
         Write every map of the Maps object into a folder. This makes use of each map's save_as_fits_file() method.
         
         Arguments
         ---------
-        folder_path: str. Indicates the path of the folder in which to create the files.
+        folder_path: str. Indicates the path of the folder in which to create the files. If the folder does not exist, it is
+        created.
         """
+        if not os.path.exists(folder_path):
+            # Create folder if necessary
+            os.makedirs(folder_path)
+
         for name, element in self.content.items():
             element.save_as_fits_file(f"{folder_path}/{name}.fits")
+
 
