@@ -556,6 +556,10 @@ plt.show()
 # a, b = [2,3]
 # print(b,a)
 
-a = [i for i in range(10)]
-f = (1,4)
-print(a[slice(*f)])
+# a = [i for i in range(10)]
+# f = (1,4)
+# print(a[slice(*f)])
+
+
+b = np.array([[1,2,3],[4,5,6]])
+print(b[1,1:3])

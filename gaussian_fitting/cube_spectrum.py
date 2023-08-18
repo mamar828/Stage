@@ -29,6 +29,23 @@ class Spectrum():
         """
         self.x_values, self.y_values = np.arange(len(data)) + 1, data
         self.header = header
+
+    @classmethod
+    def from_dat_file(cls, filename, header, cube_number=None):
+        lines = open(filename, "r").readlines()
+        y_values = []
+        for point in lines:
+            try:
+                y_values.append(float(point.split(" ")[-1]))
+            except:
+                # Final empty line
+                pass
+
+        if cube_number is None:
+            return cls(np.array(y_values), header)
+        else:
+            return cls(np.array(y_values), header, cube_number)
+
         
     def plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
         """
@@ -392,7 +409,6 @@ class NII_spectrum(Spectrum):
                                    bounds=parameter_bounds["Ha"])
         gi_OH1.mean.max = 3*u.um
         gi_OH4.mean.min = 47*u.um
-
         if number_of_components == 6:
             self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_OH3 + gi_OH4 + gi_NII + gi_Ha,
                                              fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
@@ -451,7 +467,7 @@ class NII_spectrum(Spectrum):
         # Note that the first element of the list is the derivative difference between channels 2 and 3 and channels 1 and 2
         
         x_peaks = {}
-        for ray, bounds in [("OH1", (1,5)), ("OH2", (19,21)), ("OH3", (36,39)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
+        for ray, bounds in [("OH1", (1,5)), ("OH2", (19,22)), ("OH3", (36,39)), ("OH4", (47,48)), ("NII", (13,17)), ("Ha", (42,45))]:
             if ray == "NII" and number_of_components == 7:
                 # If a double peak was detected, the initial guesses are hard-coded to obtain better results
                 x_peaks["NII"], x_peaks["NII_2"] = 13, 16
@@ -463,40 +479,51 @@ class NII_spectrum(Spectrum):
             # Specify when a big difference in derivatives has been detected and allows to keep the x_value
             stop_OH3 = False
             # For the OH1 and OH4 rays, the maximum intensity is used as the initial guess
+            consecutive_drops_OH2 = 0
             if ray != "OH1" and ray != "OH4":
                 for x in range(bounds[0], bounds[1]):
                     # Variables used to ease the use of lists
-                    x_list_deriv = x - 2
-                    x_list = x - 1
+                    current_derivatives_diff = derivatives_diff[x-2] 
+                    current_y_value = self.y_values[x-1]
+                    if ray == "OH2":
+                        if current_derivatives_diff < 0.5:     # A minor rise is also considered a for consecutive "drops"
+                            consecutive_drops_OH2 += 1
+                        else:
+                            consecutive_drops_OH2 = 0
+                        if consecutive_drops_OH2 == 2:
+                            # 2 consecutive drops are interpreted as a ray
+                            x_peaks[ray] = x - 1
+                            break
+
                     if ray == "OH3":
                         # First condition checks if a significant change in derivative is noticed which could indicate a peak
                         # Also makes sure that the peak is higher than any peak that might have been found previously
-                        if derivatives_diff[x_list_deriv] < diff_threshold and (
-                            self.y_values[x_list] > self.y_values[x_peak_OH3-1] or x_peak_OH3 == 0):
+                        if current_derivatives_diff < diff_threshold and (
+                            current_y_value > self.y_values[x_peak_OH3-1] or x_peak_OH3 == 0):
                             x_peak_OH3 = x
 
                         # In the case that no peak is noticed, the second condition checks when the derivative suddenly rises
                         # This can indicate a "bump" in the emission ray's shape, betraying the presence of another component
                         # This condition is only True once as the derivatives keep rising after the "bump"
-                        if derivatives_diff[x_list_deriv] > diff_threshold_OH3 and not stop_OH3:
+                        if current_derivatives_diff > diff_threshold_OH3 and not stop_OH3:
                             x_peak = x
                             stop_OH3 = True
 
                     else:
                         # For other rays, only a significant change in derivative is checked while making sure it is the max value
-                        if derivatives_diff[x_list_deriv] < diff_threshold and (
-                            self.y_values[x_list] > self.y_values[x_peak-1] or x_peak == 0):
+                        if current_derivatives_diff < diff_threshold and (
+                            current_y_value > self.y_values[x_peak-1] or x_peak == 0):
                             x_peak = x
+            if consecutive_drops_OH2 != 2:
+                # If no peak is found, the peak is chosen to be the maximum value within the bounds
+                if x_peak == 0:
+                    x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
+                
+                # If a real peak has been found for the OH3 ray, it predominates over a big rise in derivative
+                if x_peak_OH3 != 0:
+                    x_peak = x_peak_OH3
 
-            # If no peak is found, the peak is chosen to be the maximum value within the bounds
-            if x_peak == 0:
-                x_peak = list(self.y_values[bounds[0]-1:bounds[1]-1]).index(max(self.y_values[bounds[0]-1:bounds[1]-1])) + bounds[0]
-            
-            # If a real peak has been found for the OH3 ray, it predominates over a big rise in derivative
-            if x_peak_OH3 != 0:
-                x_peak = x_peak_OH3
-
-            x_peaks[ray] = x_peak
+                x_peaks[ray] = x_peak
         
         for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
             guesses[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
@@ -566,7 +593,7 @@ class NII_spectrum(Spectrum):
         uncertainties = self.get_uncertainties()[peak_name]
         channels_FWHM = self.get_FWHM_channels(peak_name)
 
-        angstroms_center = (np.array((params.mean.value, uncertainties["mean"])) * spectral_length / number_of_channels)
+        angstroms_center = np.array((params.mean.value, uncertainties["mean"])) * spectral_length / number_of_channels
         angstroms_center[0] +=  wavelength_channel_1
         angstroms_FWHM = channels_FWHM * spectral_length / number_of_channels
         speed_FWHM = scipy.constants.c * angstroms_FWHM[0] / angstroms_center[0] / 1000
@@ -709,7 +736,7 @@ class SII_spectrum(Spectrum):
             self.mean_bounds = {"OH1": (16,20), "OH2": (45,48), "SII1": (11,14), "SII2": (39,43)}
             self.downwards_shift = np.mean(self.y_values[22:33])
         elif cube_number == 3:
-            self.mean_bounds = {"OH1": (14,17), "OH2": (42,46), "SII1": (7,11), "SII2": (38,41)}
+            self.mean_bounds = {"OH1": (14,17), "OH2": (42,45), "SII1": (8,11), "SII2": (38,41)}
             self.downwards_shift = np.mean(self.y_values[19:29])
         else:
             raise ValueError(f"Invalid cube_number, must be between 1 and 3. Provided cube_number: {cube_number}")
@@ -770,6 +797,7 @@ class SII_spectrum(Spectrum):
             "SII1": {"amplitude": (0,100)*u.Jy, "mean": self.mean_bounds["SII1"]*u.um},
             "SII2": {"amplitude": (0,100)*u.Jy, "mean": self.mean_bounds["SII2"]*u.um}
         }
+
         spectrum = Spectrum1D(flux=self.y_values*u.Jy, spectral_axis=self.x_values*u.um)
         gi_OH1  = models.Gaussian1D(amplitude=guesses["OH1"]["a"]*u.Jy, mean=guesses["OH1"]["x0"]*u.um, 
                                     bounds=parameter_bounds["OH1"])
@@ -781,6 +809,7 @@ class SII_spectrum(Spectrum):
                                     bounds=parameter_bounds["SII2"])
         gi_SII1.stddev.max = np.sqrt(guesses["SII2"]["a"])
         gi_SII2.stddev.max = np.sqrt(guesses["SII2"]["a"])
+
         self.fitted_gaussian = fit_lines(spectrum, gi_OH1 + gi_OH2 + gi_SII1 + gi_SII2,
                                          fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=10000)
         return self.fitted_gaussian
@@ -795,11 +824,6 @@ class SII_spectrum(Spectrum):
         dict: to every ray (key) is associated another dict in which the keys are the amplitude "a" and the mean value "x0".
         """
         guesses = {}
-        # Both SII rays' initial guesses are set at the maximum value in a certain range
-        for ray, bounds in [("SII1", self.mean_bounds["SII1"]), ("SII2", self.mean_bounds["SII2"])]:
-            guesses[ray] = {"x0": np.argmax(self.y_values[slice(*bounds)]) + bounds[0]+1,
-                            "a": np.max(self.y_values[slice(*bounds)])}
-        
         # Trial and error determined value that allows the best detection of a peak by measuring the difference between
         # consecutive derivatives
         diff_threshold = 0.45
@@ -817,7 +841,9 @@ class SII_spectrum(Spectrum):
             derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
 
         x_peaks = {}
-        for ray, bounds in [("OH1", self.mean_bounds["OH1"]), ("OH2", self.mean_bounds["OH2"])]:
+        for ray, bounds, needed_drops in [("OH1", self.mean_bounds["OH1"], 3), ("OH2", self.mean_bounds["OH2"], 2), 
+                                          ("SII1", self.mean_bounds["SII1"], 4), ("SII2", self.mean_bounds["SII2"], 4)]:
+            # The needed_drops variable sets the number of consecutive drops that is needed to attribute this link to a peak
             # Initial x value of the peak depending on the derivative diff
             x_peak = {"up": 0, "down": 0}
             # Initialize a variable to examine the global ray's shape
@@ -832,10 +858,10 @@ class SII_spectrum(Spectrum):
                     consecutive_drops += 1
                 else:
                     consecutive_drops = 0
-                if consecutive_drops == 2:
-                    # 2 consecutive drops are interpreted as a ray
+                if consecutive_drops == needed_drops:
+                    # The number specified by needed_drops of consecutive drops are interpreted as a ray
                     x_peaks[ray] = x - 1
-                    break 
+                    break
                 if current_derivatives_diff > diff_threshold and (
                     self.y_values[x_list] > self.y_values[x_peak["up"]-1] or x_peak["up"] == 0):
                     # Significant change in derivatives + maximum value that has this significant bump for a positive change
@@ -845,7 +871,7 @@ class SII_spectrum(Spectrum):
                     # Significant change in derivatives + maximum value that has this significant bump for a negative change
                     x_peak["down"] = x
 
-            if consecutive_drops != 2:
+            if consecutive_drops != needed_drops:
                 # If no peak is found, the peak is chosen to be the maximum value within the bounds
                 if x_peak == {"up": 0, "down": 0}:
                     x_peaks[ray] = bounds[0] + np.argmax(self.y_values[bounds[0]-1:bounds[1]-1])
@@ -856,7 +882,7 @@ class SII_spectrum(Spectrum):
                     else:
                         x_peaks[ray] = x_peak["up"]
 
-        for ray in ["OH1", "OH2"]:
+        for ray in ["OH1", "OH2", "SII1", "SII2"]:
             guesses[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]} 
         return guesses
     
@@ -979,6 +1005,33 @@ class SII_spectrum(Spectrum):
             [self.get_fit_parameters("SII1").mean.value, self.get_uncertainties()["SII1"]["mean"], False],
             [self.get_fit_parameters("SII2").mean.value, self.get_uncertainties()["SII2"]["mean"], False]
         ))
+    
+    def get_list_of_NaN_arrays(self) -> list[np.ndarray]:
+        """
+        Get the 3 elements list of 4x3 arrays filled with NaNs. This is used when a pixel need to be invalidated.
+        
+        Returns
+        list: each element in the list is a 4x3 numpy array filled with NaNs.
+        """
+        return [np.full((4,3), np.NAN), np.full((4,3), np.NAN), np.full((4,3), np.NAN)]
+    
+    def is_nicely_fitted(self) -> bool:
+        """
+        Check the fit's quality with various conditions.
+        
+        Returns
+        -------
+        bool: True if the fit is usable and False if the fit is poorly made.
+        """
+        max_residue_limit = 1.15
+        # Check if the maximum residue between channels 3 and 20 and between channels 30 and 44 is lower than max_residue_limit
+        is_max_residue_low = np.max(np.abs(np.concatenate([self.get_subtracted_fit()[2:20],
+                                                          self.get_subtracted_fit()[29:44]])))/u.Jy < max_residue_limit
+        max_residue_stddev_limit = 0.55
+        # Check if the total residue's standard deviation is lower than max_residue_stddev_limit
+        is_residue_low = self.get_residue_stddev() < max_residue_stddev_limit
+        return is_max_residue_low and is_residue_low
+    
 
 
 
@@ -988,10 +1041,11 @@ class SII_spectrum(Spectrum):
 
 
 
+""" 
 
 
 def loop_di_loop(filename):
-    x = 121
+    x = 150
     # calib: 490, 493
     iter_n = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter_n), 1013):
@@ -1004,10 +1058,42 @@ def loop_di_loop(filename):
         print(spectrum.fitted_gaussian)
         # print(spectrum.get_FWHM_speed("calibration"))
         print(spectrum.get_FWHM_speed("SII1"))
+        print(spectrum.get_FWHM_speed("SII2"))
         # spectrum.plot_fit(fullscreen=True, coords=(x,y))
+        # if spectrum.get_residue_stddev() < 0.55:
+        print(spectrum.get_residue_stddev())
+            # print((spectrum.get_FWHM_speed("SII1")-spectrum.get_FWHM_speed("SII2"))/spectrum.get_FWHM_speed("SII2"))
         spectrum.plot_fit(fullscreen=True, coords=(x,y), plot_initial_guesses=True, plot_all=True)
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()
-loop_di_loop("ref1.fits")
+# loop_di_loop("ref1.fits")
 # loop_di_loop("gaussian_fitting/data_cubes/SII/SII_2/calibration.fits")
+
+def loop_di_loop(filename):
+    x = 262
+    # calib: 490, 493
+    iter_n = open("gaussian_fitting/other/iter_number.txt", "r").read()
+    for y in range(int(iter_n), 1013):
+        y= 255
+        print(f"\n----------------\ncoords: {x,y}")
+        data = fits.open(filename)[0].data
+        header = fits.open(filename)[0].header
+        spectrum = NII_spectrum(data[:,y-1,x-1], header)
+        # spectrum = Calibration_spectrum(data[:,y-1,x-1], header)
+        spectrum.fit()
+        print(spectrum.fitted_gaussian)
+        # print(spectrum.get_FWHM_speed("calibration"))
+        print(spectrum.get_FWHM_speed("NII"))
+        # spectrum.plot_fit(fullscreen=True, coords=(x,y))
+        # if spectrum.get_residue_stddev() < 0.55:
+        print(spectrum.get_residue_stddev())
+            # print((spectrum.get_FWHM_speed("SII1")-spectrum.get_FWHM_speed("SII2"))/spectrum.get_FWHM_speed("SII2"))
+        spectrum.plot_fit(fullscreen=True, coords=(x,y), plot_initial_guesses=True, plot_all=True)
+        file = open("gaussian_fitting/other/iter_number.txt", "w")
+        file.write(str(y+1))
+        file.close()
+# loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
+# loop_di_loop("gaussian_fitting/data_cubes/SII/SII_2/calibration.fits")
+
+ """

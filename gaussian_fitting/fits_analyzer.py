@@ -200,8 +200,9 @@ class Data_cube(Fits_file):
         # into a new grid whose size has been divided by the number of pixels to bin
         bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
                                                 int(data.shape[2]/nb_pix_bin), nb_pix_bin)
-        
-        return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
+
+        # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
+        return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
     
     def get_header_without_third_dimension(self) -> fits.Header:
         """
@@ -569,10 +570,14 @@ class SII_data_cube(Data_cube):
         spectrum = SII_spectrum(self.data[:,x], self.header, self._cube_number)
         try:
             spectrum.fit()
-            return [spectrum.get_FWHM_snr_array(), spectrum.get_amplitude_array(), spectrum.get_mean_array()]
+            # Filter the fits depending on their quality
+            if spectrum.is_nicely_fitted():
+                return [spectrum.get_FWHM_snr_array(), spectrum.get_amplitude_array(), spectrum.get_mean_array()]
+            else:
+                return spectrum.get_list_of_NaN_arrays()
         except:
             # Sometimes the fit is unsuccessful
-            return [np.full((4,3), np.NAN), np.full((4,3), np.NAN), np.full((4,3), np.NAN)]
+            return spectrum.get_list_of_NaN_arrays()
 
 
 

@@ -139,3 +139,18 @@ Get cold component's centroid maps with Aricia                                  
 Read Zurflueh                                                                                    
 Right wavelengths + send                                                                         -
         Uncertainties                                                                                    -
+
+
+
+BAD
+1.0555057741685887
+0.6290833258494757
+
+0.6077452654912674
+
+
+GOOD
+0.3192686860625586
+0.3911188044632068
+0.5047469719581682
+0.5208175642239607

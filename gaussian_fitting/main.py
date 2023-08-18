@@ -240,46 +240,15 @@ def get_turbulence_map(temp_map):
 
 def get_SII_fwhm_map():
     maps = {}
-    
-#     for night_id in ["SII_1", "SII_2", "SII_3"]:
-#     # for night_id in ["SII_2", "SII_3"]:
-#     # for night_id in ["SII_3"]:
-#         # print(night_id)
-# # s = SII_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/{night_id}_wcs.fits")
-# # ).bin_cube(4)
-# # s.save_as_fits_file("ref2e.fits")
-# # maps[night_id] = s.fit(extract=["FWHM","mean","amplitude"])
-#         maps[night_id] = SII_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/{night_id}_wcs.fits")
-#                                        ).bin_cube(4).fit(extract=["FWHM","mean","amplitude"], cube_number=int(night_id[-1]))
-#         # calib = Calibration_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/calibration.fits"))
-#         # maps[night_id].append(Maps.build_from_dict({"instr_f": calib.fit().smooth_order_change(calib.get_center_tuple())}))
-#         [maps[night_id][i].save_as_fits_file(f"gaussian_fitting/maps/SII/{night_id}") for i in range(4)]
+    # The second night's calibration cube makes the night's measurements unusable
+    for night_id in ["SII_1", "SII_3"]:
+        print(night_id)
+        maps[night_id] = SII_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/{night_id}_wcs.fits")
+                                       ).bin_cube(4).fit(extract=["FWHM","mean","amplitude"], cube_number=int(night_id[-1]))
+        calib = Calibration_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/calibration.fits"))
+        maps[night_id].append(Maps.build_from_dict({"calibration": calib.fit().smooth_order_change(calib.get_center_tuple())}))
+        [maps[night_id][i].save_as_fits_file(f"gaussian_fitting/maps/SII/{night_id}") for i in range(4)]
 
-    """ 
-    calib_maps = Maps.build_from_dict({
-        "calibration_1": Map_u(fits.open("gaussian_fitting/maps/SII/SII_1/calibration.fits")).bin_map(4),
-        "calibration_2": Map_u(fits.open("gaussian_fitting/maps/SII/SII_2/calibration.fits")).bin_map(4),
-        "calibration_3": Map_u(fits.open("gaussian_fitting/maps/SII/SII_3/calibration.fits")).bin_map(4)
-    })
-    
-    fwhm_maps = Maps.build_from_dict({
-        "FWHM_1_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_1/SII1_fwhm.fits")),
-        "FWHM_1_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_1/SII2_fwhm.fits")),
-        "FWHM_2_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_2/SII1_fwhm.fits")),
-        "FWHM_2_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_2/SII2_fwhm.fits")),
-        "FWHM_3_1": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_3/SII1_fwhm.fits")),
-        "FWHM_3_2": Map_usnr(fits.open("gaussian_fitting/maps/SII/SII_3/SII2_fwhm.fits"))
-    })
-
-    calibration_subtracted = Maps([
-        (fwhm_maps["FWHM_1_1"]**2 - calib_maps["calibration_1"]**2)**0.5,
-        (fwhm_maps["FWHM_1_2"]**2 - calib_maps["calibration_1"]**2)**0.5,
-        (fwhm_maps["FWHM_2_1"]**2 - calib_maps["calibration_2"]**2)**0.5,
-        (fwhm_maps["FWHM_2_2"]**2 - calib_maps["calibration_2"]**2)**0.5,
-        (fwhm_maps["FWHM_3_1"]**2 - calib_maps["calibration_3"]**2)**0.5,
-        (fwhm_maps["FWHM_3_2"]**2 - calib_maps["calibration_3"]**2)**0.5
-    ])
-    """
     calib_maps = Maps.build_from_dict({
         "calibration_1": Map_u(fits.open("gaussian_fitting/maps/SII/SII_1/calibration.fits")).bin_map(4),
         "calibration_3": Map_u(fits.open("gaussian_fitting/maps/SII/SII_3/calibration.fits")).bin_map(4)
@@ -304,11 +273,47 @@ def get_SII_fwhm_map():
     data = Map(fits.PrimaryHDU(np.nanmean([mapi.data for mapi in reprojected_maps], axis=0), header))
     uncertainties = Map(fits.PrimaryHDU(np.nanmean([mapi.uncertainties for mapi in reprojected_maps], axis=0), header))
     mean_map = Map_u.from_Map_objects(data, uncertainties)
-    mean_map.save_as_fits_file("gaussian_fitting/maps/SII/mean_fwhm.fits")
+    mean_map.save_as_fits_file("gaussian_fitting/maps/SII/mean_fwhm-calib.fits")
 
 
-if __name__ == "__main__":
-    get_SII_fwhm_map()
+# if __name__ == "__main__":
+#     get_SII_fwhm_map()
+
+
+def get_global_spectrum():
+    NII_spec = NII_spectrum.from_dat_file("NII_globreg.dat", fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0].header)
+    SII_spec = SII_spectrum.from_dat_file("SII_1_globreg.dat", fits.open("gaussian_fitting/data_cubes/SII/SII_1/SII_1_wcs.fits")[0].header, 1)
+    NII_spec.fit()
+    SII_spec.fit()
+    NII_fwhm, SII_fwhm = NII_spec.get_FWHM_speed("NII"), np.nanmean((SII_spec.get_FWHM_speed("SII1"), SII_spec.get_FWHM_speed("SII2")), axis=0)
+    print("NII fwhm:", NII_fwhm)
+    print("SII fwhm:", SII_spec.get_FWHM_speed("SII1"), SII_spec.get_FWHM_speed("SII2"), SII_fwhm)
+
+    NII_cal = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits"))
+    SII_cal = Map_u(fits.open("gaussian_fitting/maps/SII/SII_1/calibration.fits"))
+    NII_cal_fwhm = NII_cal.get_region_statistics(pyregion.open("NII_calib.reg"))["mean"]
+    SII_cal_fwhm = SII_cal.get_region_statistics(pyregion.open("SII_calib.reg"))["mean"]
+    print("NII cal fwhm:", NII_cal_fwhm)
+    print("SII cal fwhm:", SII_cal_fwhm)
+
+    NII_total = (NII_fwhm**2 - NII_cal_fwhm**2)**0.5
+    SII_total = (SII_fwhm**2 - SII_cal_fwhm**2)**0.5
+    print("NII total fwhm:", NII_total)
+    print("SII total fwhm:", SII_total)
+
+    NII_peak_AA = 6583.41
+    SII_peak_AA = 6717
+    NII_FWHM_AA = 1000 * NII_total * NII_peak_AA / scipy.constants.c
+    SII_FWHM_AA = 1000 * SII_total * SII_peak_AA / scipy.constants.c
+
+    temperature =  4.73 * 10**4 * (NII_FWHM_AA**2 - SII_FWHM_AA**2)
+    print("temperature:", temperature)
+
+    NII_spec.plot_fit(plot_all=True, plot_initial_guesses=True)
+    SII_spec.plot_fit(plot_all=True, plot_initial_guesses=True)
+
+
+get_global_spectrum()
 
 
 def get_courtes_temperature(settings: dict):
@@ -316,7 +321,9 @@ def get_courtes_temperature(settings: dict):
     In this example, the pre-rendered maps are used to calculate a temperature map using Courtes's method and suppositions.
     This example is made so it can be used with any map and only a settings dict needs to be changed. In the settings dict, the
     different keys have the following use:
-    "map_1": informations of the first map which will be projected onto the second_map in the form of a dict
+    "map_1": informations of the first map which will be projected onto the second_map in the form of a dict. Note that the map
+        with the lowest resolution should always be reprojected onto the map with higher resolution to prevent unnecessary loss
+        of data.
         "fwhm_map": Map object. First map on which the following settings will apply.
         "global_temperature_was_substracted": bool. If True, the broadening associated to a temperature of 8500K will be added to
             the current broadening.
@@ -328,7 +335,7 @@ def get_courtes_temperature(settings: dict):
     "map_2": informations on the second map. It has the same format as map_1.
     "subtraction": str. Specifies which map to subtract to which map. The map which has the heaviest element should always be the 
         one subtracting the other as heavier elements have smaller ray broadening. The str format is "1-2" or "2-1".
-    "turbulence_consideration: bool. If True, the broadening associated to the turbulence map will be subtracted from each map.
+    "consider_turbulence: bool. If True, the broadening associated to the turbulence map will be subtracted from each map.
         This is primordial when the fine_structure of either map is set to True as the formula considers that the broadening does
         not have any turbulent nature.
     "save_file_name": str. Name of the file to which the temperature map will be saved.
@@ -357,7 +364,7 @@ def get_courtes_temperature(settings: dict):
     else:
         map_2_FWHM_with_temperature = settings["map_2"]["fwhm_map"]
 
-    if settings["turbulence_consideration"]:
+    if settings["consider_turbulence"]:
         # The turbulence broadening is removed
         turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")) * 2*np.sqrt(2*np.log(2))
         map_1_FWHM_with_temperature = (map_1_FWHM_with_temperature**2 - 
@@ -389,10 +396,10 @@ def get_courtes_temperature(settings: dict):
         temperature_map = 4.73 * 10**4 * (map_2_FWHM_with_temperature_AA**2 -
                                           map_1_FWHM_with_temperature_AA.reproject_on(map_2_FWHM_with_temperature_AA)**2)
 
-    temperature_map.plot_map((0,20000))
+    temperature_map.plot_map()
     temperature_map.save_as_fits_file(settings["save_file_name"])
 
-"""
+
 # These settings allow for the computation of the temperature map using the Halpha and NII emission lines present in the NII cube
 settings_Ha_NII = {
     "map_1": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data/Ha_fwhm.fits")[0])**2 - 
@@ -408,7 +415,7 @@ settings_Ha_NII = {
               "element": "NII",
               "fine_structure": False},
     "subtraction": "1-2",
-    "turbulence_consideration" : True,
+    "consider_turbulence" : True,
     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/Ha_NII.fits"
 }
 
@@ -427,29 +434,30 @@ settings_OIII_Ha = {
               "element": "Ha",
               "fine_structure": True},
     "subtraction": "2-1",
-    "turbulence_consideration" : True,
+    "consider_turbulence" : True,
     "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/turbulence_removed/OIII_Ha.fits"
 }
 
 # These settings allow for the computation of the temperature map using NII from the NII cube and SII from Leo's data
 settings_SII_NII = {
-    "map_1": {"fwhm_map": Map(fits.open("gaussian_fitting/leo/SII/SII_sigma+header.fits")[0]) * 2*np.sqrt(2*np.log(2)),
-              "global_temperature_was_substracted": True,
+    "map_1": {"fwhm_map": Map_u(fits.open("gaussian_fitting/maps/SII/mean_fwhm-calib.fits")),
+              "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6717,
               "element": "SII",
               "fine_structure": False},
-    "map_2": {"fwhm_map": (Map(fits.open("gaussian_fitting/maps/computed_data_2p/NII_fwhm.fits")[0])**2 - 
-                           Map(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0]).bin_map(2)**2)**0.5,
+    "map_2": {"fwhm_map": (Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))**2 - 
+                           Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)**2)**0.5,
               "global_temperature_was_substracted": False,
               "peak_wavelength_AA": 6583.41,
               "element": "NII",
               "fine_structure": False},
     "subtraction": "2-1",
-    "turbulence_consideration" : False,
-    "save_file_name": "gaussian_fitting/maps/temp_maps_courtes/new/SII_NII_2peaks.fits"
+    "consider_turbulence" : False,
+    "save_file_name": "gaussian_fitting/maps/SII/temp.fits"
 }
-"""
 
+# ((Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))**2 - 
+                        #    Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")).bin_map(2)**2)**0.5).save_as_fits_file("gaussian_fitting/maps/SII/NII_fwhm-calib.fits")
 # get_courtes_temperature(settings_SII_NII)
 
 
