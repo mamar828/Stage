@@ -1041,7 +1041,7 @@ class SII_spectrum(Spectrum):
 
 
 
-""" 
+
 
 
 def loop_di_loop(filename):
@@ -1075,7 +1075,6 @@ def loop_di_loop(filename):
     # calib: 490, 493
     iter_n = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter_n), 1013):
-        y= 255
         print(f"\n----------------\ncoords: {x,y}")
         data = fits.open(filename)[0].data
         header = fits.open(filename)[0].header
@@ -1095,5 +1094,3 @@ def loop_di_loop(filename):
         file.close()
 # loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
 # loop_di_loop("gaussian_fitting/data_cubes/SII/SII_2/calibration.fits")
-
- """

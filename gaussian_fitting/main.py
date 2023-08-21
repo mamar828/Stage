@@ -280,19 +280,20 @@ def get_SII_fwhm_map():
 #     get_SII_fwhm_map()
 
 
-def get_global_spectrum():
-    NII_spec = NII_spectrum.from_dat_file("NII_globreg.dat", fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0].header)
-    SII_spec = SII_spectrum.from_dat_file("SII_1_globreg.dat", fits.open("gaussian_fitting/data_cubes/SII/SII_1/SII_1_wcs.fits")[0].header, 1)
+def get_temperature_NII_SII(NII_dat_filename, SII_dat_filename, NII_reg_filename, SII_reg_filename):
+    NII_spec = NII_spectrum.from_dat_file(NII_dat_filename, fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0].header)
+    SII_spec = SII_spectrum.from_dat_file(SII_dat_filename, fits.open("gaussian_fitting/data_cubes/SII/SII_1/SII_1_wcs.fits")[0].header, 1)
     NII_spec.fit()
     SII_spec.fit()
-    NII_fwhm, SII_fwhm = NII_spec.get_FWHM_speed("NII"), np.nanmean((SII_spec.get_FWHM_speed("SII1"), SII_spec.get_FWHM_speed("SII2")), axis=0)
+    NII_fwhm = NII_spec.get_FWHM_channels("NII") * NII_spec.header["CDELT3"]
+    SII_fwhm = np.nanmean((SII_spec.get_FWHM_channels("SII1"), SII_spec.get_FWHM_channels("SII2")), axis=0) * 8.33
     print("NII fwhm:", NII_fwhm)
-    print("SII fwhm:", SII_spec.get_FWHM_speed("SII1"), SII_spec.get_FWHM_speed("SII2"), SII_fwhm)
+    print("SII fwhm:", SII_fwhm)
 
     NII_cal = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits"))
     SII_cal = Map_u(fits.open("gaussian_fitting/maps/SII/SII_1/calibration.fits"))
-    NII_cal_fwhm = NII_cal.get_region_statistics(pyregion.open("NII_calib.reg"))["mean"]
-    SII_cal_fwhm = SII_cal.get_region_statistics(pyregion.open("SII_calib.reg"))["mean"]
+    NII_cal_fwhm = NII_cal.get_region_statistics(pyregion.open(NII_reg_filename))["mean"]
+    SII_cal_fwhm = SII_cal.get_region_statistics(pyregion.open(SII_reg_filename))["mean"]
     print("NII cal fwhm:", NII_cal_fwhm)
     print("SII cal fwhm:", SII_cal_fwhm)
 
@@ -313,7 +314,14 @@ def get_global_spectrum():
     SII_spec.plot_fit(plot_all=True, plot_initial_guesses=True)
 
 
-get_global_spectrum()
+# get_temperature_NII_SII(NII_dat_filename="gaussian_fitting/tests_large_regions/strongest_region/NII_globreg.dat",
+#                         SII_dat_filename="gaussian_fitting/tests_large_regions/strongest_region/SII_1_globreg.dat",
+#                         NII_reg_filename="gaussian_fitting/tests_large_regions/strongest_region/NII_calib.reg",
+#                         SII_reg_filename="gaussian_fitting/tests_large_regions/strongest_region/SII_calib.reg")
+# get_temperature_NII_SII(NII_dat_filename="gaussian_fitting/tests_large_regions/calibration_minimized/NII_center.dat",
+#                         SII_dat_filename="gaussian_fitting/tests_large_regions/calibration_minimized/SII_1_center.dat",
+#                         NII_reg_filename="gaussian_fitting/tests_large_regions/calibration_minimized/NII.reg",
+#                         SII_reg_filename="gaussian_fitting/tests_large_regions/calibration_minimized/SII_1.reg")
 
 
 def get_courtes_temperature(settings: dict):

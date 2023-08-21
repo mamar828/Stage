@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy
 
 #   This is a smoothing program which will filter data using
 #       the window functions given by E. Zurflueh,
@@ -76,7 +77,7 @@ def zfilter(inarray, width=2, cft=None, ft=None, nocalc=False):
 
     fil=fil*1.0e-6
 
-    # plt.imshow(fil)
+    # plt.imshow(fil, vmin=0, vmax=60)
     # plt.show()
     # If width=2: no scaling is needed as the filter is already 13x13
     # If width=4: a 2 times scaling is needed
@@ -89,13 +90,14 @@ def zfilter(inarray, width=2, cft=None, ft=None, nocalc=False):
     if (Mf%2) == 0:
         fil = fil[0:M-2,0:M-2]
         M = M-1
+    
     #**************************************************************************
 
     if cft is not None:
         junk = np.empty((2*Nx,2*Ny))
         junk[0:M,0:M] = fil
         ft = np.fft(junk,1)
-        ft=abs(ft)
+        return abs(ft)
 
     if nocalc :
         return ft
@@ -107,29 +109,65 @@ def zfilter(inarray, width=2, cft=None, ft=None, nocalc=False):
 
     #   Now loop over all x,y and convolve with the kernal.
 
-    print(f'Nx = {Nx}')
+    # print(f'Nx = {Nx}')
     for x in range(Nx):
-        print(f'x = {x}')
+        # print(f'x = {x}')
         for y in range(Ny):
             if inarray[x,y] != 0.0:
                 sumi = 0.0
                 xlow = max(0, hwid-x)
-                xhigh = min(MM < (Nx-1-x+hwid))
-                ylow = max(0 > (hwid-y) )
-                yhigh = min(MM < (Ny-1-y+hwid) )
+                xhigh = min(MM, (Nx-1-x+hwid))
+                ylow = max(0, (hwid-y) )
+                yhigh = min(MM, (Ny-1-y+hwid) )
                 for i in np.arange(xlow,xhigh+1):
                     for j in np.arange(ylow,yhigh+1):
-                        f = inarray[x+i-hwid,y+j-hwid]
+                        f = inarray[int(x+i-hwid),int(y+j-hwid)]
                         if f != 0.0:
-                            array[x,y]=array[x,y]+fil[i,j]*f
-                            sumi=sumi+fil[i,j]
+                            array[x,y]=array[x,y]+fil[int(i),int(j)]*f
+                            sumi=sumi+fil[int(i),int(j)]
                 array[x,y]=array[x,y]/sumi
 
     m = np.where(array == 0)
     array[m]=999.
     return array
 
+
 from astropy.io import fits
 
+# np.save("rand.npy", (np.random.random((50,50))-0.5)*3)
+# random_array = np.load("rand.npy")
+# test_array = np.repeat(np.arange(50)[:,np.newaxis], 50, axis=1) + np.swapaxes(np.repeat(np.arange(50)[:,np.newaxis], 50, axis=1), 0, 1)/8 + random_array
+# plt.imshow(test_array, vmin=0, vmax=60)
+# plt.show()
 
-zfilter(fits.open("gaussian_fitting/maps/computed_data/"))
+
+
+
+# gradient = zfilter(test_array)
+
+# plt.imshow(gradient, vmin=0, vmax=60)
+# plt.show()
+# plt.imshow(test_array - gradient, vmin=0, vmax=60)
+# plt.show()
+# plt.imshow(random_array, vmin=0, vmax=60)
+# plt.show()
+
+
+
+
+
+
+
+# data = fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits")[0].data
+# plt.colorbar(plt.imshow(data))
+# plt.show()
+# gradient = zfilter(data)
+# plt.colorbar(plt.imshow(gradient))
+# plt.show()
+# plt.colorbar(plt.imshow(data - gradient))
+# plt.show()
+# plt.colorbar(plt.imshow(data, origin="lower"), vmin=0, vmax=60)
+# plt.show()
+# a = zfilter(data, 2)
+# plt.colorbar(plt.imshow(a, origin="lower"), vmin=0, vmax=60)
+# plt.show()
