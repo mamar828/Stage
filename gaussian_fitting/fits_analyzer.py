@@ -12,6 +12,7 @@ from astropy import units as u
 from reproject import reproject_interp
 import pyregion
 from pprint import pprint
+from tqdm import tqdm
 
 from cube_spectrum import *
 from celestial_coords import *
@@ -353,7 +354,7 @@ class NII_data_cube(Data_cube):
         start = time.time()
         fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(NII_data_cube(fits.PrimaryHDU(data[:,y,:], self.header),
                                                                                double_NII_peak_authorized),
-                                                                data.shape[1]) for y in range(data.shape[1])]))
+                                                                 data.shape[1]) for y in range(data.shape[1])]))
         stop = time.time()
         print("\nFinished in", stop-start, "s.")
         pool.close()
@@ -444,11 +445,14 @@ class NII_data_cube(Data_cube):
         """
         spectrum = NII_spectrum(self.data[:,x], self.header, seven_components_fit_authorized=self._double_NII_peak_authorized)
         spectrum.fit()
-        return [
-            spectrum.get_FWHM_snr_7_components_array(), 
-            spectrum.get_amplitude_7_components_array(), 
-            spectrum.get_mean_7_components_array()
-        ]
+        if spectrum.is_nicely_fitted_for_NII():
+            return [
+                spectrum.get_FWHM_snr_7_components_array(), 
+                spectrum.get_amplitude_7_components_array(), 
+                spectrum.get_mean_7_components_array()
+            ]
+        else:
+            return spectrum.get_list_of_NaN_arrays()
 
 
 
@@ -764,7 +768,7 @@ class Map(Fits_file):
         bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, int(data.shape[1]/nb_pix_bin), nb_pix_bin)
         return Map(fits.PrimaryHDU(np.nanmean(bin_array, axis=(1,3)), self.bin_header(nb_pix_bin)), self.name)
     
-    def smooth_order_change(self, center: tuple=(527, 484)) -> Map:
+    def smooth_order_change(self, center: tuple[int]=(527, 484)) -> Map:
         """
         Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM
         is reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an

@@ -28,17 +28,17 @@ def get_maps():
     # All fwhm_maps are saved
     fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
     # Only the NII and Ha maps for mean and amplitude are saved
-    mean_maps["NII_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/NII_mean.fits")
-    mean_maps["Ha_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/Ha_mean.fits")
-    amplitude_maps["NII_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/NII_amplitude.fits")
-    amplitude_maps["Ha_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data_test/Ha_amplitude.fits")
+    mean_maps["NII_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data/NII_mean.fits")
+    mean_maps["Ha_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data/Ha_mean.fits")
+    amplitude_maps["NII_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data/NII_amplitude.fits")
+    amplitude_maps["Ha_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data/Ha_amplitude.fits")
 
 
 # Note that some functions are called in a if __name__ == "__main__" block because the fitting algorithm uses the multiprocessing
 # library which creates multiple instances of the same code to allow parallel computation. Without this condition, the program would
 # multiply itself recursively.
-# if __name__ == "__main__":
-#     get_maps()
+if __name__ == "__main__":
+    get_maps()
 
 
 def example_fitting():

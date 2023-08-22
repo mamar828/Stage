@@ -104,15 +104,24 @@ class Spectrum():
             manager.full_screen_toggle()
         plt.show()
 
-    def get_residue_stddev(self) -> float:
+    def get_residue_stddev(self, bounds: tuple[int]=None) -> float:
         """
         Get the standard deviation of the fit's residue.
         
+        Arguments
+        ---------
+        bounds: tuple[int], default=None. Bounds between which the residue's standard deviation should be calculated. If None is
+        provided, the residue's stddev is calculated for all x. Bounds indexing is the same as for lists, e.g. bounds=(0,2) gives
+        x=1 and x=2.
+
         Returns
         -------
         float: value of the residue's standard deviation.
         """
-        return np.std(self.get_subtracted_fit()/u.Jy)
+        if bounds is None:
+            return np.std(self.get_subtracted_fit()/u.Jy)
+        else:
+            return np.std(self.get_subtracted_fit()[slice(*bounds)]/u.Jy)
     
     def get_subtracted_fit(self) -> np.ndarray:
         """
@@ -478,15 +487,16 @@ class NII_spectrum(Spectrum):
             x_peak_OH3 = 0
             # Specify when a big difference in derivatives has been detected and allows to keep the x_value
             stop_OH3 = False
-            # For the OH1 and OH4 rays, the maximum intensity is used as the initial guess
+            # Consecutive drops signify a very probable peak in the vicinity
             consecutive_drops_OH2 = 0
+            # For the OH1 and OH4 rays, the maximum intensity is used as the initial guess
             if ray != "OH1" and ray != "OH4":
                 for x in range(bounds[0], bounds[1]):
                     # Variables used to ease the use of lists
                     current_derivatives_diff = derivatives_diff[x-2] 
                     current_y_value = self.y_values[x-1]
                     if ray == "OH2":
-                        if current_derivatives_diff < 0.5:     # A minor rise is also considered a for consecutive "drops"
+                        if current_derivatives_diff < 0.5:     # A minor rise is also considered for consecutive "drops"
                             consecutive_drops_OH2 += 1
                         else:
                             consecutive_drops_OH2 = 0
@@ -705,6 +715,34 @@ class NII_spectrum(Spectrum):
                 [self.get_fit_parameters("Ha").mean.value, self.get_uncertainties()["Ha"]["mean"], False],
                 [self.seven_components_fit, False, False]
             ))
+        
+    def get_list_of_NaN_arrays(self) -> list[np.ndarray]:
+        """
+        Get the 3 elements list of 7x3 arrays filled with NaNs. This is used when a pixel need to be invalidated.
+        
+        Returns
+        list: each element in the list is a 7x3 numpy array filled with NaNs.
+        """
+        return [np.full((7,3), np.NAN), np.full((7,3), np.NAN), np.full((7,3), np.NAN)]
+        
+    def is_nicely_fitted_for_NII(self) -> bool:
+        """
+        Check the fit's quality for the NII ray with various conditions.
+        
+        Returns
+        -------
+        bool: True if the fit is usable and False if the fit is poorly made.
+        """
+        max_residue_limit = 0.2 * self.get_fit_parameters("NII").amplitude.value
+        # Check if the maximum residue between channels 10 and 20 is lower than max_residue_limit
+        is_max_residue_low = np.max(np.abs(self.get_subtracted_fit()[9:20]))/u.Jy < max_residue_limit
+        max_residue_stddev_limit = 0.07 * self.get_fit_parameters("NII").amplitude.value
+
+        # Check if the residue's standard deviation between channels 10 and 20 is lower than max_residue_stddev_limit
+        is_residue_stddev_low = self.get_residue_stddev((9,20)) < max_residue_stddev_limit
+        # print(f"   is_max_residue_low: {is_max_residue_low}, limit: {max_residue_limit}, {np.max(np.abs(self.get_subtracted_fit()[9:20]))/u.Jy}")
+        # print(f"is_residue_stddev_low: {is_residue_stddev_low}, limit: {max_residue_stddev_limit}, {self.get_residue_stddev((9,20))}")
+        return is_max_residue_low and is_residue_stddev_low
 
 
 
@@ -854,7 +892,7 @@ class SII_spectrum(Spectrum):
                 # Create variables used to ease the use of lists
                 current_derivatives_diff = derivatives_diff[x - 2]
                 x_list = x - 1
-                if current_derivatives_diff < 0.1:     # A minor rise is also considered a for consecutive "drops"
+                if current_derivatives_diff < 0.1:     # A minor rise is also considered for consecutive "drops"
                     consecutive_drops += 1
                 else:
                     consecutive_drops = 0
@@ -1029,9 +1067,9 @@ class SII_spectrum(Spectrum):
                                                           self.get_subtracted_fit()[29:44]])))/u.Jy < max_residue_limit
         max_residue_stddev_limit = 0.55
         # Check if the total residue's standard deviation is lower than max_residue_stddev_limit
-        is_residue_low = self.get_residue_stddev() < max_residue_stddev_limit
-        return is_max_residue_low and is_residue_low
-    
+        is_residue_stddev_low = self.get_residue_stddev() < max_residue_stddev_limit
+        return is_max_residue_low and is_residue_stddev_low
+
 
 
 
@@ -1071,7 +1109,7 @@ def loop_di_loop(filename):
 # loop_di_loop("gaussian_fitting/data_cubes/SII/SII_2/calibration.fits")
 
 def loop_di_loop(filename):
-    x = 262
+    x = 280
     # calib: 490, 493
     iter_n = open("gaussian_fitting/other/iter_number.txt", "r").read()
     for y in range(int(iter_n), 1013):
@@ -1092,5 +1130,6 @@ def loop_di_loop(filename):
         file = open("gaussian_fitting/other/iter_number.txt", "w")
         file.write(str(y+1))
         file.close()
+
 # loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
 # loop_di_loop("gaussian_fitting/data_cubes/SII/SII_2/calibration.fits")

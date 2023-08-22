@@ -147,9 +147,9 @@ from astropy.io import fits
 
 # plt.imshow(gradient, vmin=0, vmax=60)
 # plt.show()
-# plt.imshow(test_array - gradient, vmin=0, vmax=60)
+# plt.imshow(test_array - gradient)
 # plt.show()
-# plt.imshow(random_array, vmin=0, vmax=60)
+# plt.imshow(random_array)
 # plt.show()
 
 
