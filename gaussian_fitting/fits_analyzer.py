@@ -12,7 +12,6 @@ from astropy import units as u
 from reproject import reproject_interp
 import pyregion
 from pprint import pprint
-from tqdm import tqdm
 
 from cube_spectrum import *
 from celestial_coords import *
@@ -57,12 +56,13 @@ class Fits_file():
     
     def save_as_fits_file(self, filename: str, overwrite: bool=False):
         """
-        Write an array as a fits file of the specified name with or without a header. If the object has a header, it will be saved.
+        Write an array as a fits file of the specified name with or without a header. If the object has a header, it 
+        will be saved.
 
         Arguments
         ---------
-        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
-        file can be overwritten.
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will 
+        appear and the file can be overwritten.
         overwrite: bool, default=False. If True, automatically overwrites files without asking for user input.
         """
         # Check if the file already exists
@@ -88,13 +88,14 @@ class Fits_file():
 
     def set_WCS(self, values: dict):
         """
-        Set the WCS of a Fits_file object by using RA and DEC objects to modify CRVAL or CDELT values. The CRPIX values can also be
-        modified with floats. If a tuple is offered as value, both axes can be modified at once.
+        Set the WCS of a Fits_file object by using RA and DEC objects to modify CRVAL or CDELT values. The CRPIX 
+        values can also be modified with floats. If a tuple is offered as value, both axes can be modified at once.
 
         Arguments
         ---------
-        values: dict. Contains the keyword to modify and the value it may take. Supported keywords for tuple assignment are "CRPIXS",
-        "CRVALS" and "CDELTS". With these keywords, the value of the first and second axes respectively may be given in a tuple.
+        values: dict. Contains the keyword to modify and the value it may take. Supported keywords for tuple 
+        assignment are "CRPIXS", "CRVALS" and "CDELTS". With these keywords, the value of the first and second axes 
+        respectively may be given in a tuple.
         """
         for key, value in values.items():
             if isinstance(value, tuple):
@@ -112,8 +113,8 @@ class Fits_file():
 
     def reset_update_file(self):
         """
-        Reset the update output file. If the file does not yet exist, it is created. This method should always be called before
-        a loop. This offers feedback when fitting large maps.
+        Reset the update output file. If the file does not yet exist, it is created. This method should always be 
+        called before a loop. This offers feedback when fitting large maps.
         """
         file = open("output.txt", "w")
         file.write("0")
@@ -177,13 +178,14 @@ class Data_cube(Fits_file):
 
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
-        Bin a specific cube by the amount of pixels given for every channel. Rectangular cubes will be automatically cropped
+        Bin a specific cube by the amount of pixels given for every channel. Rectangular cubes will be automatically 
+        cropped.
 
         Arguments
         ---------
-        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For example, the default
-        value 2 will give a new cube in which every pixel at a specific channel is the mean value of every 4 pixels (2x2 bin) at that
-        same channel.
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For 
+        example, the default value 2 will give a new cube in which every pixel at a specific channel is the mean value 
+        of every 4 pixels (2x2 bin) at that same channel.
 
         Returns
         -------
@@ -202,7 +204,8 @@ class Data_cube(Fits_file):
         bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
                                                 int(data.shape[2]/nb_pix_bin), nb_pix_bin)
 
-        # The mean value of every pixel group at every channel is calculated and the array returns to a three dimensional state
+        # The mean value of every pixel group at every channel is calculated and the array returns to a three 
+        # dimensional state
         return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
     
     def get_header_without_third_dimension(self) -> fits.Header:
@@ -226,14 +229,15 @@ class Data_cube(Fits_file):
         
         Arguments
         ---------
-        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
-        Any combination or number of these terms can be given.
+        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" 
+        and "FWHM". Any combination or number of these terms can be given.
         """
         # The provided extract data is verified before fitting
         assert extract != [], "At least a parameter to be extracted should be provided in the extract list."
         assert isinstance(extract, list), f"Extract argument must be a list, not {type(extract).__name__}."
         for element in extract:
-            assert element == "mean" or element == "amplitude" or element == "FWHM", "Unsupported element in extract list."
+            assert (element == "mean" or element == "amplitude" or element == "FWHM",
+                    "Unsupported element in extract list.")
     
     def get_center_tuple(self) -> tuple[int]:
         """
@@ -255,8 +259,8 @@ class Calibration_data_cube(Data_cube):
     def fit(self) -> Map_u:
         """
         Fit the whole data cube and extract the fitted gaussian's FWHM and its uncertainty at every point.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
+        condition state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
 
@@ -312,38 +316,38 @@ class NII_data_cube(Data_cube):
         Arguments
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
-        _double_NII_peak_authorized: bool, default=None. This argument is intended for internal use only. Specifies if double
-        components can be considered when fitting. This is used when fitting the NII_data_cube which sometimes seems to present a
-        multi component peak.
+        _double_NII_peak_authorized: bool, default=None. This argument is intended for internal use only. Specifies if 
+        double components can be considered when fitting. This is used when fitting the NII_data_cube which sometimes 
+        seems to present a multi component peak.
         """
         super().__init__(fits_object)
         self._double_NII_peak_authorized = _double_NII_peak_authorized
 
     def fit(self, extract: list[str], double_NII_peak_authorized: bool=False) -> list[Maps]:
         """
-        Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha peak and
-        one NII peak (sometimes two if the seven_components_fits_authorized is set to True) are present.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
+        Fit the whole data cube to extract the peaks' data. This method presupposes that four OH peaks, one Halpha 
+        peak and one NII peak (sometimes two if the seven_components_fits_authorized is set to True) are present.
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
+        condition state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
 
         Arguments
         ---------
-        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
-        Any combination or number of these terms can be given.
-        double_NII_peak_authorized: bool, default=False. Specifies if double NII peaks are considered possible. If True,
-        the fitting algorithm may detect two components and fit these separately. The NII values in the returned maps for a
-        certain parameter will then be the mean value of the two fitted gaussians at that pixel.
+        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" 
+        and "FWHM". Any combination or number of these terms can be given.
+        double_NII_peak_authorized: bool, default=False. Specifies if double NII peaks are considered possible. If 
+        True, the fitting algorithm may detect two components and fit these separately. The NII values in the returned 
+        maps for a certain parameter will then be the mean value of the two fitted gaussians at that pixel.
 
         Returns
         -------
-        list of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
-        were put in argument, thus the list may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
-        in the provided data cube.
-        Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
-        amplitude or mean. In any case, in every Maps object is a Map object having the value 1 when a seven components fit was
-        executed and 0 otherwise.
+        list of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the 
+        order they were put in argument, thus the list may have a length of 1, 2 or 3. Every Maps object has the maps 
+        of every ray present in the provided data cube.
+        Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when 
+        computing amplitude or mean. In any case, in every Maps object is a Map object having the value 1 when a seven 
+        components fit was executed and 0 otherwise.
         """
         self.verify_extract_list(extract)
 
@@ -352,19 +356,21 @@ class NII_data_cube(Data_cube):
         print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(NII_data_cube(fits.PrimaryHDU(data[:,y,:], self.header),
-                                                                               double_NII_peak_authorized),
+        fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(NII_data_cube(fits.PrimaryHDU(data[:,y,:], 
+                                                                        self.header), double_NII_peak_authorized),
                                                                  data.shape[1]) for y in range(data.shape[1])]))
         stop = time.time()
         print("\nFinished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
-        # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,7,3) and the last three dimensions are given at every pixel
+        # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,7,3) and the last three dimensions are given at every 
+        # pixel
         # Third dimension: all three gaussian parameters. 0: fwhm, 1: amplitude, 2: mean
-        # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: OH3, 3: OH4, 4: NII, 5: Ha, 6: 7 components fit map
+        # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: OH3, 3: OH4, 4: NII, 5: Ha, 6: 7 components 
+        # fit map
         # Fifth dimension: 0: data, 1: uncertainties, 2: snr (only when associated to fwhm values)
-        # The 7 components fit map is a map taking the value 0 if a single component was fitted onto NII and the value 1 if
-        # two components were considered
+        # The 7 components fit map is a map taking the value 0 if a single component was fitted onto NII and the value 
+        # 1 iftwo components were considered
         fwhm_maps = Maps([
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,0,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,0,0,1]),
@@ -421,7 +427,8 @@ class NII_data_cube(Data_cube):
         for element in extract:
             return_list.append(parameter_names[element])
         if len(extract) == 1:
-            # If only a single Maps is present, the element itself needs to be returned and not a list of a single element
+            # If only a single Maps is present, the element itself needs to be returned and not a list of a single 
+            # element
             return return_list[-1]
         else:
             return return_list
@@ -436,14 +443,15 @@ class NII_data_cube(Data_cube):
 
         Returns
         -------
-        list: FWHM, snr, amplitude and mean value of every fitted gaussians are given along with a map representing if a double
-        NII fit was made. Each coordinate has three sublists. The first has seven values: the first six are the peaks' FWHM with
-        their uncertainty and signal to noise ratio and the last one is a map indicating where fits with seven components were
-        done. The last map outputs 0 for a six components fit and 1 for a seven components fit. The second sublist gives the
-        fitted gaussians amplitude and the third sublist gives their mean value. The two last sublists also have the map that
-        represents if a double NII peak was fitted.
+        list: FWHM, snr, amplitude and mean value of every fitted gaussians are given along with a map representing if 
+        a double NII fit was made. Each coordinate has three sublists. The first has seven values: the first six are 
+        the peaks' FWHM with their uncertainty and signal to noise ratio and the last one is a map indicating where  
+        fits with seven components were done. The last map outputs 0 for a six components fit and 1 for a seven 
+        components fit. The second sublist gives the fitted gaussians amplitude and the third sublist gives their mean 
+        value. The two last sublists also have the map that represents if a double NII peak was fitted.
         """
-        spectrum = NII_spectrum(self.data[:,x], self.header, seven_components_fit_authorized=self._double_NII_peak_authorized)
+        spectrum = NII_spectrum(self.data[:,x], self.header, 
+                                seven_components_fit_authorized=self._double_NII_peak_authorized)
         spectrum.fit()
         if spectrum.is_nicely_fitted_for_NII():
             return [
@@ -468,34 +476,34 @@ class SII_data_cube(Data_cube):
         Arguments
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
-        _cube_number: int, default=None. This argument is intended for internal use only. Specifies the cube's number (1, 2, 3).
-        This is used when fitting the different SII cubes which do not present the rays at the same spots.
+        _cube_number: int, default=None. This argument is intended for internal use only. Specifies the cube's number 
+        (1, 2, 3). This is used when fitting the different SII cubes which do not present the rays at the same spots.
         """
         super().__init__(fits_object)
         self._cube_number = _cube_number
 
     def fit(self, extract: list[str], cube_number: int) -> list[Maps]:
         """
-        Fit the whole data cube to extract the peaks' data. This method presupposes that two OH peaks and two SII peaks are
-        present.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
+        Fit the whole data cube to extract the peaks' data. This method presupposes that two OH peaks and two SII 
+        peaks are present.
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
+        condition state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
 
         Arguments
         ---------
-        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" and "FWHM".
-        Any combination or number of these terms can be given.
+        extract: list of str. Names of the gaussians' parameters to extract. Supported terms are: "mean", "amplitude" 
+        and "FWHM". Any combination or number of these terms can be given.
         cube_number: int. Specify the number of the cube being currently fitted.
 
         Returns
         -------
-        list of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the order they
-        were put in argument, thus the list may have a length of 1, 2 or 3. Every Maps object has the maps of every ray present
-        in the provided data cube.
-        Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when computing
-        amplitude or mean.
+        list of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the 
+        order they were put in argument, thus the list may have a length of 1, 2 or 3. Every Maps object has the maps 
+        of every ray present in the provided data cube.
+        Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when 
+        computing amplitude or mean.
         """
         self.verify_extract_list(extract)
 
@@ -504,13 +512,15 @@ class SII_data_cube(Data_cube):
         print(f"Number of processes used: {pool._processes}")
         self.reset_update_file()
         start = time.time()
-        fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(SII_data_cube(fits.PrimaryHDU(data[:,y,:], self.header), 
-                                                   cube_number), data.shape[1]) for y in range(data.shape[1])]))
+        fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(SII_data_cube(fits.PrimaryHDU(data[:,y,:], 
+                                                                    self.header), cube_number), data.shape[1]) 
+                                                                for y in range(data.shape[1])]))
         stop = time.time()
         print("\nFinished in", stop-start, "s.")
         pool.close()
         new_header = self.get_header_without_third_dimension()
-        # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,4,3) and the last three dimensions are given at every pixel
+        # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,4,3) and the last three dimensions are given at every 
+        # pixel
         # Third dimension: all three gaussian parameters. 0: fwhm, 1: amplitude, 2: mean
         # Fourth dimension: all rays in the data_cube. 0: OH1, 1: OH2, 2: SII1, 3: SII2
         # Fifth dimension: 0: data, 1: uncertainties, 2: snr (only when associated to fwhm values, False otherwise)
@@ -567,9 +577,9 @@ class SII_data_cube(Data_cube):
 
         Returns
         -------
-        list: FWHM, snr, amplitude and mean value of every fitted gaussians are given for every pixel. Each coordinate has three
-        sublists. The first has four arrays that give the peaks' FWHM with their uncertainty and signal to noise ratio. The two
-        following sublists give every fitted gaussian's amplitude and mean respectively. 
+        list: FWHM, snr, amplitude and mean value of every fitted gaussians are given for every pixel. Each coordinate 
+        has three sublists. The first has four arrays that give the peaks' FWHM with their uncertainty and signal to 
+        noise ratio. The two following sublists give every fitted gaussian's amplitude and mean respectively. 
         """
         spectrum = SII_spectrum(self.data[:,x], self.header, self._cube_number)
         try:
@@ -591,13 +601,15 @@ def worker_split_fit(data_cube: Data_cube, number_of_lines: int) -> list:
 
     Arguments
     ---------
-    data_cube: Data_cube object. Two dimensional Data_cube that needs to be fitted. All pixels will be fitted one by one.
-    number_of_lines: int. Number of lines of the main Data_cube. This is used for giving feedback on the fit's progress.
+    data_cube: Data_cube object. Two dimensional Data_cube that needs to be fitted. All pixels will be fitted one by 
+    one.
+    number_of_lines: int. Number of lines of the main Data_cube. This is used for giving feedback on the fit's 
+    progress.
     
     Returns
     -------
-    list: fitted gaussians' values at every pixels along the specified line. For more information on the returned format, see
-    each worker_fit() method directly.
+    list: fitted gaussians' values at every pixels along the specified line. For more information on the returned 
+    format, see each worker_fit() method directly.
     """
     # Correct for the automatic change of axes when creating a 2D Data_cube
     data_cube.header["NAXIS3"] = data_cube.header["NAXIS2"]
@@ -623,8 +635,8 @@ class Map(Fits_file):
         Arguments
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the map.
-        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary to
-        provide one to work with this class.
+        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary 
+        to provide one to work with this class.
         """
         try:
             self.object = fits_object
@@ -682,7 +694,8 @@ class Map(Fits_file):
         return self.data
     
     def __eq__(self, other):
-        return np.nanmax(np.abs((self.data - other.data) / self.data)) <= 10**(-6) or np.array_equal(self.data, other.data)
+        return np.nanmax(np.abs((self.data - other.data) / self.data)) <= 10**(-6) or np.array_equal(
+                                                                                            self.data, other.data)
     
     def __getitem__(self, key):
         return Map(fits.PrimaryHDU(self.data[key], None), self.name)
@@ -711,8 +724,8 @@ class Map(Fits_file):
 
         Arguments
         ---------
-        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first element is
-        the minimum and the second is the maximum.
+        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
+        element is the minimum and the second is the maximum.
         """
         if bounds:
             plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
@@ -722,14 +735,13 @@ class Map(Fits_file):
 
     def plot_two_maps(self, other: Map, bounds: tuple=None):
         """
-        Plot two maps superposed with a certain alpha. The first map is plotted with the viridis colormap whereas the second
-        map is plotted with the magma colormap.
+        Plot two maps superposed with a certain alpha.
 
         Arguments
         ---------
         other: Map object. The second map that will be plotted with the magma colormap.
-        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first element is
-        the minimum and the second is the maximum.
+        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
+        element is the minimum and the second is the maximum.
         """
         if bounds is None:
             ax1 = plt.subplot(1,2,1)
@@ -749,8 +761,9 @@ class Map(Fits_file):
 
         Arguments
         ---------
-        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For example, the
-        default value 2 will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For 
+        example, the default value 2 will give a new map in which every pixel is the mean value of every 4 pixels (2x2 
+        bin).
 
         Returns
         -------
@@ -770,9 +783,9 @@ class Map(Fits_file):
     
     def smooth_order_change(self, center: tuple[int]=(527, 484)) -> Map:
         """
-        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM
-        is reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an
-        order change to the mean value of certain pixels in a 7x7 area around the pixel.
+        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as 
+        the FWHM is reduced at points where the calibration peak changes of interference order. This changes the 
+        pixels' value in an order change to the mean value of certain pixels in a 7x7 area around the pixel.
 
         Arguments
         ---------
@@ -786,8 +799,10 @@ class Map(Fits_file):
         center = round(center[0]), round(center[1])
         # The bin_factor corrects the distances in the case of a binned array
         bin_factor = center[0] / 527
-        # The smoothing_max_thresholds list of ints is defined by trial and error and tunes the pixels to calculate the mean
-        # The first element is used for the first interference order change and the second element is for the second change
+        # The smoothing_max_thresholds list of ints is defined by trial and error and tunes the pixels to calculate 
+        # the mean
+        # The first element is used for the first interference order change and the second element is for the second 
+        # change
         smoothing_max_thresholds = [0.4, 1.8]
         # The bounds list define the area in which the FWHM minimum will be searched, corresponding to an order change
         bounds = [
@@ -840,13 +855,13 @@ class Map(Fits_file):
     
     def align_regions(self) -> Map | Map_u:
         """
-        Get the squared FWHM map in which the instrumental function has been subtracted with the three regions corrected to fit
-        better the WCS.
+        Get the squared FWHM map in which the instrumental function has been subtracted with the three regions 
+        corrected to fit better the WCS.
 
         Returns
         -------
-        Map/Map_u object: global map with the three aligned regions, result of the subtraction of the squared FWHM map and the squared
-        instrumental function map.
+        Map/Map_u object: global map with the three aligned regions, result of the subtraction of the squared FWHM map 
+        and the squared instrumental function map.
         """
         regions = [
             pyregion.open("gaussian_fitting/regions/region_1.reg"),
@@ -866,7 +881,8 @@ class Map(Fits_file):
         # The map's data is removed where a mask applies
         new_map = self.copy() * (1 - (masks[0] + masks[1] + masks[2]))
 
-        # Every specific map needs to have the same values than the global map, but the header is changed to fit a specific region
+        # Every specific map needs to have the same values than the global map, but the header is changed to fit a 
+        # specific region
         # The right headers are first opened, then the values are changed
         specific_headers = [
             Map_u(fits.open(f"gaussian_fitting/maps/reproject/region_1_widening.fits")).header,
@@ -888,14 +904,15 @@ class Map(Fits_file):
 
     def transfer_temperature_to_FWHM(self, element: str) -> Map:
         """
-        Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map that
-        can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler calculations.
+        Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map 
+        that can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler 
+        calculations.
 
         Arguments
         ---------
-        element: str. Name of the element with which the temperature broadening will be calculated. Implemented names are:
-        "NII", "Ha", "OIII" and "SII". This makes it so the conversion takes into account the fact that heavier particles
-        will be less impacted by high temperatures
+        element: str. Name of the element with which the temperature broadening will be calculated. Implemented names 
+        are: "NII", "Ha", "OIII" and "SII". This makes it so the conversion takes into account the fact that heavier 
+        particles will be less impacted by high temperatures
 
         Returns
         -------
@@ -932,13 +949,13 @@ class Map(Fits_file):
     
     def get_region_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
         """
-        Get the statistics of a region along with a histogram. The supported statistic measures are: median, mean, standard
-        deviation, skewness and kurtosis.
+        Get the statistics of a region along with a histogram. The supported statistic measures are: median, mean, 
+        standard deviation, skewness and kurtosis.
 
         Arguments
         ---------
-        region: pyregion.core.ShapeList, default=None. Region in which the statistics need to be calculated. A histogram
-        will also be made with the data in this region.
+        region: pyregion.core.ShapeList, default=None. Region in which the statistics need to be calculated. A 
+        histogram will also be made with the data in this region.
         plot_histogram: bool, default=False. Boolean that specifies if the histogram should be plotted.
 
         Returns
@@ -1029,7 +1046,8 @@ class Map(Fits_file):
 
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
-        mean_values = np.array([(np.append(distance, np.nanmean(array))) for distance, array in regrouped_dict.items()])
+        mean_values = np.array([(np.append(distance, np.nanmean(array)))
+                                for distance, array in regrouped_dict.items()])
 
         # Extract the x values (distances) and y values (multiplication means divided by the variance)
         y_values = mean_values[:,1] / np.nanvar(cropped_array)
@@ -1040,20 +1058,20 @@ class Map(Fits_file):
     def get_structure_function_array(self, step: float=None) -> np.ndarray:
         """ 
         Get the array that represents the structure function.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
+        condition state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
         
         Arguments
         ---------
-        step: float, default=None. Specifies the bin steps that are to be used to regroup close distances. This helps in smoothing
-        the curve and preventing great bumps with large distances. When equal to None, no bin is made.
+        step: float, default=None. Specifies the bin steps that are to be used to regroup close distances. This helps 
+        in smoothing the curve and preventing great bumps with large distances. When equal to None, no bin is made.
 
         Returns
         -------
-        np array: two-dimensional array that contains the function structure (second element on last axis) corresponding to
-        the distance between the pixels (first element on last axis).
+        np array: two-dimensional array that contains the function structure (second element on last axis) 
+        corresponding to the distance between the pixels (first element on last axis).
         """
         cropped_map = self.get_cropped_NaNs_array()
         cropped_array = cropped_map.data
@@ -1095,23 +1113,24 @@ class Map(Fits_file):
         
         group_size = 15
         # Regroup all the subtraction's results per distance of groups of [group_size] pixels, in this case 15
-        dist_and_vals_group_1 = pool.map(worker_regroup_pixels, np.array_split(dist_and_vals, len(dist_and_vals)//group_size))
+        dist_and_vals_group_1 = pool.map(worker_regroup_pixels,
+                                         np.array_split(dist_and_vals, len(dist_and_vals)//group_size))
 
         # From the already grouped pixels, regroup another [group_size] arrays
-        dists_and_vals_group_2 = pool.map(worker_regroup_pixels,
-                                                np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size))
+        dist_and_vals_group_2 = pool.map(worker_regroup_pixels,
+                                         np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size))
         pool.close()
 
         # Group all the remaining arrays
-        dists_and_vals_group_3 = worker_regroup_pixels(dists_and_vals_group_2)
+        dist_and_vals_group_3 = worker_regroup_pixels(dist_and_vals_group_2)
         
         if step is None:
             print("\nAll calculations completed in", time.time() - start, "s.")
-            return dists_and_vals_group_3
+            return dist_and_vals_group_3
         else:
-            bins = np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step)
+            bins = np.arange(0, np.max(list(dist_and_vals_group_3.keys())), step)
             regrouped_dict = {}
-            for distance, values in dists_and_vals_group_3.items():
+            for distance, values in dist_and_vals_group_3.items():
                 # Get the closest value to bin to and append the values
                 closest_bin = bins[(np.abs(bins-distance)).argmin()]
                 regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
@@ -1155,8 +1174,8 @@ def worker_regroup_distances_of_pixel(pixel_array: np.ndarray) -> dict:
     
     Returns
     -------
-    dict: the keys are the unique distances between pixels and the values are numpy arrays and correspond to the operation's
-    result from the pixels that are separated by that same distance.
+    dict: the keys are the unique distances between pixels and the values are numpy arrays and correspond to the 
+    operation's result from the pixels that are separated by that same distance.
     """
     # The unique distances and their positions in the array are extracted
     unique_distances, indices = np.unique(pixel_array[:,:,0], return_inverse=True)
@@ -1177,7 +1196,8 @@ def worker_regroup_pixels(pixel_list: list) -> dict:
     
     Arguments
     ---------
-    pixel_list: list of dicts. List of dictionaries in which all the values attributed to the same key will be regrouped.
+    pixel_list: list of dicts. List of dictionaries in which all the values attributed to the same key will be 
+    regrouped.
     
     Returns
     -------
@@ -1197,8 +1217,8 @@ def worker_regroup_pixels(pixel_list: list) -> dict:
 class Map_u(Map):
     """
     Encapsulate the methods specific to maps with uncertainties.
-    Note that a Map_u is essentially two Map objects into a single object, the first Map being the data and the second one
-    being its uncertainty. This makes conversion from Map_u -> Map easier via one of the following statements:
+    Note that a Map_u is essentially two Map objects into a single object, the first Map being the data and the second 
+    one being its uncertainty. This makes conversion from Map_u -> Map easier via one of the following statements:
     data_map, uncertainty_map = Map_u | uncertainty_map = Map_u[1]
     data_map and uncertainty_map would then be two Map objects.
     It is also possible to create a Map_u object from two Map objects using the from_map_objects method.
@@ -1210,10 +1230,10 @@ class Map_u(Map):
 
         Arguments
         ---------
-        fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties and header
-        of the map.
-        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary to
-        provide one to work with this class.
+        fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties 
+        and header of the map.
+        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary 
+        to provide one to work with this class.
         """
         self.object = fits_list
         self.data = fits_list[0].data
@@ -1246,7 +1266,7 @@ class Map_u(Map):
         if issubclass(type(other), Map_u):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being added."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other.data, self.header),
-                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]), self.name)
+                                    fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]), self.name)
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data + other, self.header),
                                        fits.ImageHDU(self.uncertainties, self.header)]), self.name)
@@ -1255,20 +1275,20 @@ class Map_u(Map):
         if issubclass(type(other), Map_u):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other.data, self.header),
-                                       fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]), self.name)
+                                    fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]), self.name)
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other, self.header),
                                        fits.ImageHDU(self.uncertainties, self.header)]), self.name)
 
     def __pow__(self, power):
         return Map_u(fits.HDUList([fits.PrimaryHDU(self.data ** power, self.header),
-                    fits.ImageHDU(np.abs(self.uncertainties / self.data * power * self.data**power), self.header)]), self.name)
+            fits.ImageHDU(np.abs(self.uncertainties / self.data * power * self.data**power), self.header)]), self.name)
     
     def __mul__(self, other):
         if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being multiplied."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other.data, self.header),
-                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data, self.name)
+                               fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data, self.name)
                                                       * self.data * other.data, self.header)]))
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data * other, self.header),
@@ -1278,7 +1298,7 @@ class Map_u(Map):
         if issubclass(type(other), Map):
             assert self.data.shape == other.data.shape, "Maps of different sizes are being divided."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other.data, self.header),
-                                       fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data, self.name)
+                               fits.ImageHDU((self.uncertainties/self.data + other.uncertainties/other.data, self.name)
                                                       * self.data / other.data, self.header)]))
         else:
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data / other, self.header),
@@ -1322,19 +1342,20 @@ class Map_u(Map):
         Map_u object: new map with its augmented dimension.
         """
         data_map, uncertainty_map = self
-        return Map_u.from_Map_objects(data_map.add_new_axis(new_axis_shape), uncertainty_map.add_new_axis(new_axis_shape))
+        return Map_u.from_Map_objects(data_map.add_new_axis(new_axis_shape),
+                                      uncertainty_map.add_new_axis(new_axis_shape))
 
     def save_as_fits_file(self, filename: str):
         """
-        Write the Map_u as a fits file of the specified name with or without a header. If the object has a header, it will be
-        saved. The data uncertainty is saved as the [1] extension of the fits file. To view the uncertainty map on DS9, simply
-        open the file with the following path: File -> Open as -> Multi Extension Cube. The data and its uncertainty will then
-        be visible just like in a data cube.
+        Write the Map_u as a fits file of the specified name with or without a header. If the object has a header, it 
+        will be saved. The data uncertainty is saved as the [1] extension of the fits file. To view the uncertainty 
+        map on DS9, simply open the file with the following path: File -> Open as -> Multi Extension Cube. The data 
+        and its uncertainty will then be visible just like in a data cube.
         
         Arguments
         ---------
-        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
-        file can be overwritten.
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will 
+        appear and the file can be overwritten.
         """
         # Check if the file already exists
         try:
@@ -1370,8 +1391,8 @@ class Map_u(Map):
 
         Arguments
         ---------
-        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the default value 2
-        will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
+        nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis. For example, the 
+        default value 2 will give a new map in which every pixel is the mean value of every 4 pixels (2x2 bin).
 
         Returns
         -------
@@ -1382,9 +1403,9 @@ class Map_u(Map):
     
     def smooth_order_change(self, center: tuple[int]) -> Map_u:
         """
-        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as the FWHM
-        is reduced at points where the calibration peak changes of interference order. This changes the pixels' value in an
-        order change to the mean value of certain pixels in a 7x7 area around the pixel.
+        Smooth the fitted FWHM of the calibration cube for the first two interference order changes. This is needed as 
+        the FWHM is reduced at points where the calibration peak changes of interference order. This changes the 
+        pixels' value in an order change to the mean value of certain pixels in a 7x7 area around the pixel.
 
         Arguments
         ---------
@@ -1398,8 +1419,10 @@ class Map_u(Map):
         uncertainties = np.copy(self.uncertainties)
         # The bin_factor corrects the distances in the case of a binned array
         bin_factor = center[0] / 527
-        # The smoothing_max_thresholds list of ints is defined by trial and error and tunes the pixels to calculate the mean
-        # The first element is used for the first interference order change and the second element is for the second change
+        # The smoothing_max_thresholds list of ints is defined by trial and error and tunes the pixels to calculate 
+        # the mean
+        # The first element is used for the first interference order change and the second element is for the second
+        # change
         smoothing_max_thresholds = [0.4, 1.8]
         # The bounds list define the area in which the FWHM minimum will be searched, corresponding to an order change
         bounds = [
@@ -1450,8 +1473,10 @@ class Map_u(Map):
         -------
         Map_u object: map with WCS aligned to the other map.
         """
-        reprojected_data = reproject_interp(self.object[0], other.header, return_footprint=False, order="nearest-neighbor")
-        reprojected_uncertainties = reproject_interp(self.object[1], other.header, return_footprint=False, order="nearest-neighbor")
+        reprojected_data = reproject_interp(self.object[0], other.header, return_footprint=False, 
+                                            order="nearest-neighbor")
+        reprojected_uncertainties = reproject_interp(self.object[1], other.header, return_footprint=False, 
+                                                     order="nearest-neighbor")
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]), self.name)
     
@@ -1471,7 +1496,8 @@ class Map_u(Map):
             for x in range(cropped_vals.shape[1]):
                 if not np.isnan(cropped_vals[y,x]):
                     multiplication_val = cropped_vals[y,x] * cropped_vals
-                    multiplication_unc = (cropped_uncs[y,x]/cropped_vals[y,x] + cropped_uncs/cropped_vals) * multiplication_val
+                    multiplication_unc = ((cropped_uncs[y,x]/cropped_vals[y,x] + cropped_uncs/cropped_vals)
+                                          * multiplication_val)
                     dists = np.sqrt((x-xx)**2 + (y-yy)**2)
                     # The multiplication's result is linked to the pixels' distance
                     dists_and_multiplications.append(np.stack((dists, multiplication_val, multiplication_unc), axis=2))
@@ -1480,7 +1506,8 @@ class Map_u(Map):
         
         # The square root of each value is computed first to eliminate all negative data
         # This allows the pixel difference to be considered only once
-        mean_values = np.array([(np.append(distance, np.nanmean(array, axis=0))) for distance, array in regrouped_dict.items()])
+        mean_values = np.array([(np.append(distance, np.nanmean(array, axis=0))) 
+                                for distance, array in regrouped_dict.items()])
 
         # Extract the x values (distances) and y values (multiplication means divided by the variance)
         y_values = mean_values[:,1:] / np.nanvar(cropped_vals)
@@ -1491,20 +1518,20 @@ class Map_u(Map):
     def get_structure_function_array(self, step: float=None) -> np.ndarray:
         """ 
         Get the array that represents the structure function.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a condition
-        state with the following phrasing:
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
+        condition state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
         
         Arguments
         ---------
-        step: float, default=None. Specifies the bin steps that are to be used to regroup close distances. This helps in smoothing
-        the curve and preventing great bumps with large distances. When equal to None, no bin is made.
+        step: float, default=None. Specifies the bin steps that are to be used to regroup close distances. This helps 
+        in smoothing the curve and preventing great bumps with large distances. When equal to None, no bin is made.
 
         Returns
         -------
-        np array: two-dimensional array that contains the function structure (second element on last axis) corresponding to
-        the distance between the pixels (first element on last axis).
+        np array: two-dimensional array that contains the function structure (second element on last axis) 
+        corresponding to the distance between the pixels (first element on last axis).
         """
         cropped_map = self.get_cropped_NaNs_array()
         cropped_vals = cropped_map.data
@@ -1549,23 +1576,24 @@ class Map_u(Map):
 
         group_size = 15
         # Regroup all the subtraction's results per distance of groups of [group_size] pixels, in this case 15
-        dist_and_vals_group_1 = pool.map(worker_regroup_pixels_u, np.array_split(dist_and_vals, len(dist_and_vals)//group_size))
+        dist_and_vals_group_1 = pool.map(worker_regroup_pixels_u,
+                                         np.array_split(dist_and_vals, len(dist_and_vals)//group_size))
 
         # From the already grouped pixels, regroup another [group_size] arrays
-        dists_and_vals_group_2 = pool.map(worker_regroup_pixels_u,
-                                                np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size))
+        dist_and_vals_group_2 = pool.map(worker_regroup_pixels_u,
+                                         np.array_split(dist_and_vals_group_1, len(dist_and_vals_group_1)//group_size))
         pool.close()
 
         # Group all the remaining arrays
-        dists_and_vals_group_3 = worker_regroup_pixels_u(dists_and_vals_group_2)
+        dist_and_vals_group_3 = worker_regroup_pixels_u(dist_and_vals_group_2)
 
         if step is None:
             print("\nAll calculations completed in", time.time() - start, "s.")
-            return dists_and_vals_group_3
+            return dist_and_vals_group_3
         else:
-            bins = np.round(np.arange(0, np.max(list(dists_and_vals_group_3.keys())), step),1)
+            bins = np.round(np.arange(0, np.max(list(dist_and_vals_group_3.keys())), step),1)
             regrouped_dict = {}
-            for distance, values_and_uncert in dists_and_vals_group_3.items():
+            for distance, values_and_uncert in dist_and_vals_group_3.items():
                 # Get the closest value to bin to and append the values
                 closest_bin = bins[(np.abs(bins-distance)).argmin()]
 
@@ -1591,8 +1619,8 @@ def worker_regroup_distances_of_pixel_u(pixel_array: np.ndarray) -> dict:
     
     Returns
     -------
-    dict: the keys are the unique distances between pixels and the values are numpy arrays and correspond to the operation's
-    result from the pixels that are separated by that same distance.
+    dict: the keys are the unique distances between pixels and the values are numpy arrays and correspond to the 
+    operation's result from the pixels that are separated by that same distance.
     """
     # The unique distances and their positions in the array are extracted
     unique_distances, indices = np.unique(pixel_array[:,:,0], return_inverse=True)
@@ -1605,8 +1633,9 @@ def worker_regroup_distances_of_pixel_u(pixel_array: np.ndarray) -> dict:
         if corresponding_values[~np.isnan(corresponding_values)].shape != (0,):     # Filter empty arrays
             flat_uncertainties = pixel_array[:,:,2].flatten()
             corresponding_uncertainties = flat_uncertainties[indices == i]
-            dist_and_vals[unique_distance] = np.transpose(np.array((corresponding_values[~np.isnan(corresponding_values)],
-                                                             corresponding_uncertainties[~np.isnan(corresponding_uncertainties)])))
+            dist_and_vals[unique_distance] = np.transpose(
+                np.array((corresponding_values[~np.isnan(corresponding_values)],
+                          corresponding_uncertainties[~np.isnan(corresponding_uncertainties)])))
     print(".", end="", flush=True)
     return dist_and_vals
 
@@ -1616,7 +1645,8 @@ def worker_regroup_pixels_u(pixel_list: list) -> dict:
     
     Arguments
     ---------
-    pixel_list: list of dicts. List of dictionaries in which all the values attributed to the same key will be regrouped.
+    pixel_list: list of dicts. List of dictionaries in which all the values attributed to the same key will be 
+    regrouped.
     
     Returns
     -------
@@ -1640,8 +1670,9 @@ def worker_regroup_pixels_u(pixel_list: list) -> dict:
 class Map_usnr(Map_u):
     """
     Encapsulate the methods specific to maps with uncertainties and signal to noise ratios.
-    Note that a Map_usnr is essentially three Map objects into a single object, the first Map being the data, the second one
-    being its uncertainty and the third one being the signal to noise ratio. This makes conversion from Map_usnr -> Map easier
+    Note that a Map_usnr is essentially three Map objects into a single object, the first Map being the data, the 
+    second one being its uncertainty and the third one being the signal to noise ratio. This makes conversion from 
+    Map_usnr -> Map easier
     via one of the following statements: data_map, uncertainty_map, snr_map = Map_usnr | snr_map = Map_usnr[2]
     data_map, uncertainty_map and snr_map would then be three Map objects.
     It is also possible to create a Map_usnr object from three Map objects using the from_map_objects method.
@@ -1653,10 +1684,10 @@ class Map_usnr(Map_u):
 
         Arguments
         ---------
-        fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties, signal to
-        noise ratio and header of the map.
-        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary to
-        provide one to work with this class.
+        fits_list: astropy.io.fits.hdu.hdulist.HDUList. List of astropy objects. Contains the values, uncertainties, 
+        signal to noise ratio and header of the map.
+        name: str, default=None. Name of the Map. This is primarily used with the Maps object and it is not necessary 
+        to provide one to work with this class.
         """
         super().__init__(fits_list, name)
         self.snr = fits_list[2].data
@@ -1719,16 +1750,16 @@ class Map_usnr(Map_u):
     
     def save_as_fits_file(self, filename: str):
         """
-        Write the Map_usnr as a fits file of the specified name with or without a header. If the object has a header, it will be
-        saved. The data uncertainty is saved as the [1] extension of the fits file and the signal to noise ratio is saved as the
-        [2] extension of the. To view the uncertainty and signal to noise ratio maps on DS9, simply open the file with the
-        following path: File -> Open as -> Multi Extension Cube. The data, its uncertainty and its snr will then be visible just
-        like in a data cube.
+        Write the Map_usnr as a fits file of the specified name with or without a header. If the object has a header, 
+        it will be saved. The data uncertainty is saved as the [1] extension of the fits file and the signal to noise 
+        ratio is saved as the [2] extension of the. To view the uncertainty and signal to noise ratio maps on DS9, 
+        simply open the file with the following path: File -> Open as -> Multi Extension Cube. The data, its 
+        uncertainty and its snr will then be visible just like in a data cube.
         
         Arguments
         ---------
-        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
-        file can be overwritten.
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will 
+        appear and the file can be overwritten.
         """
         # Check if the file already exists
         try:
@@ -1762,8 +1793,8 @@ class Map_usnr(Map_u):
 
     def filter_snr(self, snr_threshold: float=6) -> Map_usnr:
         """ 
-        Filter the map's values by keeping only the data that has a signal to noise ratio superior or equal to the provided
-        quantity.
+        Filter the map's values by keeping only the data that has a signal to noise ratio superior or equal to the 
+        provided quantity.
 
         Arguments
         ---------
@@ -1783,8 +1814,9 @@ class Map_usnr(Map_u):
 
 class Maps():
     """ 
-    Encapsulates the methods that are specific to a multitude of linked maps. This class is mainly used as the output of the
-    fit() method and allows for many convenient operations. This class can be seen as an analoguous to the dict class.
+    Encapsulates the methods that are specific to a multitude of linked maps. This class is mainly used as the output 
+    of the fit() method and allows for many convenient operations. This class can be seen as an analoguous to the dict 
+    class.
     """
 
     def __init__(self, maps: list):
@@ -1857,14 +1889,14 @@ class Maps():
         return_str = ""
         for Map in self:
             name = Map.name
-            if name not in other.names.values():
-                return_str += f"{name} not present in both Maps.\n"
+            if name not in other.names.values():            # ANSI color codes are used to integrate colors
+                return_str += f"\033[1;33;40m{name} not present in both Maps.\n"
             elif self[name].data.shape != other[name].data.shape:
-                return_str += f"{name} does not have the same shape in both Maps.\n"
+                return_str += f"\033[1;38;5;208m{name} does not have the same shape in both Maps.\n"
             elif self[name] == other[name]:
-                return_str += f"{name} equal.\n"
+                return_str += f"\033[1;32;40m{name} equal.\n"
             else:
-                return_str += f"{name} not equal.\n"
+                return_str += f"\033[1;31;40m{name} not equal.\n"
         return return_str[:-2]          # Remove trailing "\n"
 
     def __iter__(self):
@@ -1891,8 +1923,8 @@ class Maps():
         
         Arguments
         ---------
-        folder_path: str. Indicates the path of the folder in which to create the files. If the folder does not exist, it is
-        created.
+        folder_path: str. Indicates the path of the folder in which to create the files. If the folder does not exist, 
+        it is created.
         """
         if not os.path.exists(folder_path):
             # Create folder if necessary

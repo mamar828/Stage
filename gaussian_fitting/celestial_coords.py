@@ -1,4 +1,3 @@
-
 class Celestial_coords():
     # This class is inherited by the following two classes and allows using of isinstance() in 
     # fits_analyzer.Fits_file.set_wcs() method

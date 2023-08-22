@@ -68,8 +68,8 @@ class Fits_file():
 
         Arguments
         ---------
-        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will appear and the
-        file can be overwritten.
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will 
+        appear and the file can be overwritten.
         """
         # Check if the file already exists
         try:
@@ -104,9 +104,9 @@ class Data_cube(Fits_file):
         Arguments
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
-        axes_info: dict, default={"x": "l", "y": "b", "z": "v"}. Specifies what is represented by which axis and it is mainly
-        used in the swap_axes() method. The given dict is stored in the info attribute and information on a Data_cube's axes can
-        always be found by printing said Data_cube.
+        axes_info: dict, default={"x": "l", "y": "b", "z": "v"}. Specifies what is represented by which axis and it is 
+        mainly used in the swap_axes() method. The given dict is stored in the info attribute and information on a 
+        Data_cube's axes can always be found by printing said Data_cube.
         """
         try:
             self.object = fits_object
@@ -142,9 +142,9 @@ class Data_cube(Fits_file):
 
         Arguments
         ---------
-        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For example, the default
-        value 2 will give a new cube in which every pixel at a specific channel is the mean value of every 4 pixels (2x2 bin) at that
-        same channel.
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For 
+        example, the default value 2 will give a new cube in which every pixel at a specific channel is the mean value 
+        of every 4 pixels (2x2 bin) at that same channel.
 
         Returns
         -------
@@ -179,8 +179,10 @@ class Data_cube(Fits_file):
         new_shape = np.array(rotated_data.shape)
         # The pixels that need to be cropped are calculated and a slice tuple is made
         crop_pix = np.floor((new_shape[1:] - old_shape[1:]) / 2)
-        slices = np.array((crop_pix[0]+1, new_shape[1]-crop_pix[0]-1,crop_pix[1]+1,new_shape[2]-crop_pix[1]-1)).astype(int)
-        return Data_cube(fits.PrimaryHDU(rotated_data[:,slices[0]:slices[1],slices[2]:slices[3]], self.bin_header(nb_pix_bin)))
+        slices = np.array((
+            crop_pix[0]+1, new_shape[1]-crop_pix[0]-1,crop_pix[1]+1,new_shape[2]-crop_pix[1]-1)).astype(int)
+        return Data_cube(
+            fits.PrimaryHDU(rotated_data[:,slices[0]:slices[1],slices[2]:slices[3]], self.bin_header(nb_pix_bin)))
 
     def plot_cube(self):
         plt.imshow(self.data[13,:,:], origin="lower")
@@ -204,21 +206,21 @@ class Data_cube(Fits_file):
         new_axes_pos = dict(zip((new_axes.values()), (0,1,2)))
         dict_keys = list(new_axes_pos.keys())
 
-        if old_axes_pos[dict_keys[0]] == 2:                         # Check if the new first axis was the old last axis
+        if old_axes_pos[dict_keys[0]] == 2:                # Check if the new first axis was the old last axis
             new_data = new_data.swapaxes(0,2)
             new_header = self.get_switched_header(0,2)
             if old_axes_pos[dict_keys[1]] == 0:
                 new_data = new_data.swapaxes(1,0)
                 new_header = self.get_switched_header(1,0)
 
-        elif old_axes_pos[dict_keys[0]] == 1:                       # Check if the new first axis was the old second axis
+        elif old_axes_pos[dict_keys[0]] == 1:              # Check if the new first axis was the old second axis
             new_data = new_data.swapaxes(0,1)
             new_header = self.get_switched_header(0,1)
             if old_axes_pos[dict_keys[1]] == 2:
                 new_data = new_data.swapaxes(0,2)
                 new_header = self.get_switched_header(0,2)
 
-        if old_axes_pos[dict_keys[1]] == 2:                         # Check if the new second axis was the old last axis
+        if old_axes_pos[dict_keys[1]] == 2:                # Check if the new second axis was the old last axis
             new_data = new_data.swapaxes(1,2)
             new_header = self.get_switched_header(1,2)
         
@@ -246,7 +248,8 @@ class Data_cube(Fits_file):
             elif header_element[-1] == str(h_axis_2):
                 new_header[f"{header_element[:-1]}{h_axis_1}-"] = new_header.pop(header_element)
         
-        # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the process
+        # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the 
+        # process
         # After the process is done, the suffix is removed
         for header_element in deepcopy(list(new_header.keys())):
             if header_element[-1] == "-":
