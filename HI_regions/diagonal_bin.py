@@ -9,7 +9,9 @@ import astropy
 
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy.visualization.wcsaxes import WCSAxes
 from astropy import units as u
+from reproject import reproject_interp
 from PIL import Image
 from copy import deepcopy
 
@@ -51,20 +53,47 @@ class Fits_file():
         # Convert CRVALs and CDELTs in equatorial coordinates
         galactic_CRVALS = astropy.coordinates.SkyCoord(l=self.header["CRVAL1"]*u.degree, 
                                                        b=self.header["CRVAL2"]*u.degree, frame="galactic")
-        galactic_CDELTS = astropy.coordinates.SkyCoord(l=self.header["CDELT1"]*u.degree, 
-                                                       b=self.header["CDELT2"]*u.degree, frame="galactic")
-        intermediate_CRVALS, intermediate_CDELTS = galactic_CRVALS.transform_to("icrs"), galactic_CDELTS.transform_to("icrs")
-        equatorial_CRVALS, equatorial_CDELTS = intermediate_CRVALS.transform_to("fk5"), intermediate_CDELTS.transform_to("fk5")
+        galactic_CDELTS = astropy.coordinates.SkyCoord(
+            l=(self.header["CRVAL1"] + self.header["CDELT1"])*u.degree, 
+            b=(self.header["CRVAL2"] + self.header["CDELT2"])*u.degree, frame="galactic"
+        )
+        equatorial_CRVALS = galactic_CRVALS.transform_to("fk5")
+        equatorial_CDELTS = galactic_CDELTS.transform_to("fk5")
 
         new_header = self.header.copy()
         new_header["CRVAL1"], new_header["CRVAL2"] = equatorial_CRVALS.ra.deg, equatorial_CRVALS.dec.deg
-        new_header["CDELT1"], new_header["CDELT2"] = equatorial_CDELTS.ra.deg, equatorial_CDELTS.dec.deg
-        new_header["CTYPE1"], new_header["CTYPE2"] = "RA---TAN", "DEC--TAN"
+
+        # new_header["CDELT1"], new_header["CDELT2"] = equatorial_CDELTS.ra.deg, equatorial_CDELTS.dec.deg
+        # new_header["CDELT1"] = self.header["CDELT1"] / self.header["CRVAL1"] * new_header["CRVAL1"]
+        # new_header["CDELT2"] = self.header["CDELT2"] / self.header["CRVAL2"] * new_header["CRVAL2"]
+        new_header["CTYPE1"] = f"RA---TAN"
+        new_header["CTYPE2"] = f"DEC--TAN"
+        return new_header
+    
+    def get_eqqqqq_dab_dab_dab(self):
+        new_header = self.header.copy()
+
+        # Create a WCS object from the original header
+        wcs = WCS(new_header)
+
+        # Convert the celestial part of the WCS to FK5 coordinates
+        fk5_wcs = wcs.dropaxis(2).sub(['longitude', 'latitude']).replicate_frame(astropy.coordinates.FK5())
+
+        # Update header keywords to reflect FK5 coordinates
+        new_header['CTYPE1'] = 'RA---TAN'       # GLS
+        new_header['CTYPE2'] = 'DEC--TAN'       # GLS
+        new_header['COORDSYS'] = 'FK5'
+        new_header['EQUINOX'] = 2000.0  # You might need to adjust this if the equinox is different
+
+        # Update the header with the new WCS information
+        new_header.update(fk5_wcs.to_header())
+
         return new_header
     
     def save_as_fits_file(self, filename: str):
         """
-        Write an array as a fits file of the specified name with or without a header. If the object has a header, it will be saved.
+        Write an array as a fits file of the specified name with or without a header. If the object has a header, it
+        will be saved.
 
         Arguments
         ---------
@@ -104,7 +133,7 @@ class Data_cube(Fits_file):
         Arguments
         ---------
         fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
-        axes_info: dict, default={"x": "l", "y": "b", "z": "v"}. Specifies what is represented by which axis and it is 
+        axes_info: dict, default={"x": "l", "y": "b", "z": "v"}. Specifies what is represented by which axis and it is
         mainly used in the swap_axes() method. The given dict is stored in the info attribute and information on a 
         Data_cube's axes can always be found by printing said Data_cube.
         """
@@ -116,10 +145,14 @@ class Data_cube(Fits_file):
             self.object = fits_object[0]
             self.data = fits_object[0].data
             self.header = fits_object[0].header
-        self.info = axes_info
+        self.info = {"x":axes_info["x"], "y":axes_info["y"], "z":axes_info["z"]}
 
     def __str__(self):
-        return f"Data_cube shape: {self.data.shape}\nData_cube axes: {list(reversed(self.info.items()))}"
+        return f"\033[1;31;40mFOLLOWING FITS STANDARDS (axes are given in the following order: z,y,x)\033[0m\n" + \
+                f"Data_cube shape: {self.data.shape}\nData_cube axes: {list(reversed(self.info.items()))}"
+    
+    def __eq__(self, other):
+        return np.array_equal(self.data, other.data) and self.header == other.header and self.info == other.info
 
     def get_header_without_third_dimension(self) -> fits.Header:
         """
@@ -185,7 +218,12 @@ class Data_cube(Fits_file):
             fits.PrimaryHDU(rotated_data[:,slices[0]:slices[1],slices[2]:slices[3]], self.bin_header(nb_pix_bin)))
 
     def plot_cube(self):
-        plt.imshow(self.data[13,:,:], origin="lower")
+        fig = plt.figure()
+        # The axes are set to have celestial coordinates
+        ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=WCS(self.header)[13,:,:])
+        fig.add_axes(ax)
+        # The turbulence map is plotted along with the colorbar, inverting the axes so y=0 is at the bottom
+        plt.colorbar(ax.imshow(self.data[13,:,:], origin="lower"))
         plt.show()
 
     def swap_axes(self, new_axes: dict) -> Data_cube:
@@ -200,33 +238,36 @@ class Data_cube(Fits_file):
         -------
         Data_cube object: newly swapped Data_cube.
         """
-        new_data = np.copy(self.data)
+        # Swap axes to improve readability (axis=0 becomes x)
+        new_data = np.copy(self.data).swapaxes(0,2)
         new_header = self.header.copy()
         old_axes_pos = dict(zip((self.info.values()), (0,1,2)))
-        new_axes_pos = dict(zip((new_axes.values()), (0,1,2)))
+        sorted_axes = {"x":new_axes["x"], "y":new_axes["y"], "z":new_axes["z"]}
+        new_axes_pos = dict(zip((sorted_axes.values()), (0,1,2)))
         dict_keys = list(new_axes_pos.keys())
 
-        if old_axes_pos[dict_keys[0]] == 2:                # Check if the new first axis was the old last axis
+        # Look if the axis that needs to be put in first position (x) was the third axis (z)
+        if old_axes_pos[dict_keys[0]] == 2:
             new_data = new_data.swapaxes(0,2)
-            new_header = self.get_switched_header(0,2)
+            new_header = self.get_switched_header(0,2, header=new_header)
+            # Look if the axis that needs to be put in second position (y) was the first axis (x)
             if old_axes_pos[dict_keys[1]] == 0:
-                new_data = new_data.swapaxes(1,0)
-                new_header = self.get_switched_header(1,0)
+                new_data = new_data.swapaxes(1,2)
+                new_header = self.get_switched_header(1,2, header=new_header)
 
-        elif old_axes_pos[dict_keys[0]] == 1:              # Check if the new first axis was the old second axis
+        # Look if the axis that needs to be put in first position (x) was the second axis (y)
+        elif old_axes_pos[dict_keys[0]] == 1:
             new_data = new_data.swapaxes(0,1)
-            new_header = self.get_switched_header(0,1)
-            if old_axes_pos[dict_keys[1]] == 2:
-                new_data = new_data.swapaxes(0,2)
-                new_header = self.get_switched_header(0,2)
+            new_header = self.get_switched_header(0,1, header=new_header)
 
-        if old_axes_pos[dict_keys[1]] == 2:                # Check if the new second axis was the old last axis
+        # Look if the axis that needs to be put in second position (y) was the third axis (ù)
+        if old_axes_pos[dict_keys[1]] == 2:
             new_data = new_data.swapaxes(1,2)
-            new_header = self.get_switched_header(1,2)
-        
-        return Data_cube(fits.PrimaryHDU(new_data, new_header), new_axes)
+            new_header = self.get_switched_header(1,2, header=new_header)
 
-    def get_switched_header(self, axis_1: int, axis_2: int) -> fits.Header:
+        return Data_cube(fits.PrimaryHDU(new_data.swapaxes(0,2), new_header), new_axes)
+
+    def get_switched_header(self, axis_1: int, axis_2: int, header: fits.Header=None) -> fits.Header:
         """
         Get the astropy header with switched axes to fit a Data_cube whose axes were also swapped.
         
@@ -234,14 +275,20 @@ class Data_cube(Fits_file):
         ---------
         axis_1: int. Source axis.
         axis_2: int. Destination axis.
+        header: fits.Header, default=None. By default, the Data_cube's header is taken but if one is provided, it will
+        be used instead.
         
         Returns
         -------
         astropy.io.fits.Header: header copy with switched axes.
         """
-        new_header = self.header.copy()
-        h_axis_1, h_axis_2 = axis_1+1, axis_2+1                             # The header uses 1-based indexing
+        if header is None:
+            new_header = self.header.copy()
+        else:
+            new_header = header.copy()
         
+        h_axis_1, h_axis_2 = axis_1 + 1, axis_2 + 1             # The header uses 1-based indexing
+
         for header_element in deepcopy(list(new_header.keys())):
             if header_element[-1] == str(h_axis_1):
                 new_header[f"{header_element[:-1]}{h_axis_2}-"] = new_header.pop(header_element)
@@ -254,14 +301,64 @@ class Data_cube(Fits_file):
         for header_element in deepcopy(list(new_header.keys())):
             if header_element[-1] == "-":
                 new_header[header_element[:-1]] = new_header.pop(header_element)
-        
         return new_header
 
+    def reproject_on(self, other: Data_cube) -> Data_cube:
+        """
+        Get the reprojection of the map on the other object's WCS. This makes the coordinates match.
+
+        Arguments
+        ---------
+        other: Data_cube object. Reference Data_cube to project on and to base the shift of WCS.
+
+        Returns
+        -------
+        Data_cube object: Data_cube with WCS aligned to the other Data_cube.
+        """
+        reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
+        return Data_cube(fits.PrimaryHDU(reprojection, other.header))
 
 
-HI_data = Data_cube(fits.open("HI_regions/LOOP4_cube.fits")[0], axes_info={"x": "l", "y": "b", "z": "v"})
-print(HI_data)
-vlb = HI_data.bin_cube(2).swap_axes({"x": "v", "y": "l", "z": "b"})
-print(vlb)
-vlb.save_as_fits_file("vlb.fits")
+HI = Data_cube(fits.open("HI_regions/LOOP4_bin2.fits"))
+vlb = HI.swap_axes({"x":"v","y":"l","z":"b"})
 
+# HI_region = Data_cube(fits.open("HI_regions/LOOP4_FINAL_GLS.fits")[0], axes_info={"x": "l", "y": "b", "z": "v"})
+# HI_region.bin_cube(2).save_as_fits_file("LOOP4_bin2.fits")
+
+# print(repr(HI_region.header))
+# print()
+# print()
+# HI_region.header = HI_region.get_header_in_equatorial_coords()
+# print(repr(HI_region.header))
+
+# HI_region.plot_cube()
+# HI_region.save_as_fits_file("test.fits")
+
+# region_1 = Data_cube(fits.open("Loop4N1_FinalJS.fits"))
+
+# print(repr(HI_region.header))
+# print()
+# print(repr(region_1.header))
+# HI_region.plot_cube()
+# region_1.plot_cube()
+
+
+
+# f = Data_cube(fits.open("HI_regions/LOOP4_cube.fits")[0])
+# h = f.header
+# c = h.copy()
+# shift = h["CRPIX2"] - h["NAXIS2"]/2
+# c["CRPIX2"] = h["NAXIS2"]/2
+# c["CRVAL2"] = h["CRVAL2"] - h["CDELT2"] * shift
+
+# shift_ra = h["CRPIX1"] - h["NAXIS1"]/2
+# c["CRPIX1"] = h["NAXIS1"]/2
+# c["CRVAL1"] = h["CRVAL1"] - h["CDELT1"] * shift_ra
+
+
+# f.header = c
+# f.save_as_fits_file("test2.fits")
+# print(repr(c))
+
+# f.header = f.get_header_in_equatorial_coords()
+# f.plot_cube()

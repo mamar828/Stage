@@ -7,7 +7,7 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-array = fits.open("gaussian_fitting/test/raw.fits")[0].data
+array = fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")[0].data
 array[np.isnan(array)] = 0
 
 import numpy as np

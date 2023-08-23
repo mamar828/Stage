@@ -1166,5 +1166,5 @@ def loop_di_loop(filename):
         file.write(str(y+1))
         file.close()
 
-loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
+# loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
 # loop_di_loop("gaussian_fitting/data_cubes/SII/SII_2/calibration.fits")

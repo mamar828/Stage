@@ -236,8 +236,8 @@ class Data_cube(Fits_file):
         assert extract != [], "At least a parameter to be extracted should be provided in the extract list."
         assert isinstance(extract, list), f"Extract argument must be a list, not {type(extract).__name__}."
         for element in extract:
-            assert (element == "mean" or element == "amplitude" or element == "FWHM",
-                    "Unsupported element in extract list.")
+            assert element == "mean" or element == "amplitude" or element == "FWHM", \
+                    "Unsupported element in extract list."
     
     def get_center_tuple(self) -> tuple[int]:
         """
@@ -1897,7 +1897,7 @@ class Maps():
                 return_str += f"\033[1;32;40m{name} equal.\n"
             else:
                 return_str += f"\033[1;31;40m{name} not equal.\n"
-        return return_str[:-2]          # Remove trailing "\n"
+        return return_str[:-2] + "\033[0m"          # Remove trailing "\n"
 
     def __iter__(self):
         self.n = -1

@@ -522,15 +522,15 @@ def get_region_stats(Map, filename: str=None, write=False):
             file.close()
 
 
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_2p/turbulence.fits")[0]), 
-#                  filename="gaussian_fitting/statistics/new/turbulence_2p_stats.txt", write=True)
+# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_selective/turbulence.fits")[0]), 
+#                   write=False)
 
 
 def get_turbulence_figure_with_regions():
     """
     In this example, the turbulence jpeg image with the regions is obtained.
     """
-    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data_2p/turbulence.fits"))
+    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data_selective/turbulence.fits"))
     # The regions need to be opened in a specific way to allow them to be juxtaposed on the turbulence map
     regions = [
         pyregion.open("gaussian_fitting/regions/region_1.reg").as_imagecoord(header=turbulence_map.header),
@@ -572,7 +572,7 @@ def get_histograms():
     """
     In this example, the different histograms of the turbulence map are obtained.
     """
-    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data_2p/turbulence.fits"))
+    turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data_selective/turbulence.fits"))
     # The first element in the regions list is None because this allows the statistics to be calculated over the 
     # entire region
     regions = [
