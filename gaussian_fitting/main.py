@@ -508,7 +508,7 @@ def get_region_stats(Map, filename: str=None, write=False):
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
-    region_names = ["Global region", "Region 1", "Region 2", "Region 3"]
+    region_names = ["Global region", "Diffuse region", "Central region", "Filament region"]
     for region, region_name in zip(regions, region_names):
         stats = Map.get_region_statistics(region)
         print(stats)
@@ -522,8 +522,8 @@ def get_region_stats(Map, filename: str=None, write=False):
             file.close()
 
 
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_selective/turbulence.fits")[0]), 
-#                   write=False)
+# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_selective/turbulence.fits")[0]), write=True,
+#                  filename="gaussian_fitting/results/turbulence_final/statistics.txt")
 
 
 def get_turbulence_figure_with_regions():
@@ -560,7 +560,9 @@ def get_turbulence_figure_with_regions():
             ax.add_patch(patch)
         for artist in region[1]:
             ax.add_artist(artist)
-    plt.title("Turbulence de la région Sh2-158 avec un fit NII à deux composantes")
+    plt.title("Turbulence of the region Sh2-158")
+    plt.xlabel("right ascension (RA)")
+    plt.ylabel("declination (DEC)")
     plot_with_cbar.ax.set_ylabel("turbulence (km/s)")
     plt.show()
 
@@ -582,14 +584,14 @@ def get_histograms():
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
     histogram_names = [
-        "Turbulence de la région Sh2-158",
-        "Turbulence de la région diffuse de Sh2-158",
-        "Turbulence de la région centrale de Sh2-158",
-        "Turbulence de la région du filament de Sh2-158"
+        "Turbulence of Sh2-158",
+        "Turbulence of Sh2-158's diffuse region",
+        "Turbulence of Sh2-158's central region",
+        "Turbulence of Sh2-158's filament region"
     ]
     # Note: it is possible to use the + operator between Shapelist objects to merge two regions together as done below
-    # turbulence_map.plot_region_histogram(pyregion.ShapeList(regions[1] + regions[3]), "Turbulence de la région 
-    # diffuse et du...")
+    # turbulence_map.plot_region_histogram(pyregion.ShapeList(regions[1] + regions[3]), "Turbulence of the 
+    # diffuse region and of...")
     for region, name in zip(regions, histogram_names):
         turbulence_map.plot_region_histogram(region, name)
 
@@ -660,18 +662,7 @@ def get_ACF_plot(calc=False):
 
 
 # if __name__ == "__main__":
-    # turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
-    # step = 0.7
-    # print("Current bin:", step)
-    # np.save(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", turbulence_map.
-    # get_autocorrelation_function_array(step))
-    # d = np.load("gaussian_fitting/bin=0.1.npy")
-    # plt.plot(d[:,0], d[:,1], "mo", markersize=1)
-
-    # plt.show()
-
     # get_ACF_plot(calc=True)
-    # get_ACF_plot()
 
 
 def get_structure_function_plot(calc=False):
@@ -704,10 +695,6 @@ def get_structure_function_plot(calc=False):
             plt.title(step)
             plt.show()
 
-
-# data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/structure_function/ints.npy", allow_pickle=True)
-# plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
-# plt.show()
 
 # if __name__ == "__main__":
 #     get_structure_function_plot(calc=True)

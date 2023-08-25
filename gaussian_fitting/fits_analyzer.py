@@ -1009,7 +1009,7 @@ class Map(Fits_file):
             map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
             plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
         plt.xlabel("turbulence (km/s)")
-        plt.ylabel("nombre de pixels")
+        plt.ylabel("number of pixels")
         plt.title(title)
         plt.show()
 

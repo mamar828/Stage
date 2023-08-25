@@ -238,7 +238,7 @@ class Data_cube(Fits_file):
         -------
         Data_cube object: newly swapped Data_cube.
         """
-        # Swap axes to improve readability (axis=0 becomes x)
+        # Swap axes to improve readability (axis 0 becomes x)
         new_data = np.copy(self.data).swapaxes(0,2)
         new_header = self.header.copy()
         old_axes_pos = dict(zip((self.info.values()), (0,1,2)))
@@ -295,7 +295,7 @@ class Data_cube(Fits_file):
             elif header_element[-1] == str(h_axis_2):
                 new_header[f"{header_element[:-1]}{h_axis_1}-"] = new_header.pop(header_element)
         
-        # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the 
+        # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the
         # process
         # After the process is done, the suffix is removed
         for header_element in deepcopy(list(new_header.keys())):
@@ -303,62 +303,6 @@ class Data_cube(Fits_file):
                 new_header[header_element[:-1]] = new_header.pop(header_element)
         return new_header
 
-    def reproject_on(self, other: Data_cube) -> Data_cube:
-        """
-        Get the reprojection of the map on the other object's WCS. This makes the coordinates match.
 
-        Arguments
-        ---------
-        other: Data_cube object. Reference Data_cube to project on and to base the shift of WCS.
-
-        Returns
-        -------
-        Data_cube object: Data_cube with WCS aligned to the other Data_cube.
-        """
-        reprojection = reproject_interp(self.object, other.header, return_footprint=False, order="nearest-neighbor")
-        return Data_cube(fits.PrimaryHDU(reprojection, other.header))
-
-
-HI = Data_cube(fits.open("HI_regions/LOOP4_bin2.fits"))
-vlb = HI.swap_axes({"x":"v","y":"l","z":"b"})
-
-# HI_region = Data_cube(fits.open("HI_regions/LOOP4_FINAL_GLS.fits")[0], axes_info={"x": "l", "y": "b", "z": "v"})
-# HI_region.bin_cube(2).save_as_fits_file("LOOP4_bin2.fits")
-
-# print(repr(HI_region.header))
-# print()
-# print()
-# HI_region.header = HI_region.get_header_in_equatorial_coords()
-# print(repr(HI_region.header))
-
-# HI_region.plot_cube()
-# HI_region.save_as_fits_file("test.fits")
-
-# region_1 = Data_cube(fits.open("Loop4N1_FinalJS.fits"))
-
-# print(repr(HI_region.header))
-# print()
-# print(repr(region_1.header))
-# HI_region.plot_cube()
-# region_1.plot_cube()
-
-
-
-# f = Data_cube(fits.open("HI_regions/LOOP4_cube.fits")[0])
-# h = f.header
-# c = h.copy()
-# shift = h["CRPIX2"] - h["NAXIS2"]/2
-# c["CRPIX2"] = h["NAXIS2"]/2
-# c["CRVAL2"] = h["CRVAL2"] - h["CDELT2"] * shift
-
-# shift_ra = h["CRPIX1"] - h["NAXIS1"]/2
-# c["CRPIX1"] = h["NAXIS1"]/2
-# c["CRVAL1"] = h["CRVAL1"] - h["CDELT1"] * shift_ra
-
-
-# f.header = c
-# f.save_as_fits_file("test2.fits")
-# print(repr(c))
-
-# f.header = f.get_header_in_equatorial_coords()
-# f.plot_cube()
+N4 = Data_cube(fits.open("HI_regions/CO_data/Loop4N4_Conv_Med_FinalJS.fits"))
+N4.swap_axes({"x":"v","y":"b","z":"l"}).save_as_fits_file("vbl_N4.fits")
