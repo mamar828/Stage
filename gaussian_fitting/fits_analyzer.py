@@ -93,9 +93,9 @@ class Fits_file():
 
         Arguments
         ---------
-        values: dict. Contains the keyword to modify and the value it may take. Supported keywords for tuple 
-        assignment are "CRPIXS", "CRVALS" and "CDELTS". With these keywords, the value of the first and second axes 
-        respectively may be given in a tuple.
+        values: dict. Contains the keyword to modify and the value it may take. Supported keywords for tuple assignment
+        are "CRPIXS", "CRVALS" and "CDELTS". With these keywords, the value of the first and second axes respectively
+        may be given in a tuple.
         """
         for key, value in values.items():
             if isinstance(value, tuple):
@@ -245,9 +245,9 @@ class Data_cube(Fits_file):
         
         Returns
         -------
-        tuple: rounded coordinates.
+        tuple of ints: rounded coordinates.
         """
-        return  round(self.header["CAL_CEN1"]), round(self.header["CAL_CEN2"])
+        return round(self.header["CAL_CEN1"]), round(self.header["CAL_CEN2"])
 
 
 
@@ -499,7 +499,7 @@ class SII_data_cube(Data_cube):
 
         Returns
         -------
-        list of Maps object: the Maps object representing every ray's mean, amplitude or FWHM are returned in the 
+        list of Maps objects: the Maps object representing every ray's mean, amplitude or FWHM are returned in the 
         order they were put in argument, thus the list may have a length of 1, 2 or 3. Every Maps object has the maps 
         of every ray present in the provided data cube.
         Note that each map is a Map_usnr object when computing the FWHM whereas the maps are Map_u objects when 
@@ -932,21 +932,6 @@ class Map(Fits_file):
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
     
-    def transfer_FWHM_to_temperature(self, element: str) -> Map:
-        elements = {
-            "NII":  {"emission_peak": 6583.41, "mass_u": 14.0067},
-            "Ha":   {"emission_peak": 6562.78, "mass_u": 1.00784},
-            "SII":  {"emission_peak": 6717,    "mass_u": 32.065},
-            "OIII": {"emission_peak": 5007,    "mass_u": 15.9994}
-        }
-        angstroms_center = elements[element]["emission_peak"]     # Emission wavelength of the element
-        m = elements[element]["mass_u"] * scipy.constants.u       # Mass of the element
-        c = scipy.constants.c                                     # Light speed
-        k = scipy.constants.k                                     # Boltzmann constant
-        angstroms_FWHM = self * 1000 / c * angstroms_center
-        temperature = (angstroms_FWHM * c / angstroms_center)**2 * m / (8 * np.log(2) * k)
-        return temperature
-    
     def get_region_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
         """
         Get the statistics of a region along with a histogram. The supported statistic measures are: median, mean, 
@@ -1136,30 +1121,6 @@ class Map(Fits_file):
                 regrouped_dict[closest_bin] = np.append(regrouped_dict.get(closest_bin, np.array([])), values)
             print("\nAll calculations completed in", time.time() - start, "s.")
             return regrouped_dict
-
-    def test_structure_func(self):
-        # cropped_array = self.get_cropped_NaNs_array()
-        array = np.copy(self.data)
-        with multiprocessing.Pool() as pool:
-            nan_bool = ~np.isnan(array)
-            difference_results = pool.starmap(worker_test, [(array, array[nan_bool][i], np.argwhere(nan_bool)[i]) 
-                                                        for i in range(len(array[nan_bool]))])
-            all_diffs = []
-            for list_of_lists in difference_results:
-                for listi in list_of_lists:
-                    all_diffs.append(listi)
-            mean_diffs = np.nanmean((np.sqrt(all_diffs))**4) / np.nanvar(array)
-            print(mean_diffs)
-
-def worker_test(array, pixel_value, pixel_coords):
-    sub = []
-    nan_bool = ~np.isnan(array)
-    for pixel, coords in zip(array[nan_bool].flatten(), np.argwhere(nan_bool)):
-        # print(pixel, coords)
-        dist = np.sqrt(np.sum((pixel_coords - coords)**2))
-        if dist == 150 and not np.isnan(pixel):
-            sub.append(pixel_value - pixel)
-    return sub
 
 
 
@@ -1802,6 +1763,7 @@ class Map_usnr(Map_u):
         excluded.
 
         Returns
+        -------
         Map_usnr object: map with the filtered data.
         """
         mask = np.ma.masked_less(self.snr, snr_threshold).mask
@@ -1813,19 +1775,19 @@ class Map_usnr(Map_u):
 
 
 class Maps():
-    """ 
+    """
     Encapsulates the methods that are specific to a multitude of linked maps. This class is mainly used as the output 
     of the fit() method and allows for many convenient operations. This class can be seen as an analoguous to the dict 
     class.
     """
 
-    def __init__(self, maps: list):
+    def __init__(self, maps: list[Map]):
         """
         Initialize a Maps object.
         
         Arguments
         ---------
-        maps: list. List of maps that may be of any type.
+        maps: list of Map objects. List of maps that may be of any type.
         """
         self.content = {}
         self.names = {}
@@ -1932,5 +1894,3 @@ class Maps():
 
         for name, element in self.content.items():
             element.save_as_fits_file(f"{folder_path}/{name}.fits")
-
-

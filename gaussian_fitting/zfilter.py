@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
 
 #   This is a smoothing program which will filter data using
 #       the window functions given by E. Zurflueh,
@@ -134,14 +133,10 @@ def zfilter(inarray, width=2, cft=None, ft=None, nocalc=False):
 
 from astropy.io import fits
 
-# np.save("rand.npy", (np.random.random((50,50))-0.5)*3)
-# random_array = np.load("rand.npy")
+# random_array = (np.random.random((50,50))-0.5)*3
 # test_array = np.repeat(np.arange(50)[:,np.newaxis], 50, axis=1) + np.swapaxes(np.repeat(np.arange(50)[:,np.newaxis], 50, axis=1), 0, 1)/8 + random_array
 # plt.imshow(test_array, vmin=0, vmax=60)
 # plt.show()
-
-
-
 
 # gradient = zfilter(test_array)
 
@@ -150,24 +145,4 @@ from astropy.io import fits
 # plt.imshow(test_array - gradient)
 # plt.show()
 # plt.imshow(random_array)
-# plt.show()
-
-
-
-
-
-
-
-# data = fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits")[0].data
-# plt.colorbar(plt.imshow(data))
-# plt.show()
-# gradient = zfilter(data)
-# plt.colorbar(plt.imshow(gradient))
-# plt.show()
-# plt.colorbar(plt.imshow(data - gradient))
-# plt.show()
-# plt.colorbar(plt.imshow(data, origin="lower"), vmin=0, vmax=60)
-# plt.show()
-# a = zfilter(data, 2)
-# plt.colorbar(plt.imshow(a, origin="lower"), vmin=0, vmax=60)
 # plt.show()

@@ -1,8 +1,8 @@
+from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-import os
 
 from astropy.modeling import models, fitting
 from astropy.io import fits
@@ -18,7 +18,7 @@ class Spectrum():
     Encapsulate all the methods of any data cube's spectrum.
     """
 
-    def __init__(self, data: np.ndarray, header):
+    def __init__(self, data: np.ndarray, header: fits.Header):
         """
         Initialize a Spectrum object with a certain header, whose spectral information will be taken.
 
@@ -31,27 +31,33 @@ class Spectrum():
         self.header = header
 
     @classmethod
-    def from_dat_file(cls, filename, header, cube_number=None):
+    def from_dat_file(cls, filename: str, header: fits.Header, cube_number: int=None) -> Spectrum:
+        """
+        Create a Spectrum object from a .dat file. This is used for testing specific spectrums.
+        
+        Arguments
+        ---------
+        filename: str. Name of the .dat file.
+        header: fits.Header. Header of the data cube from which the spectrum was extracted.
+        cube_number: int, default=None. In the case of an SII spectrum, specifies the number of the data cube from 
+        which the spectrum was extracted. This is useful because not all data cubes present the peaks at the same 
+        channels.
+        """
         lines = open(filename, "r").readlines()
         y_values = []
-        for point in lines:
-            try:
-                y_values.append(float(point.split(" ")[-1]))
-            except:
-                # Final empty line
-                pass
+        for point in lines[:-1]:
+            y_values.append(float(point.split(" ")[-1]))
 
         if cube_number is None:
             return cls(np.array(y_values), header)
         else:
+            # It is a spectrum from one of the SII cubes
             return cls(np.array(y_values), header, cube_number)
 
-
-    def plot(self, coords: tuple=None, fullscreen: bool=False, **other_values):
+    def plot(self, coords: tuple[int]=None, fullscreen: bool=False, **other_values):
         """
-        Plot the spectrum with or without the fitted gaussian(s) along with the fit's residue, if a fit was made. If
-        plotting the fit is desired, the plot_fit() method should be used as it wraps this method in case of plotting
-        fits.
+        Plot the spectrum along with the fit's residue, if a fit was made. If plotting the fit is desired, the 
+        plot_fit() method should be used as it wraps this method in case of plotting fits.
 
         Arguments
         ---------
@@ -93,13 +99,16 @@ class Spectrum():
             else:
                 # Fitted individual gaussians
                 axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=name, linewidth="1")
+        
         axs[0].legend(loc="upper left", fontsize="7")
         axs[1].legend(loc="upper left", fontsize="7")
         plt.xlabel("channels")
         axs[0].set_ylabel("intensity")
         axs[1].set_ylabel("intensity")
+
         if coords:
             fig.text(0.4, 0.89, f"coords: {coords}")
+
         if fullscreen:
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
@@ -112,7 +121,7 @@ class Spectrum():
         Arguments
         ---------
         bounds: tuple[int], default=None. Bounds between which the residue's standard deviation should be calculated.
-        If None is provided, the residue's stddev is calculated for all x. Bounds indexing is the same as for lists,
+        If None is provided, the residue's stddev is calculated for all x. Bounds indexing is the same as lists,
         e.g. bounds=(0,2) gives x=1 and x=2.
 
         Returns
@@ -174,7 +183,7 @@ class Calibration_spectrum(Spectrum):
     Encapsulate the methods specific to calibration spectrums.
     """
 
-    def __init__(self, data: np.ndarray, header):
+    def __init__(self, data: np.ndarray, header: fits.Header):
         """
         Initialize a Calibration_spectrum object. The fitter will use a single gaussian.
 
@@ -191,6 +200,7 @@ class Calibration_spectrum(Spectrum):
 
         # The distance between the desired peak and the current peak is calculated
         peak_position_translation = desired_peak_position - (list(self.y_values).index(max(self.y_values)) + 1)
+        # The values are translated to keep the peak always at the same channel
         self.y_values = np.roll(self.y_values, peak_position_translation)
         # All y values are shifted downwards by the mean calculated in the 25 first channels
         mean = np.sum(self.y_values[0:upper_limit_mean_calculation]) / upper_limit_mean_calculation
@@ -228,7 +238,7 @@ class Calibration_spectrum(Spectrum):
                                 fitter=fitting.LMLSQFitter(calc_uncertainties=True), get_fit_info=True, maxiter=1000)
             return self.fitted_gaussian
         except:
-            # Sometimes the fit is unsuccessful with uncommon spectrums
+            # Sometimes the fit is unsuccessful with uncommon spectrums at the borders of the calibration cube
             pass
 
     def get_fit_parameters(self, peak_name: str=None) -> models:
@@ -297,7 +307,7 @@ class NII_spectrum(Spectrum):
     Encapsulate the methods specific to NII spectrums.
     """
 
-    def __init__(self, data: np.ndarray, header, seven_components_fit_authorized: bool=False):
+    def __init__(self, data: np.ndarray, header: fits.Header, seven_components_fit_authorized: bool=False):
         """
         Initialize a NII_spectrum object. The fitter will use multiple gaussians.
 
@@ -317,7 +327,7 @@ class NII_spectrum(Spectrum):
         self.downwards_shift = np.sum(self.y_values[24:34]) / 10
         self.y_values -= self.downwards_shift
 
-    def plot_fit(self, coords: tuple=None, fullscreen: bool=False, plot_all: bool=False,
+    def plot_fit(self, coords: tuple[int]=None, fullscreen: bool=False, plot_all: bool=False,
                  plot_initial_guesses: bool=False):
         """
         Send the fitted functions and the subtracted fit to the plot() method.
@@ -333,9 +343,10 @@ class NII_spectrum(Spectrum):
         """
         if plot_initial_guesses:
             i = self.get_initial_guesses()
-            initial_guesses_array = np.array(
-                [[i["OH1"]["x0"], i["OH2"]["x0"], i["OH3"]["x0"], i["OH4"]["x0"], i["NII"]["x0"], i["Ha"]["x0"]],
-                 [i["OH1"]["a"], i["OH2"]["a"], i["OH3"]["a"], i["OH4"]["a"], i["NII"]["a"], i["Ha"]["a"]]])
+            initial_guesses_array = np.array([
+                [i["OH1"]["x0"], i["OH2"]["x0"], i["OH3"]["x0"], i["OH4"]["x0"], i["NII"]["x0"], i["Ha"]["x0"]],
+                [i["OH1"]["a"],  i["OH2"]["a"],  i["OH3"]["a"],  i["OH4"]["a"],  i["NII"]["a"],  i["Ha"]["a"]]
+            ])
         else:
             initial_guesses_array = None
 
@@ -364,7 +375,8 @@ class NII_spectrum(Spectrum):
     def fit(self, number_of_components: int=6) -> models:
         """
         Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to
-        the variable self.fitted_gaussian.
+        the variable self.fitted_gaussian. This method supposes that four polluting peaks are present in the 
+        spectrum and they will be called OHX.
 
         Arguments
         ---------
@@ -509,7 +521,8 @@ class NII_spectrum(Spectrum):
                     current_derivatives_diff = derivatives_diff[x-2]
                     current_y_value = self.y_values[x-1]
                     if ray == "OH2":
-                        if current_derivatives_diff < 0.5:     # A minor rise is also considered for consecutive "drops"
+                        if current_derivatives_diff < 0.5:     # A minor rise is also considered for consecutive 
+                                                               # "drops"
                             consecutive_drops_OH2 += 1
                         else:
                             consecutive_drops_OH2 = 0
@@ -565,7 +578,7 @@ class NII_spectrum(Spectrum):
         Arguments
         ---------
         peak_name: str, default=None. Specifies from which peak the function needs to be extracted. The supported peaks
-        are: "OH1", "OH2", "OH3", "OH4", "NII", "Ha" and "NII_2", if a seven components fit was made.
+        are: "OH1", "OH2", "OH3", "OH4", "NII", "Ha" and "NII_2", the latter only a seven components fit was made.
 
         Returns
         -------
@@ -609,7 +622,7 @@ class NII_spectrum(Spectrum):
 
         Arguments
         ---------
-        peak_name: str default=None. Name of the peak whose FWHM in km/s is desired. The supported peaks are:
+        peak_name: str, default=None. Name of the peak whose FWHM in km/s is desired. The supported peaks are:
         "OH1", "OH2", "OH3", "OH4", "NII" and "Ha". If a two-components NII fit was made, the FWHM value is the mean
         value of both NII peaks.
 
@@ -639,7 +652,7 @@ class NII_spectrum(Spectrum):
                 pass
         return speed_array
 
-    def get_FWHM_snr_7_components_array(self):
+    def get_FWHM_snr_7_components_array(self) -> np.ndarray:
         """
         Get the 7x3 dimensional array representing the FWHM, snr and 7 components fit.
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
@@ -663,7 +676,7 @@ class NII_spectrum(Spectrum):
             np.array([self.seven_components_fit, False, False])
         ))
 
-    def get_amplitude_7_components_array(self):
+    def get_amplitude_7_components_array(self) -> np.ndarray:
         """
         Get the 7x3 dimensional array representing the amplitude of every fitted gaussian function and 7 components
         fit. This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
@@ -703,7 +716,7 @@ class NII_spectrum(Spectrum):
                 [self.seven_components_fit, False, False]
             ))
 
-    def get_mean_7_components_array(self):
+    def get_mean_7_components_array(self) -> np.ndarray:
         """
         Get the 7x3 dimensional array representing the mean of every fitted gaussian function and 7 components fit.
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
@@ -791,7 +804,7 @@ class SII_spectrum(Spectrum):
         # The seven_components_fit variable takes the value 1 if a seven component fit was done in the NII cube
 
         # The bounds are set depending on the cube's type
-        # All y values are shifted downwards by the mean calculated between certain channels
+        # The OH1 and OH2 rays refer to the two polluting rays
         if cube_number == 1:
             self.mean_bounds = {"OH1": (13,16), "OH2": (41,44), "SII1": (7,12), "SII2": (35,40)}
             self.downwards_shift = np.mean(self.y_values[19:29])
@@ -803,9 +816,10 @@ class SII_spectrum(Spectrum):
             self.downwards_shift = np.mean(self.y_values[19:29])
         else:
             raise ValueError(f"Invalid cube_number, must be between 1 and 3. Provided cube_number: {cube_number}")
+        # All y values are shifted downwards by the mean calculated between certain channels
         self.y_values -= self.downwards_shift
 
-    def plot_fit(self, coords: tuple=None, fullscreen: bool=False, plot_all: bool=False,
+    def plot_fit(self, coords: tuple[int]=None, fullscreen: bool=False, plot_all: bool=False,
                  plot_initial_guesses: bool=False):
         """
         Send the fitted functions and the subtracted fit to the plot() method.
@@ -821,8 +835,10 @@ class SII_spectrum(Spectrum):
         """
         if plot_initial_guesses:
             i = self.get_initial_guesses()
-            initial_guesses_array = np.array([[i["OH1"]["x0"], i["OH2"]["x0"], i["SII1"]["x0"], i["SII2"]["x0"]],
-                                              [i["OH1"]["a"], i["OH2"]["a"], i["SII1"]["a"], i["SII2"]["a"]]])
+            initial_guesses_array = np.array([
+                [i["OH1"]["x0"], i["OH2"]["x0"], i["SII1"]["x0"], i["SII2"]["x0"]],
+                [i["OH1"]["a"],  i["OH2"]["a"],  i["SII1"]["a"],  i["SII2"]["a"]]
+            ])
         else:
             initial_guesses_array = None
 
@@ -843,7 +859,8 @@ class SII_spectrum(Spectrum):
     def fit(self) -> models:
         """
         Fit the data cube using specutils and initial guesses. Also sets the astropy model of the fitted gaussian to
-        the variable self.fitted_gaussian.
+        the variable self.fitted_gaussian. This method supposes that two polluting rays are present in the spectrum 
+        and will be refered to as OH1 and OH2.
 
         Returns
         -------
@@ -965,7 +982,7 @@ class SII_spectrum(Spectrum):
 
         Returns
         -------
-        astropy.modeling.core.CompoundModel: function representing the specified peak
+        astropy.modeling.core.CompoundModel: function representing the specified peak.
         """
         # The rays are stored in the CompoundModel in the same order than the following dict
         peak_numbers = {"OH1": 0, "OH2": 1, "SII1": 2, "SII2": 3}
@@ -1013,7 +1030,7 @@ class SII_spectrum(Spectrum):
         channels_FWHM = self.get_FWHM_channels(peak_name)
 
         angstroms_center = np.array((params.mean.value, uncertainties["mean"])) * spectral_length / number_of_channels
-        angstroms_center[0] +=  wavelength_channel_1
+        angstroms_center[0] += wavelength_channel_1
         angstroms_FWHM = channels_FWHM * spectral_length / number_of_channels
         speed_FWHM = scipy.constants.c * angstroms_FWHM[0] / angstroms_center[0] / 1000
         speed_FWHM_uncertainty = speed_FWHM * (angstroms_FWHM[1]/angstroms_FWHM[0] +
@@ -1021,7 +1038,7 @@ class SII_spectrum(Spectrum):
         speed_array = np.array((speed_FWHM, speed_FWHM_uncertainty))
         return speed_array
 
-    def get_FWHM_snr_array(self):
+    def get_FWHM_snr_array(self) -> np.ndarray:
         """
         Get the 4x3 dimensional array representing the FWHM and snr of each element in the Spectrum.
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
@@ -1039,7 +1056,7 @@ class SII_spectrum(Spectrum):
             np.concatenate((self.get_FWHM_speed("SII2"), np.array([self.get_snr("SII2")])))
         ))
 
-    def get_amplitude_array(self):
+    def get_amplitude_array(self) -> np.ndarray:
         """
         Get the 4x3 dimensional array representing the amplitude of each fitted gaussian function.
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
@@ -1058,17 +1075,17 @@ class SII_spectrum(Spectrum):
             [self.get_fit_parameters("SII2").amplitude.value, self.get_uncertainties()["SII2"]["amplitude"], False]
         ))
 
-    def get_mean_array(self):
+    def get_mean_array(self) -> np.ndarray:
         """
         Get the 4x3 dimensional array representing the mean of every fitted gaussian function.
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.
 
         Returns
         -------
-        numpy array: all values in the array are specific to a certain pixel that was fitted. For all four six rows,
-        the first element is the mean value, the second element is the uncertainty and the third element is False, 
-        present to make the array have the same shape then the array given by the get_FWHM_snr_array() method. The 
-        peaks are in the following order: OH1, OH2, SII1 and SII2.
+        numpy array: all values in the array are specific to a certain pixel that was fitted. For all four rows, the
+        first element is the mean value, the second element is the uncertainty and the third element is False, present
+        to make the array have the same shape then the array given by the get_FWHM_snr_array() method. The peaks are in
+        the following order: OH1, OH2, SII1 and SII2.
         """
         return np.array((
             [self.get_fit_parameters("OH1").mean.value, self.get_uncertainties()["OH1"]["mean"], False],
@@ -1079,9 +1096,10 @@ class SII_spectrum(Spectrum):
 
     def get_list_of_NaN_arrays(self) -> list[np.ndarray]:
         """
-        Get the 3 elements list of 4x3 arrays filled with NaNs. This is used when a pixel need to be invalidated.
+        Get the 3 elements list of 4x3 arrays filled with NaNs. This is used when a pixel needs to be invalidated.
 
         Returns
+        -------
         list: each element in the list is a 4x3 numpy array filled with NaNs.
         """
         return [np.full((4,3), np.NAN), np.full((4,3), np.NAN), np.full((4,3), np.NAN)]
@@ -1115,7 +1133,7 @@ class SII_spectrum(Spectrum):
 
 
 
-
+""" 
 def loop_di_loop(filename):
     x = 150
     # calib: 490, 493
@@ -1168,3 +1186,4 @@ def loop_di_loop(filename):
 
 # loop_di_loop("gaussian_fitting/data_cubes/night_34_binned.fits")
 # loop_di_loop("gaussian_fitting/data_cubes/SII/SII_2/calibration.fits")
+ """

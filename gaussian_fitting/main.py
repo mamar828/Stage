@@ -245,6 +245,10 @@ def get_turbulence_map(temp_map):
 
 
 def get_SII_fwhm_map():
+    """ 
+    In this example, the SII fwhm maps of the SII data cubes are extracted as well as each instrumental function and
+    stored. 
+    """
     maps = {}
     # The second night's calibration cube makes the night's measurements unusable
     for night_id in ["SII_1", "SII_3"]:
@@ -254,6 +258,7 @@ def get_SII_fwhm_map():
         calib = Calibration_data_cube(fits.open(f"gaussian_fitting/data_cubes/SII/{night_id}/calibration.fits"))
         maps[night_id].append(Maps.build_from_dict({
             "calibration": calib.fit().smooth_order_change(calib.get_center_tuple())}))
+        # Store for later use
         [maps[night_id][i].save_as_fits_file(f"gaussian_fitting/maps/SII/{night_id}") for i in range(4)]
 
     calib_maps = Maps.build_from_dict({
@@ -275,9 +280,12 @@ def get_SII_fwhm_map():
         (fwhm_maps["FWHM_3_2"]**2 - calib_maps["calibration_3"]**2)**0.5
     ])
 
+    # Reproject all the maps onto one map to make the WCS match
     reprojected_maps = Maps([(mapi.reproject_on(calibration_subtracted["FWHM_1_1"]))
                              for mapi in calibration_subtracted])
     header = reprojected_maps["FWHM_1_1"].header
+
+    # Extract the data and calculate the mean at every point
     data = Map(fits.PrimaryHDU(np.nanmean([mapi.data for mapi in reprojected_maps], axis=0), header))
     uncertainties = Map(fits.PrimaryHDU(np.nanmean([mapi.uncertainties for mapi in reprojected_maps], axis=0), header))
     mean_map = Map_u.from_Map_objects(data, uncertainties)
@@ -289,6 +297,11 @@ def get_SII_fwhm_map():
 
 
 def get_temp_NII_SII(NII_dat_filename, SII_dat_filename, NII_reg_filename, SII_reg_filename):
+    """
+    In this example, the temperature map is obtained with the Courtes method and the NII and SII broadening. Global
+    spectrums for NII and SII are used instead of maps to reduce inaccuracies and enhance the signal-to-noise ratio.
+    """
+    # The .dat files are opened and fitted and the FWHM is extracted
     NII_spec = NII_spectrum.from_dat_file(NII_dat_filename, 
                                           fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0].header)
     SII_spec = SII_spectrum.from_dat_file(SII_dat_filename, 
@@ -300,6 +313,7 @@ def get_temp_NII_SII(NII_dat_filename, SII_dat_filename, NII_reg_filename, SII_r
     print("NII fwhm:", NII_fwhm)
     print("SII fwhm:", SII_fwhm)
 
+    # The mean instrumental function of the region is used
     NII_cal = Map_u(fits.open("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits"))
     SII_cal = Map_u(fits.open("gaussian_fitting/maps/SII/SII_1/calibration.fits"))
     NII_cal_fwhm = NII_cal.get_region_statistics(pyregion.open(NII_reg_filename))["mean"]
@@ -324,10 +338,13 @@ def get_temp_NII_SII(NII_dat_filename, SII_dat_filename, NII_reg_filename, SII_r
     SII_spec.plot_fit(plot_all=True, plot_initial_guesses=True)
 
 
+# Get the temperature using a global region on all the object
 # get_temp_NII_SII(NII_dat_filename="gaussian_fitting/tests_large_regions/strongest_region/NII_globreg.dat",
 #                  SII_dat_filename="gaussian_fitting/tests_large_regions/strongest_region/SII_1_globreg.dat",
 #                  NII_reg_filename="gaussian_fitting/tests_large_regions/strongest_region/NII_calib.reg",
 #                  SII_reg_filename="gaussian_fitting/tests_large_regions/strongest_region/SII_calib.reg")
+
+# Get the temperature using a region only on the object's center
 # get_temp_NII_SII(NII_dat_filename="gaussian_fitting/tests_large_regions/calibration_minimized/NII_center.dat",
 #                  SII_dat_filename="gaussian_fitting/tests_large_regions/calibration_minimized/SII_1_center.dat",
 #                  NII_reg_filename="gaussian_fitting/tests_large_regions/calibration_minimized/NII.reg",
@@ -424,6 +441,7 @@ def get_courtes_temperature(settings: dict):
     temperature_map.plot_map()
     temperature_map.save_as_fits_file(settings["save_file_name"])
 
+
 """
 # These settings allow for the computation of the temperature map using the Halpha and NII emission lines present in 
 the NII cube
@@ -498,7 +516,7 @@ settings_SII_NII = {
 
 def get_region_stats(Map, filename: str=None, write=False):
     """
-    In this example, the statistics of a map are printed and stored in a .txt file.
+    In this example, the statistics of a map are printed and stored in a .txt file if the write bool is set to True.
     """
     # Open the three studied regions
     # The fact that the first element is None allows the stats to be calculated on the entire region
@@ -632,7 +650,7 @@ def get_temperature_from_SII_broadening():
 # get_temperature_from_SII_broadening()
 
 
-def get_ACF_plot(calc=False):
+def get_ACF_plot(calc: bool=False):
     """
     In this example, the ACF is plotted for different steps. If calc is True, the function is calculated but not 
     plotted.
@@ -665,7 +683,7 @@ def get_ACF_plot(calc=False):
     # get_ACF_plot(calc=True)
 
 
-def get_structure_function_plot(calc=False):
+def get_structure_function_plot(calc: bool=False):
     """
     In this example, the structure function is plotted for different steps. If calc is True, the function is calculated
     but not plotted.
@@ -700,19 +718,6 @@ def get_structure_function_plot(calc=False):
 #     get_structure_function_plot(calc=True)
 
 
-def test_structure():
-    turbulence_map = Map(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits")[0])
-    turbulence_map.test_structure_func()
-    # np.save(f"gaussian_fitting/test_1_lag.npy", turbulence_map.test_structure_func())
-    # data_array = np.load(f"gaussian_fitting/data_arrays/data_array_b{step}.npy", allow_pickle=True)
-    # plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
-    # plt.show()
-
-
-# if __name__ == "__main__":
-#     test_structure()
-
-
 def get_fit_function(array, s_factor):
     """
     In this example, the data of a certain statistical method is fitted using an spline, and the data, spline and 
@@ -728,30 +733,3 @@ def get_fit_function(array, s_factor):
 
 
 # get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/structure_function/bin=1.2.npy"), 15)
-
-
-# if __name__ == "__main__":
-#     nii_centroid = Map_u(fits.open("gaussian_fitting/maps/computed_data/NII_mean.fits"))
-#     nii_fwhm = Map_usnr(fits.open("gaussian_fitting/maps/computed_data/NII_fwhm.fits"))
-#     nii_centroid_snr = Map_usnr.from_Map_u_object(nii_centroid, nii_fwhm[2])
-#     filtered_nii = nii_centroid_snr.filter_snr(6)[130:380,70:410]
-#     filtered_nii.plot_map()
-#     np.save("gaussian_fitting/bin=None.npy", filtered_nii.get_autocorrelation_function_array())
-#     # np.save("gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", 
-#               filtered_nii.get_autocorrelation_function_array())
-#     data_array = np.load(f"gaussian_fitting/arrays/nii_centroid_map/ACF/bin=None.npy", allow_pickle=True)
-#     plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
-#     plt.show()
-
-
-# for i in np.round(np.arange(1.2,1.6,0.1), 1):
-#     old = np.load(f"gaussian_fitting/bin={i}.npy")
-#     new = np.load(f"gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={i}.npy")
-#     ax1 = plt.subplot(1,2,1)
-#     ax2 = plt.subplot(1,2,2)
-#     ax1.plot(old[:,0], old[:,1], "o", markersize=1)
-#     ax2.plot(new[:,0], new[:,1], "o", markersize=1)
-#     plt.title(i)
-#     plt.show()
-#     print(i, np.max(old[:,1] - new[:,1]))
-

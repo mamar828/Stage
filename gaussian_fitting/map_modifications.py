@@ -11,6 +11,11 @@ import scipy
 from fits_analyzer import *
 from celestial_coords import *
 
+"""
+The following file is used to modify any map. It is primarily used for WCS adjustments.
+For the best WCS adjustment method, see the last section of this file.
+"""
+
 # nuit_3 = fits.open("lambda_3.fits")[0].data
 # nuit_4 = fits.open("lambda_4.fits")[0].data
 # header = fits.open("lambda_3.fits")[0].header
@@ -22,9 +27,6 @@ from celestial_coords import *
 
 # dc = Data_cube()
 
-"""
-The following file is used to modify any map. It is primarily used for WCS adjustments.
-"""
 
 
 
