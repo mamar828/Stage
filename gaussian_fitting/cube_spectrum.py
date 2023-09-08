@@ -1124,15 +1124,7 @@ class SII_spectrum(Spectrum):
 
 
 
-
-
-
-
-
-
-
-
-
+# Test area
 """ 
 def loop_di_loop(filename):
     x = 150
