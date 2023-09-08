@@ -4,15 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import warnings
-import scipy
-import astropy
 
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.visualization.wcsaxes import WCSAxes
-from astropy import units as u
-from reproject import reproject_interp
-from PIL import Image
 from copy import deepcopy
 
 if not sys.warnoptions:
@@ -49,47 +44,6 @@ class Fits_file():
             pass
         return header_copy
     
-    def get_header_in_equatorial_coords(self):
-        # Convert CRVALs and CDELTs in equatorial coordinates
-        galactic_CRVALS = astropy.coordinates.SkyCoord(l=self.header["CRVAL1"]*u.degree, 
-                                                       b=self.header["CRVAL2"]*u.degree, frame="galactic")
-        galactic_CDELTS = astropy.coordinates.SkyCoord(
-            l=(self.header["CRVAL1"] + self.header["CDELT1"])*u.degree, 
-            b=(self.header["CRVAL2"] + self.header["CDELT2"])*u.degree, frame="galactic"
-        )
-        equatorial_CRVALS = galactic_CRVALS.transform_to("fk5")
-        equatorial_CDELTS = galactic_CDELTS.transform_to("fk5")
-
-        new_header = self.header.copy()
-        new_header["CRVAL1"], new_header["CRVAL2"] = equatorial_CRVALS.ra.deg, equatorial_CRVALS.dec.deg
-
-        # new_header["CDELT1"], new_header["CDELT2"] = equatorial_CDELTS.ra.deg, equatorial_CDELTS.dec.deg
-        # new_header["CDELT1"] = self.header["CDELT1"] / self.header["CRVAL1"] * new_header["CRVAL1"]
-        # new_header["CDELT2"] = self.header["CDELT2"] / self.header["CRVAL2"] * new_header["CRVAL2"]
-        new_header["CTYPE1"] = f"RA---TAN"
-        new_header["CTYPE2"] = f"DEC--TAN"
-        return new_header
-    
-    def get_eqqqqq_dab_dab_dab(self):
-        new_header = self.header.copy()
-
-        # Create a WCS object from the original header
-        wcs = WCS(new_header)
-
-        # Convert the celestial part of the WCS to FK5 coordinates
-        fk5_wcs = wcs.dropaxis(2).sub(['longitude', 'latitude']).replicate_frame(astropy.coordinates.FK5())
-
-        # Update header keywords to reflect FK5 coordinates
-        new_header['CTYPE1'] = 'RA---TAN'       # GLS
-        new_header['CTYPE2'] = 'DEC--TAN'       # GLS
-        new_header['COORDSYS'] = 'FK5'
-        new_header['EQUINOX'] = 2000.0  # You might need to adjust this if the equinox is different
-
-        # Update the header with the new WCS information
-        new_header.update(fk5_wcs.to_header())
-
-        return new_header
-    
     def save_as_fits_file(self, filename: str):
         """
         Write an array as a fits file of the specified name with or without a header. If the object has a header, it
@@ -105,7 +59,6 @@ class Fits_file():
             fits.open(filename)[0]
             # The file already exists
             while True:
-                # answer = "y"
                 answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
                 if answer == "y":
                     fits.writeto(filename, self.data, self.header, overwrite=True)
@@ -113,7 +66,7 @@ class Fits_file():
                     break
 
                 elif answer == "n":
-                    break        
+                    break
                 
         except:
             # The file does not yet exist
@@ -132,7 +85,7 @@ class Data_cube(Fits_file):
 
         Arguments
         ---------
-        fits_object: astropy.io.fits.hdu.image.PrimaryHDU. Contains the data values and header of the data cube.
+        fits_object: astropy.io.fits.PrimaryHDU. Contains the data values and header of the data cube.
         axes_info: dict, default={"x": "l", "y": "b", "z": "v"}. Specifies what is represented by which axis and it is
         mainly used in the swap_axes() method. The given dict is stored in the info attribute and information on a 
         Data_cube's axes can always be found by printing said Data_cube.
@@ -198,26 +151,10 @@ class Data_cube(Fits_file):
         
         return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
 
-    def rotate(self, angle) -> Data_cube:
-        rotated_data = scipy.ndimage.rotate(self.data.swapaxes(0,2).swapaxes(0,1), angle=angle)
-        return Data_cube(fits.PrimaryHDU(rotated_data.swapaxes(0,1).swapaxes(0,2), self.header))
-
-    def bin_cube_diagonally(self, nb_pix_bin: int, angle: float) -> Data_cube:
-        """
-        Bin a Data_cube diagonally. This takes the values of the cube in a diagonal manner.
-        """
-        # The old shape is stored to make the array reshaping easier
-        old_shape = np.array(self.data.shape) / nb_pix_bin
-        rotated_data = self.rotate(angle).bin_cube(nb_pix_bin).rotate(-angle).data
-        new_shape = np.array(rotated_data.shape)
-        # The pixels that need to be cropped are calculated and a slice tuple is made
-        crop_pix = np.floor((new_shape[1:] - old_shape[1:]) / 2)
-        slices = np.array((
-            crop_pix[0]+1, new_shape[1]-crop_pix[0]-1,crop_pix[1]+1,new_shape[2]-crop_pix[1]-1)).astype(int)
-        return Data_cube(
-            fits.PrimaryHDU(rotated_data[:,slices[0]:slices[1],slices[2]:slices[3]], self.bin_header(nb_pix_bin)))
-
     def plot_cube(self):
+        """
+        Plot a data cube by taking a slice at channel 14.
+        """
         fig = plt.figure()
         # The axes are set to have celestial coordinates
         ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=WCS(self.header)[13,:,:])
@@ -304,5 +241,5 @@ class Data_cube(Fits_file):
         return new_header
 
 
-N4 = Data_cube(fits.open("HI_regions/CO_data/Loop4N4_Conv_Med_FinalJS.fits"))
-N4.swap_axes({"x":"v","y":"b","z":"l"}).save_as_fits_file("vbl_N4.fits")
+# N4 = Data_cube(fits.open("HI_regions/CO_data/Loop4N4_Conv_Med_FinalJS.fits"))
+# N4.swap_axes({"x":"v","y":"b","z":"l"}).save_as_fits_file("vbl_N4.fits")
