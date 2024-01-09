@@ -149,11 +149,11 @@ class Data_cube(Fits_file):
         bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
                                                 int(data.shape[2]/nb_pix_bin), nb_pix_bin)
         
-        return Data_cube(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
+        return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
 
     def plot_cube(self):
         """
-        Plot a data cube by taking a slice at channel 14.
+        Plot a Data_cube by taking a slice at channel 14.
         """
         fig = plt.figure()
         # The axes are set to have celestial coordinates
@@ -202,7 +202,7 @@ class Data_cube(Fits_file):
             new_data = new_data.swapaxes(1,2)
             new_header = self.get_switched_header(1,2, header=new_header)
 
-        return Data_cube(fits.PrimaryHDU(new_data.swapaxes(0,2), new_header), new_axes)
+        return self.__class__(fits.PrimaryHDU(new_data.swapaxes(0,2), new_header), new_axes)
 
     def get_switched_header(self, axis_1: int, axis_2: int, header: fits.Header=None) -> fits.Header:
         """
