@@ -11,6 +11,7 @@ from astropy.visualization.wcsaxes import WCSAxes
 from data_cube import Data_cube
 from galactic_coords import b
 
+from eztcolors import Colors as C
 
 class HI_cube(Data_cube):
     """
@@ -24,8 +25,8 @@ class HI_cube(Data_cube):
         Arguments
         ---------
         z_coordinate: int. Specifies the z coordinate at which the Data_cube is sliced to be plotted.
-            color_scale: tuple, default=(0,25). First element specifies the lower color_scale limit and the second element
-            sets the upper limit.
+            color_scale: tuple, default=(0,25). First element specifies the lower color_scale limit and the second
+            element sets the upper limit.
         scatters: list of np.ndarray, optional. Gives the scatters to plot on top of the Data_cube slice.
         """
         fig = plt.figure()
@@ -64,23 +65,24 @@ class HI_cube(Data_cube):
         b_bounds: list of b objects. Specifies the galactic latitude bounds between which the search will be made. Both
             values are included.
         tolerance: float. Controls the sensitivity of signal drop detection. The value given corresponds to the
-            percentage of the average peak value along each horizontal line (determined with the get_horizontal_maximums()
-            method) that will be considered a signal drop. E.g. for a value of 0.5, if a pixel along the central line has a
-            value beneath 0.5 times the average peak value, it will be flagged as a potential signal drop.
+            percentage of the average peak value along each horizontal line (determined with the
+            get_horizontal_maximums() method) that will be considered a signal drop. E.g. for a value of 0.5, if a
+            pixel along the central line has a value beneath 0.5 times the average peak value, it will be flagged as a
+            potential signal drop.
         max_regroup_separation: int. Maximum separation of two consecutive points that will be considered to belong to
-            the same signal drop section. This controls how many different regions will be outputted and will merge those
-            that are close.
+            the same signal drop section. This controls how many different regions will be outputted and will merge
+            those that are close.
         pixel_width: int, default=1. This parameter must be greater than or equal to 1 and specifies the width of the
-            search along every longitude. For example, pixel_width=3 will search along the pixel at v=0 and the two pixels
-            to its right. The default value will only search along v=0.
+            search along every longitude. For example, pixel_width=3 will search along the pixel at v=0 and the two
+            pixels to its right. The default value will only search along v=0.
         max_accepted_shear: int, optional. Maximum number of pixels to the left of v=0 that are analyzed to look for a
             maximum.
 
         Returns
         -------
         dict: each key is the pixel at which the shear was detected and the corresponding value is the data of the
-        detected shear outputted by the HI_slice.check_shear() method. 0: bounds of the detected shear in pixels,
-        1: shear width in km/s, 2: coordinates of the max shear point.
+            detected shear outputted by the HI_slice.check_shear() method. 0: bounds of the detected shear in pixels,
+            1: shear width in km/s, 2: coordinates of the max shear point.
         """
         # Verify provided arguments
         assert isinstance(pixel_width, int), "pixel_width provided must be an integer"
@@ -89,12 +91,12 @@ class HI_cube(Data_cube):
         collected_info = {}
         if self.info["z"] == "b":
             # Convert bounds to array indices
-            for b in range(b_bounds[0].to_pixel(self.header), b_bounds[1].to_pixel(self.header)):
+            for b in range(b_bounds[0].to_pixel(self.header), b_bounds[1].to_pixel(self.header)+1):
                 collected_info[b] = HI_slice(self, b, l_bounds).check_shear(
                                                   (max_accepted_shear, tolerance, max_regroup_separation, pixel_width))
         elif self.info["z"] == "l":
             # Convert bounds to array indices
-            for l in range(b_bounds[0].to_pixel(self.header), b_bounds[1].to_pixel(self.header)):
+            for l in range(b_bounds[0].to_pixel(self.header), b_bounds[1].to_pixel(self.header)+1):
                 collected_info[b] = HI_slice(self, l, b_bounds).check_shear(
                                                                       (tolerance, max_regroup_separation, pixel_width))
         else:
@@ -108,14 +110,21 @@ class HI_cube(Data_cube):
         
         Arguments
         ---------
-        shear_info: dict. Information that should be displayed,
+        shear_info: dict. Information that should be displayed, in the format outputted by HI_cube.extract_shear():
+            keys are the z_coordinates and values are 0: bounds in pixels of the detected shear, 1: shear width in km/s, 
+            2: coordinates of the max shear point.
         fullscreen: bool, default=False. Specify if the plot should be opened in full screen.
         """
         for key, value in shear_info.items():
-            for bounds, shear_width, max_coords in value:
-                current_slice = HI_slice(self, key)
-                current_slice.plot(bounds, shear_width, max_coords, fullscreen)
-        print("Shear watching ended successfully.")
+            try:
+                for bounds, shear_width, max_coords in value:
+                    current_slice = HI_slice(self, key)
+                    current_slice.plot(bounds, shear_width, max_coords, fullscreen)
+            except Exception:
+                print(f"{C.RED}{C.BOLD}Exception occured at z={key}.{C.END}")
+                raise Exception
+        
+        print(f"{C.GREEN}{C.BOLD}Shear watching ended successfully.{C.END}")
 
 
 
@@ -135,7 +144,8 @@ class HI_slice:
         y_limits: list. Gives the pixels between which the search will be made. Pixels lower than the lower limit or
             higher than the higher limit will be considered as noise. Both values are included.
         """
-        self.data = HI_cube.data[z_coordinate,:,:]
+        # Slicing starts at 0 whereas DS9 numbering starts at 1
+        self.data = HI_cube.data[z_coordinate-1,:,:]
         self.z_coordinate = z_coordinate
         self.info = HI_cube.info
         self.header = HI_cube.header
@@ -164,7 +174,7 @@ class HI_slice:
         plt.colorbar(ax.imshow(self.data, origin="lower", vmin=color_scale[0], vmax=color_scale[1]))
         
         # Set parameters
-        if bounds and shear_width and max_coords:
+        if bounds is not None and shear_width is not None and max_coords is not None:
             min_xlim = self.data.shape[1]/2 - 10
             max_xlim = self.data.shape[1]/2 + max(10, max_coords[0] - self.data.shape[1]/2 + 10)
             plt.xlim(min_xlim, max_xlim)
@@ -204,7 +214,7 @@ class HI_slice:
         Returns
         -------
         list: data of every detected shear. Each element has 0: bounds of the detected shear in pixels, 1: shear width
-        in km/s, 2: coordinates of the max shear point.
+            in km/s, 2: coordinates of the max shear point.
         """
         max_accepted_shear, tolerance, max_regroup_separation, pixel_width = params
 
@@ -234,8 +244,8 @@ class HI_slice:
         ---------
         points: list. Data that needs to be grouped.
         max_regroup_separation: int. Maximum separation of two consecutive points that will be considered to belong to
-            the same signal drop section. This controls how many different regions will be outputted and will merge those
-            that are close.
+            the same signal drop section. This controls how many different regions will be outputted and will merge
+            those that are close.
         
         Returns
         -------
@@ -256,12 +266,13 @@ class HI_slice:
         Arguments
         ---------
         tolerance: float. Controls the sensitivity of signal drop detection. The value given corresponds to the
-            percentage of the average peak value along each horizontal line (determined with the get_horizontal_maximums()
-            method) that will be considered a signal drop. E.g. for a value of 0.5, if a pixel along the central line has a
-            value beneath 0.5 times the average peak value, it will be flagged as a potential signal drop.
+            percentage of the average peak value along each horizontal line (determined with the
+            get_horizontal_maximums() method) that will be considered a signal drop. E.g. for a value of 0.5, if a
+            pixel along the central line has a value beneath 0.5 times the average peak value, it will be flagged as a
+            potential signal drop.
         pixel_width: int, default=1. This parameter must be greater than or equal to 1 and specifies the width of the
-            search along every longitude. For example, pixel_width=3 will search along the pixel at v=0 and the two pixels
-            to its right. The default value will only search along v=0.
+            search along every longitude. For example, pixel_width=3 will search along the pixel at v=0 and the two
+            pixels to its right. The default value will only search along v=0.
 
         Returns
         -------
@@ -291,14 +302,11 @@ class HI_slice:
         Returns
         -------
         tuple: first element is the width in km/s computed using the header's informations and the second element is a
-        tuple of the detected maximum's coordinates.
+            tuple of the detected maximum's coordinates.
         """
         maxs = self.get_horizontal_maximums()[slice(bounds[0], bounds[1]+1),0]
         if max_accepted_shear:
-            print(self.z_coordinate)
-            print(maxs)
             np.place(maxs, maxs > max_accepted_shear + self.header["CRPIX1"], 0)
-            print(maxs)
 
         # Compute the distance using the header and convert m/s to km/s
         max_width = - (np.max(maxs) - self.header["CRPIX1"]) * self.header["CDELT1"] / 1000
@@ -307,31 +315,19 @@ class HI_slice:
 
 
 
-# n=149
 HI = HI_cube(fits.open("HI_regions/LOOP4_bin2.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
-# slicy = HI_slice(HI, 149)
-shear_points = HI.extract_shear([130,350], [b("32:30:29.077"),b("32:31:41.077")], 0.4, 10, 3, 7)
-# shear_points = HI.extract_shear([130,350], [b("32:30:29.077"),b("32:31:41.077")], 0.4, 10, 3)
+
+shear_points = HI.extract_shear(
+    l_bounds=[130,350], 
+    b_bounds=[b("32:29:29.077"),b("32:31:15.078")], 
+    tolerance=0.5,
+    max_regroup_separation=1, 
+    pixel_width=3, 
+    max_accepted_shear=None
+)
+
+with open("test.txt", "a") as file:
+    file.write(shear_points)
+    file.read()
+
 HI.watch_shear(shear_points, fullscreen=True)
-
-# a = b("32:30:29.077")
-# pix = a.to_pixel(HI.header)
-# print(pix)
-# print(b.from_pixel(pix, HI.header))
-
-# print(slicy.extract_shear(0.4, 10, 3))
-# print(b("31:01:05.078").to_pixel(HI.header))
-# print(slicy.get_signal_drops(0.6,3))
-# print(slicy.get_point_groups(slicy.get_signal_drops(0.6,3), 10))
-# print(slicy.get_max_shear_width(slicy.get_point_groups(slicy.get_signal_drops(0.6,3), 10)[-1]))
-# slicy.plot(scatters=np.stack((slicy.get_horizontal_maximums()[:,0], np.arange(slicy.data.shape[0])), axis=0))
-# maxs = HI.get_horizontal_maximums(n)
-# print(np.mean(maxs[150:330]))
-# HI.plot_cube(n, scatters=np.stack((maxs, np.arange(HI.data.shape[1])), axis=0))
-
-
-
-
-# Add limits in galactic coords
-# View method
-

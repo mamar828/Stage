@@ -2,6 +2,7 @@ import numpy as np
 from scipy import ndimage
 from PIL import Image
 import matplotlib.pyplot as plt
+from eztcolors import Colors as C
 
 # v = np.zeros((3,4,5))
 # print(v.shape)
@@ -40,9 +41,22 @@ import matplotlib.pyplot as plt
 # plt.show()
 
 
-number = 5.7734
+# number = 5.7734
 
 # Format the number with leading zeros and up to 3 decimal places
-formatted_number = f"{number:06.3f}"
+# formatted_number = f"{number:06.3f}"
 
-print(formatted_number)
+# print(formatted_number)
+
+# print(C.BLUE + str(np.array([[1,2],[3,4]])))
+# print(C().help())
+
+
+for i in range(10):
+    try:
+        print(i)
+        raise
+    except Exception:
+        print("YO")
+        raise Exception
+
