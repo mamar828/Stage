@@ -48,8 +48,8 @@ class HI_cube(Data_cube):
     
     def extract_shear(
             self,
-            l_bounds: list,
-            b_bounds: list[b],
+            y_bounds: list,
+            z_bounds: list,
             tolerance: float,
             max_regroup_separation: int,
             pixel_width: int=1,
@@ -60,10 +60,10 @@ class HI_cube(Data_cube):
 
         Arguments
         ---------
-        l_bounds: list of pixel numbers. Specifies the bounds between which the search will be made. Both values are
+        y_bounds: list of pixel numbers. Specifies the bounds between which the search will be made. Both values are
             included.
-        b_bounds: list of b objects. Specifies the galactic latitude bounds between which the search will be made. Both
-            values are included.
+        z_bounds: list of b objects or pixel numbers. Specifies the z bounds between which the search will be made.
+            Both values are included.
         tolerance: float. Controls the sensitivity of signal drop detection. The value given corresponds to the
             percentage of the average peak value along each horizontal line (determined with the
             get_horizontal_maximums() method) that will be considered a signal drop. E.g. for a value of 0.5, if a
@@ -91,13 +91,19 @@ class HI_cube(Data_cube):
         collected_info = {}
         if self.info["z"] == "b":
             # Convert bounds to array indices
-            for b in range(b_bounds[0].to_pixel(self.header), b_bounds[1].to_pixel(self.header)+1):
-                collected_info[b] = HI_slice(self, b, l_bounds).check_shear(
+            if isinstance(z_bounds[0], b):
+                z_bounds_array = z_bounds[0].to_pixel(self.header), z_bounds[1].to_pixel(self.header) + 1
+            elif isinstance(z_bounds[0], int):
+                z_bounds_array = z_bounds[0], z_bounds[1] + 1
+            else:
+                raise NotImplementedError(C.RED + "z_bounds type not supported." + C.END)
+            for z in range(*z_bounds_array):
+                collected_info[z] = HI_slice(self, z, y_bounds).check_shear(
                                                   (max_accepted_shear, tolerance, max_regroup_separation, pixel_width))
         elif self.info["z"] == "l":
             # Convert bounds to array indices
-            for l in range(b_bounds[0].to_pixel(self.header), b_bounds[1].to_pixel(self.header)+1):
-                collected_info[b] = HI_slice(self, l, b_bounds).check_shear(
+            for l in range(z_bounds[0].to_pixel(self.header), z_bounds[1].to_pixel(self.header)+1):
+                collected_info[b] = HI_slice(self, l, z_bounds).check_shear(
                                                                       (tolerance, max_regroup_separation, pixel_width))
         else:
             raise TypeError("HI_cube should be a rotated cube with either longitude or latitude as z axis.")
@@ -149,6 +155,7 @@ class HI_slice:
         self.z_coordinate = z_coordinate
         self.info = HI_cube.info
         self.header = HI_cube.header
+        self.x_center = int(np.round(self.header["CRPIX1"] - self.header["CRVAL1"] / self.header["CDELT1"]))
         if y_limits:
             # Account for the fact that both values are included
             self.y_limits = y_limits[0], y_limits[1]+1
@@ -175,16 +182,16 @@ class HI_slice:
         
         # Set parameters
         if bounds is not None and shear_width is not None and max_coords is not None:
-            min_xlim = self.data.shape[1]/2 - 10
-            max_xlim = self.data.shape[1]/2 + max(10, max_coords[0] - self.data.shape[1]/2 + 10)
+            min_xlim = self.x_center - 10
+            max_xlim = self.x_center + max(10, max_coords[0] - self.x_center + 10)
             plt.xlim(min_xlim, max_xlim)
             plt.ylim(bounds[0]-40, bounds[1]+40)
 
             # Add the rectangle around the detected shear and enlarge so that the border is at the outside of the
             # concerned pixels
             region = mpl.patches.Rectangle(
-                (self.header["CRPIX1"]-0.5,bounds[0]-0.5), 
-                max_coords[0] - self.header["CRPIX1"] + 1, bounds[1] - bounds[0] + 1,
+                (self.x_center - 0.5,bounds[0] - 0.5), 
+                max_coords[0] - self.x_center + 1, bounds[1] - bounds[0] + 1,
                 linewidth=2, edgecolor='r', facecolor='none'
             )
             max_shear = mpl.patches.Rectangle(
@@ -193,9 +200,14 @@ class HI_slice:
             ax.add_patch(region)
             ax.add_patch(max_shear)
             z = self.z_coordinate
-            plt.title(
-                f"Current z_coordinate: {z} ({b.from_pixel(z, self.header)}), shear_width: {shear_width:.2f} km/s"
-            )
+            if "GLAT" in self.header["CTYPE3"]:
+                plt.title(
+                    f"Current z_coordinate: {z} ({b.from_pixel(z, self.header)}), shear_width: {shear_width:.2f} km/s"
+                )
+            else:
+                plt.title(
+                    f"Current z_coordinate: {z}, shear_width: {shear_width:.2f} km/s"
+                )
         
         if fullscreen:
             manager = plt.get_current_fig_manager()
@@ -280,12 +292,12 @@ class HI_slice:
         """
         # Extract useful informations
         maxs = self.get_horizontal_maximums()
-        x_center = int(self.header["CRPIX1"])
         y_slice = slice(*self.y_limits)
         average_max = np.mean(maxs[y_slice,1])
 
         # Get the array representing every y value that has a drop
-        y_shear = np.where(np.any(self.data[:,x_center:x_center+pixel_width] <= average_max * tolerance, axis=1))[0]
+        y_shear = np.where(np.any(self.data[:,self.x_center:self.x_center+pixel_width] <= average_max * tolerance, 
+                                  axis=1))[0]
         # Return only the values between the y_limits
         return y_shear[(self.y_limits[0] <= y_shear) & (y_shear <= self.y_limits[1])]
 
@@ -306,28 +318,34 @@ class HI_slice:
         """
         maxs = self.get_horizontal_maximums()[slice(bounds[0], bounds[1]+1),0]
         if max_accepted_shear:
-            np.place(maxs, maxs > max_accepted_shear + self.header["CRPIX1"], 0)
+            np.place(maxs, maxs > max_accepted_shear + self.x_center, 0)
 
         # Compute the distance using the header and convert m/s to km/s
-        max_width = - (np.max(maxs) - self.header["CRPIX1"]) * self.header["CDELT1"] / 1000
+        max_width = - (np.max(maxs) - self.x_center) * self.header["CDELT1"] / 1000
         coords = np.max(maxs), np.argmax(maxs) + bounds[0]
         return max_width, coords
 
 
 
-HI = HI_cube(fits.open("HI_regions/LOOP4_bin2.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
+# HI = HI_cube(fits.open("HI_regions/LOOP4_bin2.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
+HI = HI_cube(fits.open("HI_regions/Spider_bin4.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
+# HI.save_as_fits_file("alllloooooo.fits")
 
+# shear_points = HI.extract_shear(
+#     y_bounds=[130,350], 
+#     z_bounds=[b("32:29:29.077"),b("32:31:15.078")], 
+#     tolerance=0.5,
+#     max_regroup_separation=5, 
+#     pixel_width=3, 
+#     max_accepted_shear=5
+# )
 shear_points = HI.extract_shear(
-    l_bounds=[130,350], 
-    b_bounds=[b("32:29:29.077"),b("32:31:15.078")], 
-    tolerance=0.5,
-    max_regroup_separation=1, 
-    pixel_width=3, 
+    y_bounds=[100,350],
+    z_bounds=[80,330],
+    tolerance=0.1,
+    max_regroup_separation=3,
+    pixel_width=3,
     max_accepted_shear=None
 )
-
-with open("test.txt", "a") as file:
-    file.write(shear_points)
-    file.read()
 
 HI.watch_shear(shear_points, fullscreen=True)
