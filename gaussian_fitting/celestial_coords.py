@@ -16,7 +16,7 @@ class RA(Celestial_coords):
 
         Arguments
         ---------
-        time: str. Specifies the right ascension in clock format (HH:MM:SS.SSS -> Hours, Minutes, Seconds)
+        time: str. Specifies the right ascension in clock format (HH:MM:SS.SSS -> Hours, Minutes, Seconds).
         """
         # Split and convert each element in the time str to floats
         self.hours, self.minutes, self.seconds = [float(element) for element in time.split(":")]
@@ -31,8 +31,6 @@ class RA(Celestial_coords):
         """
         return (self.hours*3600 + self.minutes*60 + self.seconds)/(24*3600) * 360
 
-
-
 class DEC(Celestial_coords):
     """
     Encapsulate the methods specific to declination coordinates.
@@ -44,7 +42,7 @@ class DEC(Celestial_coords):
 
         Arguments
         ---------
-        time: str. Specifies the declination in clock format (DD:MM:SS.SSS -> Degrees, Minutes, Seconds)
+        time: str. Specifies the declination in clock format (DD:MM:SS.SSS -> Degrees, Minutes, Seconds).
         """
         # Split and convert each element in the time str to floats
         self.angle, self.minutes, self.seconds = [float(element) for element in time.split(":")]

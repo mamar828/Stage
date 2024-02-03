@@ -5,20 +5,21 @@ import numpy as np
 import sys
 import warnings
 import scipy
+import pyregion
+import multiprocessing
+import time
+import os
+import uncertainties as unc
 
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import units as u
 from reproject import reproject_interp
-import pyregion
-from pprint import pprint
+from matplotlib.animation import FuncAnimation
 
 from cube_spectrum import *
 from celestial_coords import *
 
-import multiprocessing
-import time
-import os
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -208,6 +209,55 @@ class Data_cube(Fits_file):
         # dimensional state
         return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
     
+    def plot_cube(self,
+            cbar_bounds: tuple=None,
+            x_bounds: tuple=None,
+            y_bounds: tuple=None,
+            title: str=None,
+            cbar_label: str=None,
+            filename: str=None
+        ):
+        """
+        Plot a Data_cube by animating the change of frames.
+        
+        Arguments
+        ---------
+        cbar_bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
+        element is the minimum and the second is the maximum.
+        x_bounds: tuple, optional. Sets the plot's horizontal bounds.
+        y_bounds: tuple, optional. Sets the plot's vertical bounds.
+        title: str, optional. Sets the plot's title.
+        cbar_label: str, optional. Sets the colorbar's label.
+        filename: str, optional. Sets the filename of the saved figure. If present, the figure will not be plotted but
+        only saved.
+        """
+        fig, ax = plt.subplots()
+        if cbar_bounds:
+            plot = ax.imshow(self.data[0,:,:], origin="lower", cmap="viridis", vmin=cbar_bounds[0], vmax=cbar_bounds[1])
+            # plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=cbar_bounds[0], vmax=cbar_bounds[1]))
+        else:
+            plot = ax.imshow(self.data[0,:,:], origin="lower", cmap="viridis")
+            # plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis"))
+        cbar = plt.colorbar(plot)
+        cbar.set_label(cbar_label)
+        if x_bounds:
+            plt.xlim(*x_bounds)
+        if y_bounds:
+            plt.ylim(*y_bounds)
+        plt.title(title)
+
+        def next_slice(frame_number):
+            plot.set_array(self.data[frame_number,:,:])
+            cbar.update_normal(plot)
+        
+        animation = FuncAnimation(fig, next_slice, frames=self.data.shape[0], interval=75)
+
+        if filename:
+            animation.save(filename, writer="pillow", dpi=300)
+        else:
+            plt.show()
+
+
     def get_header_without_third_dimension(self) -> fits.Header:
         """
         Get the adaptation of a Data_cube object's header for a Map object by removing the spectral axis.
@@ -238,16 +288,6 @@ class Data_cube(Fits_file):
         for element in extract:
             assert element == "mean" or element == "amplitude" or element == "FWHM", \
                     "Unsupported element in extract list."
-    
-    def get_center_tuple(self) -> tuple[int]:
-        """
-        Get the coordinates of the calibration's center in the form of a tuple.
-        
-        Returns
-        -------
-        tuple of ints: rounded coordinates.
-        """
-        return round(self.header["CAL_CEN1"]), round(self.header["CAL_CEN2"])
 
 
 
@@ -282,6 +322,16 @@ class Calibration_data_cube(Data_cube):
         new_header = self.get_header_without_third_dimension()
         return Map_u(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0], new_header),
                                    fits.ImageHDU(fit_fwhm_map[:,:,1], new_header)]))
+    
+    def get_center_tuple(self) -> tuple[int]:
+        """
+        Get the coordinates of the calibration's center in the form of a tuple.
+        
+        Returns
+        -------
+        tuple of ints: rounded coordinates.
+        """
+        return round(self.header["CAL_CEN1"]), round(self.header["CAL_CEN2"])
     
     def worker_fit(self, x: int) -> list:
         """
@@ -700,6 +750,9 @@ class Map(Fits_file):
     def __getitem__(self, key):
         return Map(fits.PrimaryHDU(self.data[key], None), self.name)
 
+    def __len__(self):
+        return np.count_nonzero(~np.isnan(self.data))
+    
     def copy(self):
         return Map(fits.PrimaryHDU(np.copy(self.data), self.header.copy()), str(self.name))
     
@@ -718,32 +771,54 @@ class Map(Fits_file):
         new_data = np.repeat(self.data, new_axis_shape).reshape(*reversed(self.data.shape), new_axis_shape)
         return Map(fits.PrimaryHDU(new_data, self.header), self.name)
 
-    def plot_map(self, bounds: tuple=None):
+    def plot_map(self,
+            cbar_bounds: tuple=None,
+            x_bounds: tuple=None,
+            y_bounds: tuple=None,
+            title: str=None,
+            cbar_label: str=None,
+            filename: str=None
+        ):
         """
         Plot the map in matplotlib.pyplot.
 
         Arguments
         ---------
-        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
+        cbar_bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
         element is the minimum and the second is the maximum.
+        x_bounds: tuple, optional. Sets the plot's horizontal bounds.
+        y_bounds: tuple, optional. Sets the plot's vertical bounds.
+        title: str, optional. Sets the plot's title.
+        cbar_label: str, optional. Sets the colorbar's label.
+        filename: str, optional. Sets the filename of the saved figure. If present, the figure will not be plotted but
+        only saved.
         """
-        if bounds:
-            plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
+        if cbar_bounds:
+            plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=cbar_bounds[0], vmax=cbar_bounds[1]))
         else:
-            plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis"))
-        plt.show()
+            plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis"))
+        if x_bounds:
+            plt.xlim(*x_bounds)
+        if y_bounds:
+            plt.ylim(*y_bounds)
+        plt.title(title)
+        plot.ax.set_ylabel(cbar_label)
+        if filename:
+            plt.savefig(filename, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
 
-    def plot_two_maps(self, other: Map, bounds: tuple=None):
+    def plot_two_maps(self, other: Map, cbar_bounds: tuple=None):
         """
         Plot two maps superposed with a certain alpha.
 
         Arguments
         ---------
         other: Map object. The second map that will be plotted with the magma colormap.
-        bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
+        cbar_bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
         element is the minimum and the second is the maximum.
         """
-        if bounds is None:
+        if cbar_bounds is None:
             ax1 = plt.subplot(1,2,1)
             ax2 = plt.subplot(1,2,2)
             plt.colorbar(ax1.imshow(self.data, origin="lower", cmap="viridis"))
@@ -751,8 +826,10 @@ class Map(Fits_file):
         else:
             ax1 = plt.subplot(1,2,1)
             ax2 = plt.subplot(1,2,2)
-            plt.colorbar(ax1.imshow(self.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
-            plt.colorbar(ax2.imshow(other.data, origin="lower", cmap="viridis", vmin=bounds[0], vmax=bounds[1]))
+            plt.colorbar(ax1.imshow(self.data, origin="lower", cmap="viridis",
+                                    vmin=cbar_bounds[0], vmax=cbar_bounds[1]))
+            plt.colorbar(ax2.imshow(other.data, origin="lower", cmap="viridis",
+                                    vmin=cbar_bounds[0], vmax=cbar_bounds[1]))
         plt.show()
 
     def bin_map(self, nb_pix_bin: int=2) -> Map:
@@ -789,7 +866,7 @@ class Map(Fits_file):
 
         Arguments
         ---------
-        center: tuple of ints. Specifies the coordinates of the interference pattern's center pixel.
+        center: tuple of ints, default=(527,484). Specifies the coordinates of the interference pattern's center pixel.
 
         Returns
         -------
@@ -905,8 +982,7 @@ class Map(Fits_file):
     def transfer_temperature_to_FWHM(self, element: str) -> Map:
         """
         Get the FWHM of the thermal Doppler broadening. This is used to convert the temperature map into a FWHM map 
-        that can be compared with other FWHM maps. This method uses the NII peak's wavelength for the Doppler 
-        calculations.
+        that can be compared with other FWHM maps.
 
         Arguments
         ---------
@@ -932,16 +1008,16 @@ class Map(Fits_file):
         speed_FWHM = c * angstroms_FWHM / angstroms_center / 1000
         return speed_FWHM
     
-    def get_region_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
+    def get_region_statistics(self, region: pyregion.core.ShapeList=None, *, get_new_map: bool=False) -> dict:
         """
-        Get the statistics of a region along with a histogram. The supported statistic measures are: median, mean, 
-        standard deviation, skewness and kurtosis.
+        Get the statistics of a region. The supported statistic measures are: median, mean, standard deviation,
+        skewness and kurtosis.
 
         Arguments
         ---------
-        region: pyregion.core.ShapeList, default=None. Region in which the statistics need to be calculated. A 
+        region: pyregion.core.ShapeList, default=None. Region in which the statistics need to be calculated. A
         histogram will also be made with the data in this region.
-        plot_histogram: bool, default=False. Boolean that specifies if the histogram should be plotted.
+        get_new_map: bool, default=False. If True, also outputs the masked map.
 
         Returns
         -------
@@ -958,16 +1034,26 @@ class Map(Fits_file):
             mask = np.where(mask == False, np.nan, 1)
             # The map's data is only kept where a mask applies
             new_map = self.copy() * mask
-        stats = {
+        
+        stats =  {
             "median": np.nanmedian(new_map.data),
             "mean": np.nanmean(new_map.data),
             "standard_deviation": np.nanstd(new_map.data),
             "skewness": scipy.stats.skew(new_map.data, axis=None, nan_policy="omit"),
             "kurtosis": scipy.stats.kurtosis(new_map.data, axis=None, nan_policy="omit")
         }
-        return stats
+        if get_new_map:
+            return stats, new_map
+        else:
+            return stats
     
-    def plot_region_histogram(self, region: pyregion.core.ShapeList=None, title: str=None):
+    def plot_region_histogram(self,
+            region: pyregion.core.ShapeList=None,
+            title: str=None,
+            x_label: str=None,
+            y_label: str=None,
+            filename: str=None
+        ):
         """
         Plot the histogram of the values in a certain region. If none is provided, then the histogram represents the
         entirety of the Map's data.
@@ -977,6 +1063,10 @@ class Map(Fits_file):
         region: pyregion.core.ShapeList, default=None. Region in which to use the values to plot the histogram. Without
         a region all the data is used.
         title: str, default=None. If present, title of the figure
+        x_label: str, default=None. If present, label of the x axis.
+        y_label: str, default=None. If present, label of the y axis.
+        filename: str, optional. Sets the filename of the saved figure. If present, the figure will not be plotted but
+        only saved.
         """
         if region is None:
             # The NANs are removed from the data from which the statistics are computed
@@ -993,10 +1083,13 @@ class Map(Fits_file):
             new_map = self.copy() * mask
             map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
             plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
-        plt.xlabel("turbulence (km/s)")
-        plt.ylabel("number of pixels")
         plt.title(title)
-        plt.show()
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        if filename:
+            plt.savefig(filename, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
 
     def get_cropped_NaNs_array(self) -> np.ndarray:
         # Determine where the data is located
@@ -1234,7 +1327,7 @@ class Map_u(Map):
     
     def __sub__(self, other):
         if issubclass(type(other), Map_u):
-            assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
+            # assert self.data.shape == other.data.shape, "Maps of different sizes are being subtracted."
             return Map_u(fits.HDUList([fits.PrimaryHDU(self.data - other.data, self.header),
                                     fits.ImageHDU(self.uncertainties + other.uncertainties, self.header)]), self.name)
         else:
@@ -1289,6 +1382,21 @@ class Map_u(Map):
             raise StopIteration
         else:
             return Map(fits.PrimaryHDU(self.object[self.n].data, self.header), self.name)
+        
+    def sum(self):
+        return Map_u(fits.HDUList([fits.PrimaryHDU(np.array([np.nansum(self.data)]), None),
+                                   fits.ImageHDU(np.array([np.nansum(self.uncertainties)]), None)]))
+        
+    def to_uncertainties_array(self) -> np.ndarray:
+        """
+        Transfer a Map_u object to a np.ndarray that uses the uncertainties package.
+
+        Returns
+        -------
+        np.ndarray: array of the same shape with each element being a uncertainties.ufloat object.
+        """
+        ufloat_converter = np.vectorize(lambda data, uncertainty: unc.ufloat(data, uncertainty))
+        return ufloat_converter(self.data, self.uncertainties)
         
     def add_new_axis(self, new_axis_shape: int) -> Map_u:
         """
@@ -1440,6 +1548,28 @@ class Map_u(Map):
                                                      order="nearest-neighbor")
         return Map_u(fits.HDUList([fits.PrimaryHDU(reprojected_data, other.header),
                                    fits.ImageHDU(reprojected_uncertainties, self.header)]), self.name)
+    
+    def get_region_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
+        """
+        Get the statistics of a region. The supported statistic measures are: median, mean, standard deviation,
+        skewness and kurtosis.
+
+        Arguments
+        ---------
+        region: pyregion.core.ShapeList, default=None. Region in which the statistics need to be calculated. A
+        histogram will also be made with the data in this region.
+
+        Returns
+        -------
+        dict: statistics of the region. Every key is a statistic measure.
+        """
+        stats, new_map = super().get_region_statistics(region, get_new_map=True)
+        # Replace median and mean with values with uncertainties
+        median = np.nanmedian(new_map.to_uncertainties_array())
+        mean = (new_map.sum()/len(new_map)).to_uncertainties_array()
+        stats["median"] = f"{median:.1u}".replace("+/-", " ± ")
+        stats["mean"] = f"{mean[0]:.1u}".replace("+/-", " ± ")
+        return stats
     
     def get_autocorrelation_function_array(self, step: float=None) -> np.ndarray:
         cropped_map = self.get_cropped_NaNs_array()
@@ -1698,7 +1828,7 @@ class Map_usnr(Map_u):
     def __eq__(self, other):
         return super().__eq__(other) and (np.nanmax(np.abs((self.snr - other.snr) / self.snr)) <= 10**(-6)
                                           or self.snr == other.snr)
-    
+
     def __getitem__(self, key):
         if isinstance(key, int):
             return Map(self.object[key])

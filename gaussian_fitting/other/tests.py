@@ -4,6 +4,7 @@ from astropy.modeling import models, fitting
 import os
 from astropy.io import fits
 import scipy
+import uncertainties
 
 
 """x = np.array([x for x in range(101)])
@@ -568,3 +569,129 @@ plt.show()
 
 
 # print("\033[1;32mfjdkaj;dsfl")
+
+
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from matplotlib.animation import FuncAnimation
+
+# # Generate a sample 3D data cube
+# data_cube = np.random.rand(10, 10, 10)
+
+# # Set up the figure and axis
+# fig, ax = plt.subplots()
+# image = ax.imshow(data_cube[:, :, 0], cmap='viridis')
+
+# # Define the update function for the animation
+# def update(frame):
+#     image.set_array(data_cube[:, :, frame])
+#     return [image]
+
+# # Create the animation
+# num_frames = data_cube.shape[2]
+# ani = FuncAnimation(fig, update, frames=num_frames, interval=200, blit=True)
+
+# # Show the animation
+# plt.show()
+
+
+# import numpy as np
+# from uncertainties import ufloat
+
+# # Your data and uncertainty arrays
+# data_array = np.array([1.0, 2.0, 3.0])
+# uncertainty_array = np.array([0.1, 0.2, 0.3])
+
+# # Define a function to convert data and uncertainty to ufloat
+# def create_ufloat(value, uncertainty):
+#     return ufloat(value, uncertainty)
+
+# # Vectorize the function
+# vectorized_ufloat = np.vectorize(create_ufloat)
+
+# # Apply the vectorized function to create ufloat_array
+# ufloat_array = vectorized_ufloat(data_array, uncertainty_array)
+
+# print(ufloat_array)
+
+
+# dataset_1 = np.array((
+#     uncertainties.ufloat(1,0.1),
+#     uncertainties.ufloat(2,0.2),
+#     uncertainties.ufloat(3,0.3),
+#     uncertainties.ufloat(4,0.4),
+#     uncertainties.ufloat(5,0.5),
+#     uncertainties.ufloat(6,0.6),
+#     uncertainties.ufloat(7,0.7),
+#     uncertainties.ufloat(8,0.8),
+#     uncertainties.ufloat(9,0.9),
+# ))
+
+# print(np.mean(dataset_1))
+# # This gives 5.00+/-0.19
+
+# # But when I calculate it this way
+# dataset_2 = np.array((
+#     [1,0.1],
+#     [2,0.2],
+#     [3,0.3],
+#     [4,0.4],
+#     [5,0.5],
+#     [6,0.6],
+#     [7,0.7],
+#     [8,0.8],
+#     [9,0.9]
+# ))
+# print(np.mean(dataset_2[:,0]), np.mean(dataset_2[:,1]))
+# # This gives 5.0+/-0.5
+
+# print(np.std(np.array((
+#     0.1,
+#     0.2,
+#     0.3,
+#     0.4,
+#     0.5,
+#     0.6,
+#     0.7,
+#     0.8,
+#     0.9,
+# ))))
+
+# import numpy as np
+# import uncertainties
+# from uncertainties import unumpy
+
+# # Your first dataset
+# dataset_1 = np.array([
+#     uncertainties.ufloat(1, 0.1),
+#     uncertainties.ufloat(2, 0.2),
+#     uncertainties.ufloat(3, 0.3),
+#     uncertainties.ufloat(4, 0.4),
+#     uncertainties.ufloat(5, 0.5),
+#     uncertainties.ufloat(6, 0.6),
+#     uncertainties.ufloat(7, 0.7),
+#     uncertainties.ufloat(8, 0.8),
+#     uncertainties.ufloat(9, 0.9),
+# ])
+
+# # Extract nominal values and uncertainties
+# nominal_values = unumpy.nominal_values(dataset_1)
+# std_dev_values = unumpy.std_devs(dataset_1)
+
+# # Calculate mean and its uncertainty
+# mean_value = np.mean(nominal_values)
+# uncertainty_value = np.sqrt(np.sum(std_dev_values**2) / len(dataset_1))
+
+# print("Mean: {:.2f}+/-{:.2f}".format(mean_value, uncertainty_value))
+
+import os
+
+def upfold(path, degree):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    dir_path.split("/")[:-degree]
+    return "/".join(dir_path)
+
+
+
+from gaussian_fitting.fits_analyzer import Data_cube
+

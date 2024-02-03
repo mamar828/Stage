@@ -192,14 +192,17 @@ class HI_slice:
             region = mpl.patches.Rectangle(
                 (self.x_center - 0.5,bounds[0] - 0.5), 
                 max_coords[0] - self.x_center + 1, bounds[1] - bounds[0] + 1,
-                linewidth=2, edgecolor='r', facecolor='none'
+                linewidth=1, edgecolor='r', facecolor='none'
             )
+            # Add the rectangle around the max shear detected
             max_shear = mpl.patches.Rectangle(
                 (max_coords[0] - 0.5, max_coords[1] - 0.5), 1, 1, linewidth=1, edgecolor='w', facecolor="none"
             )
             ax.add_patch(region)
             ax.add_patch(max_shear)
             z = self.z_coordinate
+
+            # Set info parameters
             if "GLAT" in self.header["CTYPE3"]:
                 plt.title(
                     f"Current z_coordinate: {z} ({b.from_pixel(z, self.header)}), shear_width: {shear_width:.2f} km/s"
@@ -327,12 +330,12 @@ class HI_slice:
 
 
 
-# HI = HI_cube(fits.open("HI_regions/LOOP4_bin2.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
-HI = HI_cube(fits.open("HI_regions/Spider_bin4.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
+# HI = HI_cube(fits.open("HI_regions/LOOP4_FINAL_GLS.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
+HI = HI_cube(fits.open("HI_regions/spider/spider_vlb.fits"), axes_info={"x":"v","y":"l","z":"b"})
 # HI.save_as_fits_file("alllloooooo.fits")
 
 # shear_points = HI.extract_shear(
-#     y_bounds=[130,350], 
+#     y_bounds=[300,350], 
 #     z_bounds=[b("32:29:29.077"),b("32:31:15.078")], 
 #     tolerance=0.5,
 #     max_regroup_separation=5, 
@@ -340,12 +343,12 @@ HI = HI_cube(fits.open("HI_regions/Spider_bin4.fits")).swap_axes({"x": "v", "y":
 #     max_accepted_shear=5
 # )
 shear_points = HI.extract_shear(
-    y_bounds=[100,350],
-    z_bounds=[80,330],
-    tolerance=0.1,
-    max_regroup_separation=3,
+    y_bounds=[300,500],
+    z_bounds=[400,600],
+    tolerance=1,
+    max_regroup_separation=1,
     pixel_width=3,
-    max_accepted_shear=None
+    max_accepted_shear=15
 )
 
 HI.watch_shear(shear_points, fullscreen=True)

@@ -761,6 +761,7 @@ class NII_spectrum(Spectrum):
         Get the 3 elements list of 7x3 arrays filled with NaNs. This is used when a pixel need to be invalidated.
 
         Returns
+        -------
         list: each element in the list is a 7x3 numpy array filled with NaNs.
         """
         return [np.full((7,3), np.NAN), np.full((7,3), np.NAN), np.full((7,3), np.NAN)]

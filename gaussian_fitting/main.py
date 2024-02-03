@@ -68,7 +68,7 @@ def get_smoothed_instr_f():
     calibration_cube = Calibration_data_cube(fits.open("gaussian_fitting/data_cubes/calibration.fits")[0])
     calibration_map = calibration_cube.fit()
     smoothed_instr_f = calibration_map.smooth_order_change(calibration_cube.get_center_tuple())
-    smoothed_instr_f.save_as_fits_file("gaussian_fitting/test/smoothed_instr_f.fits")
+    smoothed_instr_f.save_as_fits_file("gaussian_fitting/maps/computed_data/smoothed_instr_f.fits")
 
 
 # if __name__ == "__main__":
@@ -526,7 +526,12 @@ def get_region_stats(Map, filename: str=None, write=False):
         pyregion.open("gaussian_fitting/regions/region_2.reg"),
         pyregion.open("gaussian_fitting/regions/region_3.reg")
     ]
-    region_names = ["Global region", "Diffuse region", "Central region", "Filament region"]
+    region_names = [
+        "Global region", 
+        "Diffuse region", 
+        "Central region", 
+        "Filament region"
+    ]
     for region, region_name in zip(regions, region_names):
         stats = Map.get_region_statistics(region)
         print(stats)
@@ -540,8 +545,8 @@ def get_region_stats(Map, filename: str=None, write=False):
             file.close()
 
 
-# get_region_stats(Map(fits.open(f"gaussian_fitting/maps/computed_data_selective/turbulence.fits")[0]), write=True,
-#                  filename="gaussian_fitting/results/turbulence_final/statistics.txt")
+# get_region_stats(Map_u(fits.open(f"gaussian_fitting/maps/computed_data_selective/turbulence.fits")), write=True,
+#                  filename="gaussian_fitting/results/turbulence_final/statistics_u.txt")
 
 
 def get_turbulence_figure_with_regions():
@@ -581,7 +586,10 @@ def get_turbulence_figure_with_regions():
     plt.title("Turbulence of the region Sh2-158")
     plt.xlabel("right ascension (RA)")
     plt.ylabel("declination (DEC)")
+    plt.xlim(220,380)
+    plt.ylim(170,320)
     plot_with_cbar.ax.set_ylabel("turbulence (km/s)")
+    # plt.savefig("fig.png", dpi=300, bbox_inches="tight")
     plt.show()
 
 
@@ -611,7 +619,7 @@ def get_histograms():
     # turbulence_map.plot_region_histogram(pyregion.ShapeList(regions[1] + regions[3]), "Turbulence of the 
     # diffuse region and of...")
     for region, name in zip(regions, histogram_names):
-        turbulence_map.plot_region_histogram(region, name)
+        turbulence_map.plot_region_histogram(region, name, x_label="turbulence (km/s)", y_label="number of pixels")
 
 
 # get_histograms()
@@ -733,3 +741,109 @@ def get_fit_function(array, s_factor):
 
 
 # get_fit_function(np.load("gaussian_fitting/arrays/turbulence_map/structure_function/bin=1.2.npy"), 15)
+
+
+def make_figures_for_presentation():
+    """
+    In this example, many figures are constructed and saved.
+    """
+    # HA_NII = Map(fits.open("gaussian_fitting/maps/temp_maps_courtes/HA_NII.fits"))
+    # HA_NII.plot_map(
+    #     cbar_bounds=(0,15000),
+    #     title=r"Température obtenue par comparaison H$\alpha$ et [NII]",
+    #     cbar_label="Température [K]",
+    #     x_bounds=(210,370), y_bounds=(170,330),
+    #     filename="Courtes.png"
+    # )
+    # print(HA_NII.get_region_statistics())
+    # HA_NII.plot_region_histogram(
+    #     title=r"Distribution de la température obtenue par comparaison H$\alpha$ et [NII]",
+    #     x_label="Température [K]",
+    #     y_label="Nombre de pixels",
+    #     filename="hist_courtes.png"
+    # )
+    
+    # SII_LEO = Map(fits.open("gaussian_fitting/leo/SII/SII_sigma.fits"))
+    # SII_LEO.plot_map(
+    #     cbar_bounds=(0,30),
+    #     title=r"Largeur de la raie [SII] trouvée par Léo Barriault",
+    #     cbar_label="Largeur [km/s]",
+    #     x_bounds=(60,250), y_bounds=(90,250),
+    #     filename="LEOSII.png"
+    # )
+
+    # SII_1_dc = Data_cube(fits.open("gaussian_fitting/data_cubes/SII/SII_1/SII_1_wcs.fits"))
+    # SII_2_dc = Data_cube(fits.open("gaussian_fitting/data_cubes/SII/SII_2/SII_2_wcs.fits"))
+    # SII_3_dc = Data_cube(fits.open("gaussian_fitting/data_cubes/SII/SII_3/SII_3_wcs.fits"))
+    # SII_1_spec = Spectrum(SII_1_dc.data[:,492,465], SII_1_dc.header)
+    # SII_2_spec = Spectrum(SII_2_dc.data[:,498,382], SII_2_dc.header)
+    # SII_3_spec = Spectrum(SII_3_dc.data[:,500,387], SII_3_dc.header)
+    
+    # fig, axes = plt.subplots(3,1)
+    # axes[0].plot(SII_1_spec.y_values)
+    # axes[1].plot(SII_2_spec.y_values)
+    # axes[2].plot(SII_3_spec.y_values)
+    # plt.xlabel("Canal")
+    # axes[0].set_ylabel("Intensité")
+    # axes[1].set_ylabel("Intensité")
+    # axes[2].set_ylabel("Intensité")
+    # axes[0].set_title("Exemple de spectre obtenu des trois cubes")
+    # plt.show()
+    # plt.savefig("fig.png", dpi=300, bbox_inches="tight")
+    
+    # calib_2_dc = Data_cube(fits.open("gaussian_fitting/data_cubes/SII/SII_1/calibration.fits"))
+    # calib_2_dc.plot_cube(
+    #     cbar_bounds=(0,1000),
+    #     title=r"Deuxième cube de calibration SII",
+    #     cbar_label="Intensité",
+    #     # x_bounds=(60,250), y_bounds=(90,250),
+    #     filename="figi.gif"
+    # )
+    # spec = Spectrum(calib_2_dc.data[:,498,382], calib_2_dc.header)
+    # plt.plot(spec.y_values)
+    # plt.xlabel("Canal")
+    # plt.ylabel("Intensité")
+    # plt.title("Spectre du cube de calibration du premier cube [SII]")
+    # plt.show()
+    # plt.savefig("fig.png", dpi=300, bbox_inches="tight")
+
+    # fig, axs = plt.subplots(2, 2, sharex="all", sharey="all")
+    # fig.text(0.5, 0.90, "Largeur à mi hauteur de la raie [SII]", ha="center", size=12)
+    # ref = axs[0,0].imshow(Map(fits.open("gaussian_fitting/maps/SII/SII_1/SII1_fwhm.fits")), vmin=0, vmax=50)
+    # axs[0,1].imshow(Map(fits.open("gaussian_fitting/maps/SII/SII_1/SII2_fwhm.fits")), vmin=0, vmax=50)
+    # axs[1,0].imshow(Map(fits.open("gaussian_fitting/maps/SII/SII_3/SII1_fwhm.fits")), vmin=0, vmax=50)
+    # axs[1,1].imshow(Map(fits.open("gaussian_fitting/maps/SII/SII_3/SII2_fwhm.fits")), vmin=0, vmax=50)
+    # cbar = fig.colorbar(ref, ax=axs, orientation='vertical', fraction=0.05, pad=0.1)
+    # cbar.set_label("Largeur à mi-hauteur [km/s]")
+    # plt.show()
+
+    # SII = Map(fits.open("gaussian_fitting/maps/SII/mean_fwhm-calib.fits"))
+    # SII.plot_map(
+    #     cbar_bounds=(0,40),
+    #     title="Largeur à mi-hauteur de la raie [SII]\n sans l'élargissement instrumental",
+    #     cbar_label="Largeur [km/s]",
+    #     x_bounds=(240,60), y_bounds=(190,50),
+    #     filename="fig.png"
+    # )
+
+    # temp = Map(fits.open("gaussian_fitting/maps/SII/temp.fits"))
+    # temp.plot_map(
+    #     cbar_bounds=(0,20000),
+    #     title="Température obtenue par comparaison\ndes raies [NII] et [SII]",
+    #     cbar_label="Température [K]",
+    #     x_bounds=(100,400), y_bounds=(140,400),
+    #     filename="fig.png"
+    # )
+
+    # OIII_HA = Map(fits.open("gaussian_fitting/maps/temp_maps_courtes/OIII_Ha.fits"))
+    # OIII_HA.plot_map(
+    #     cbar_bounds=(0,50000),
+    #     title=("Température obtenue par comparaison\n"+r"des raies [O III] et [H$\alpha$]"),
+    #     cbar_label="Température [K]",
+    #     x_bounds=(180,400), y_bounds=(150,350),
+    #     filename="fig.png"
+    # )
+
+
+
+# make_figures_for_presentation()

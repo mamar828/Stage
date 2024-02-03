@@ -1,0 +1,4 @@
+pyreverse -o png gaussian_fitting/celestial_coords.py
+
+Answering my own question: the answer was to simply cd to src/, or do this:
+export PYTHONPATH="${PYTHONPATH}:${PWD}/src"
