@@ -1,4 +1,6 @@
+from __future__ import annotations
 from astropy.io import fits
+import numpy as np
 
 
 class Celestial_coords():
@@ -22,17 +24,29 @@ class RA(Equatorial_coords):
         time: str. Specifies the right ascension in clock format (HH:MM:SS.SSS -> Hours, Minutes, Seconds).
         """
         # Split and convert each element in the time str to floats
-        self.hours, self.minutes, self.seconds = [float(element) for element in time.split(":")]
+        hours, minutes, seconds = [float(element) for element in time.split(":")]
+        self.sexagesimal = (hours*3600 + minutes*60 + seconds)/(24*3600) * 360
     
-    def to_deg(self) -> float:
+    @classmethod
+    def from_sexagesimal(cls, sexagesimal: float) -> RA:
         """
-        Convert the time to degrees.
+        Create an object from the sexagesimal value directly.
+        
+        Arguments
+        ---------
+        sexagesimal: float. Value in sexagesimal form.
 
         Returns
         -------
-        float: converted time in degrees.
+        RA object: object with the specified sexagesimal value.
         """
-        return (self.hours*3600 + self.minutes*60 + self.seconds)/(24*3600) * 360
+        new_object = cls("0:0:0")
+        new_object.sexagesimal = sexagesimal
+        return new_object
+
+    def __str__(self) -> float:
+        return str(self.sexagesimal)
+
 
 class DEC(Equatorial_coords):
     """
@@ -48,23 +62,34 @@ class DEC(Equatorial_coords):
         time: str. Specifies the declination in clock format (DD:MM:SS.SSS -> Degrees, Minutes, Seconds).
         """
         # Split and convert each element in the time str to floats
-        self.angle, self.minutes, self.seconds = [float(element) for element in time.split(":")]
+        angle, minutes, seconds = [float(element) for element in time.split(":")]
+        self.sexagesimal = angle + (minutes*60 + seconds)/(3600)
     
-    def to_deg(self) -> float:
+    @classmethod
+    def from_sexagesimal(cls, sexagesimal: float) -> RA:
         """
-        Convert the time to degrees.
+        Create an object from the sexagesimal value directly.
+        
+        Arguments
+        ---------
+        sexagesimal: float. Value in sexagesimal form.
 
         Returns
         -------
-        float: converted time in degrees.
+        DEC object: object with the specified sexagesimal value.
         """
-        return self.angle + (self.minutes*60 + self.seconds)/(3600)
+        new_object = cls("0:0:0")
+        new_object.sexagesimal = sexagesimal
+        return new_object
+
+    def __str__(self) -> float:
+        return str(self.sexagesimal)
 
 
 
 class Galactic_coords(Celestial_coords):
-    # This class is inherited by the following two classes and allows using of isinstance()
     pass
+
 
 class l(Galactic_coords):
     """
@@ -80,18 +105,43 @@ class l(Galactic_coords):
         coord: str. Specifies the galactic longitude in clock format (DDD:MM:SS.SSS -> Degrees, Minutes, Seconds).
         """
         # Split and convert each element in the coord str to floats
-        self.angle, self.minutes, self.seconds = [float(element) for element in coord.split(":")]
+        angle, minutes, seconds = [float(element) for element in coord.split(":")]
+        self.sexagesimal = angle + (minutes*60 + seconds)/(3600)
     
-    def to_deg(self) -> float:
+    @classmethod
+    def from_sexagesimal(cls, sexagesimal: float) -> RA:
         """
-        Convert the coord to degrees.
+        Create an object from the sexagesimal value directly.
+        
+        Arguments
+        ---------
+        sexagesimal: float. Value in sexagesimal form.
 
         Returns
         -------
-        float: converted coord in degrees.
+        l object: object with the specified sexagesimal value.
         """
-        return self.angle + (self.minutes*60 + self.seconds)/(3600)
-        return (self.hours*3600 + self.minutes*60 + self.seconds)/(24*3600) * 360
+        new_object = cls("0:0:0")
+        new_object.sexagesimal = sexagesimal
+        return new_object
+    
+    @classmethod
+    def from_equatorial(cls, RA_object: RA, DEC_object: DEC):
+        """ 
+        Equation from https://www.atnf.csiro.au/people/Tobias.Westmeier/tools_coords.php.
+        """
+        alpha = RA_object.sexagesimal
+        alpha_0 = 192.8595
+        delta = DEC_object.sexagesimal
+        delta_0 = 27.1284
+        l_0 = 122.9320
+        return cls.from_sexagesimal(l_0-np.arctan(
+            (np.cos(delta)*np.sin(alpha-alpha_0)) / (
+                np.sin(delta)*np.cos(delta_0)-np.cos(delta)*np.sin(delta_0)*np.cos(alpha-alpha_0)))
+        )
+
+    def __str__(self) -> float:
+        return str(self.sexagesimal)
 
     def to_pixel(self, header: fits.Header) -> int:
         """
@@ -106,12 +156,11 @@ class l(Galactic_coords):
         int: rounded pixel.
         """
         if "GLON" in header["CTYPE1"]:
-            return round((self.to_deg() - header["CRVAL1"]) / header["CDELT1"] + header["CRPIX1"])
+            return round((self.sexagesimal - header["CRVAL1"]) / header["CDELT1"] + header["CRPIX1"])
         elif "GLON" in header["CTYPE2"]:
-            print(self.to_deg())
-            return round((self.to_deg() - header["CRVAL2"]) / header["CDELT2"] + header["CRPIX2"])
+            return round((self.sexagesimal - header["CRVAL2"]) / header["CDELT2"] + header["CRPIX2"])
         elif "GLON" in header["CTYPE3"]:
-            return round((self.to_deg() - header["CRVAL3"]) / header["CDELT3"] + header["CRPIX3"])
+            return round((self.sexagesimal - header["CRVAL3"]) / header["CDELT3"] + header["CRPIX3"])
         else:
             raise ValueError("Header does not have GLON type")
 
@@ -130,10 +179,25 @@ class b(Galactic_coords):
         time: str. Specifies the galactic latitude in clock format (DD:MM:SS.SSS -> Degrees, Minutes, Seconds).
         """
         # Split and convert each element in the coord str to floats
-        self.angle, self.minutes, self.seconds = [float(element) for element in coord.split(":")]
+        angle, minutes, seconds = [float(element) for element in coord.split(":")]
+        self.sexagesimal = angle + (minutes*60 + seconds)/(3600)
     
-    def __str__(self):
-        return f"{self.angle:.0f}:{self.minutes:.0f}:{self.seconds:06.3f}"
+    @classmethod
+    def from_sexagesimal(cls, sexagesimal: float) -> RA:
+        """
+        Create an object from the sexagesimal value directly.
+        
+        Arguments
+        ---------
+        sexagesimal: float. Value in sexagesimal form.
+
+        Returns
+        -------
+        b object: object with the specified sexagesimal value.
+        """
+        new_object = cls("0:0:0")
+        new_object.sexagesimal = sexagesimal
+        return new_object
     
     @classmethod
     def from_pixel(cls, pixel: int, header: fits.Header):
@@ -150,26 +214,31 @@ class b(Galactic_coords):
         b object: galactic latitude object with the corresponding data.
         """
         if "GLAT" in header["CTYPE1"]:
-            t = str((pixel - header["CRPIX1"]) * header["CDELT1"] + header["CRVAL1"]).split(".")
+            sexagesimal = (pixel - header["CRPIX1"]) * header["CDELT1"] + header["CRVAL1"]
         elif "GLAT" in header["CTYPE2"]:
-            t = str((pixel - header["CRPIX2"]) * header["CDELT2"] + header["CRVAL2"]).split(".")
+            sexagesimal = (pixel - header["CRPIX2"]) * header["CDELT2"] + header["CRVAL2"]
         elif "GLAT" in header["CTYPE3"]:
-            t = str((pixel - header["CRPIX3"]) * header["CDELT3"] + header["CRVAL3"]).split(".")
+            sexagesimal = (pixel - header["CRPIX3"]) * header["CDELT3"] + header["CRVAL3"]
         else:
             raise ValueError("Header does not have GLAT type")
         
-        dec = float("0." + t[1])
-        return cls(f"{t[0]}:{dec*3600//60}:{dec*3600%60}")
-
-    def to_deg(self) -> float:
+        return cls.from_sexagesimal(sexagesimal)
+    
+    @classmethod
+    def from_equatorial(cls, RA_object: RA, DEC_object: DEC):
+        """ 
+        Equation from https://www.atnf.csiro.au/people/Tobias.Westmeier/tools_coords.php.
         """
-        Convert the time to degrees.
+        alpha = RA_object.sexagesimal
+        alpha_0 = 192.8595
+        delta = DEC_object.sexagesimal
+        delta_0 = 27.1284
+        return cls.from_sexagesimal(
+            np.arcsin(np.sin(delta)*np.sin(delta_0)+np.cos(delta)*np.cos(delta_0)*np.cos(alpha-alpha_0))
+        )
 
-        Returns
-        -------
-        float: converted time in degrees.
-        """
-        return self.angle + (self.minutes*60 + self.seconds)/(3600)
+    def __str__(self) -> float:
+        return str(self.sexagesimal)
 
     def to_pixel(self, header: fits.Header) -> int:
         """
@@ -184,10 +253,10 @@ class b(Galactic_coords):
         int: rounded pixel.
         """
         if "GLAT" in header["CTYPE1"]:
-            return round((self.to_deg() - header["CRVAL1"]) / header["CDELT1"] + header["CRPIX1"])
+            return round((self.sexagesimal - header["CRVAL1"]) / header["CDELT1"] + header["CRPIX1"])
         elif "GLAT" in header["CTYPE2"]:
-            return round((self.to_deg() - header["CRVAL2"]) / header["CDELT2"] + header["CRPIX2"])
+            return round((self.sexagesimal - header["CRVAL2"]) / header["CDELT2"] + header["CRPIX2"])
         elif "GLAT" in header["CTYPE3"]:
-            return round((self.to_deg() - header["CRVAL3"]) / header["CDELT3"] + header["CRPIX3"])
+            return round((self.sexagesimal - header["CRVAL3"]) / header["CDELT3"] + header["CRPIX3"])
         else:
             raise ValueError("Header does not have GLAT type")

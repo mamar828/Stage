@@ -9,7 +9,8 @@ from astropy.visualization.wcsaxes import WCSAxes
 
 
 from data_cube import Data_cube
-from galactic_coords import b
+from header import Header
+from coords import *
 
 from eztcolors import Colors as C
 
@@ -331,7 +332,7 @@ class HI_slice:
 
 
 # HI = HI_cube(fits.open("HI_regions/LOOP4_FINAL_GLS.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
-HI = HI_cube(fits.open("HI_regions/spider/spider_vlb.fits"), axes_info={"x":"v","y":"l","z":"b"})
+# HI = HI_cube(fits.open("HI_regions/spider/spider_vlb.fits"), axes_info={"x":"v","y":"l","z":"b"})
 # HI.save_as_fits_file("alllloooooo.fits")
 
 # shear_points = HI.extract_shear(
@@ -342,13 +343,37 @@ HI = HI_cube(fits.open("HI_regions/spider/spider_vlb.fits"), axes_info={"x":"v",
 #     pixel_width=3, 
 #     max_accepted_shear=5
 # )
-shear_points = HI.extract_shear(
-    y_bounds=[300,500],
-    z_bounds=[400,600],
-    tolerance=1,
-    max_regroup_separation=1,
-    pixel_width=3,
-    max_accepted_shear=15
-)
+# shear_points = HI.extract_shear(
+#     y_bounds=[300,500],
+#     z_bounds=[400,600],
+#     tolerance=1,
+#     max_regroup_separation=1,
+#     pixel_width=3,
+#     max_accepted_shear=15
+# )
 
-HI.watch_shear(shear_points, fullscreen=True)
+# HI.watch_shear(shear_points, fullscreen=True)
+
+# b.from_pixel(124, HI.header)
+
+
+dc = Data_cube(fits.open("HI_regions/spider/Spider_bin4.fits"))
+dc.header = Header(dc.header).to_galactic()
+
+dc.save_as_fits_file("HI_regions/spider/Spider_bin4_galactic.fits")
+
+
+# h = fits.Header()
+
+# keys = ["BITPIX", "SIMPLE", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3", "CTYPE1", "CRVAL1", "CRPIX1", "CDELT1", "CTYPE2", "CRVAL2", "CRPIX2", "CDELT2", "CTYPE3", "CRVAL3", "CRPIX3", "CDELT3", "BUNIT", "EQUINOX"]
+# values = [-32,"T",3,441,420,250,'GLON-SFL',123.0303313335672,212.875,121.6542957427338,'GLAT-SFL',-1.268610135718216,205.125,0.1517394989546054,'VELO-LSR',-6.0000000000000E+04,126.000000000,-8.2427179813385E+02,'K',2000.0
+# ]
+
+# for key, value in zip(keys, values):
+#     h.append((key, value))
+
+# dc.header = h
+
+# dc.save_as_fits_file("HI_regions/spider/Spider_bin4_galactic.fits")
+
+

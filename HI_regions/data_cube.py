@@ -9,6 +9,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.visualization.wcsaxes import WCSAxes
 from copy import deepcopy
+from eztcolors import Colors as C
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -59,10 +60,11 @@ class Fits_file():
             fits.open(filename)[0]
             # The file already exists
             while True:
-                answer = input(f"The file '{filename}' already exists, do you wish to overwrite it ? [y/n]")
+                answer = input(f"{C.RED}The file '{filename}' already exists, do you wish to overwrite it ? [y/n]"
+                               + C.END)
                 if answer == "y":
                     fits.writeto(filename, self.data, self.header, overwrite=True)
-                    print("File overwritten.")
+                    print(f"{C.GREEN}File overwritten.{C.END}")
                     break
 
                 elif answer == "n":
@@ -91,11 +93,9 @@ class Data_cube(Fits_file):
         Data_cube's axes can always be found by printing said Data_cube.
         """
         try:
-            self.object = fits_object
             self.data = fits_object.data
             self.header = fits_object.header
         except:
-            self.object = fits_object[0]
             self.data = fits_object[0].data
             self.header = fits_object[0].header
         self.info = {"x":axes_info["x"], "y":axes_info["y"], "z":axes_info["z"]}
