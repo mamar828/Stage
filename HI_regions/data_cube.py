@@ -9,6 +9,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.visualization.wcsaxes import WCSAxes
 from copy import deepcopy
+from matplotlib.animation import FuncAnimation
 from eztcolors import Colors as C
 
 if not sys.warnoptions:
@@ -107,6 +108,10 @@ class Data_cube(Fits_file):
     
     def __eq__(self, other):
         return np.array_equal(self.data, other.data) and self.header == other.header and self.info == other.info
+    
+    def __getitem__(self, slice):
+        """ Warning : indexing must be given in the order z:y:x. """
+        return self.__class__(fits.PrimaryHDU(self.data[slice], self.header))
 
     def get_header_without_third_dimension(self) -> fits.Header:
         """
@@ -152,17 +157,53 @@ class Data_cube(Fits_file):
         
         return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
 
-    def plot_cube(self):
+    def plot_cube(self,
+            cbar_bounds: tuple=None,
+            x_bounds: tuple=None,
+            y_bounds: tuple=None,
+            title: str=None,
+            cbar_label: str=None,
+            filename: str=None
+        ):
         """
-        Plot a Data_cube by taking a slice at channel 14.
+        Plot a Data_cube by animating the change of frames.
+        
+        Arguments
+        ---------
+        cbar_bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
+        element is the minimum and the second is the maximum.
+        x_bounds: tuple, optional. Sets the plot's horizontal bounds.
+        y_bounds: tuple, optional. Sets the plot's vertical bounds.
+        title: str, optional. Sets the plot's title.
+        cbar_label: str, optional. Sets the colorbar's label.
+        filename: str, optional. Sets the filename of the saved figure. If present, the figure will not be plotted but
+        only saved.
         """
-        fig = plt.figure()
-        # The axes are set to have celestial coordinates
-        ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=WCS(self.header)[13,:,:])
-        fig.add_axes(ax)
-        # The turbulence map is plotted along with the colorbar, inverting the axes so y=0 is at the bottom
-        plt.colorbar(ax.imshow(self.data[13,:,:], origin="lower"))
-        plt.show()
+        fig, ax = plt.subplots()
+        if cbar_bounds:
+            plot = ax.imshow(self.data[0,:,:], origin="lower", cmap="viridis", vmin=cbar_bounds[0], vmax=cbar_bounds[1])
+            # plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=cbar_bounds[0], vmax=cbar_bounds[1]))
+        else:
+            plot = ax.imshow(self.data[0,:,:], origin="lower", cmap="viridis")
+            # plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis"))
+        cbar = plt.colorbar(plot)
+        cbar.set_label(cbar_label)
+        if x_bounds:
+            plt.xlim(*x_bounds)
+        if y_bounds:
+            plt.ylim(*y_bounds)
+        plt.title(title)
+
+        def next_slice(frame_number):
+            plot.set_array(self.data[frame_number,:,:])
+            cbar.update_normal(plot)
+        
+        animation = FuncAnimation(fig, next_slice, frames=self.data.shape[0], interval=75)
+
+        if filename:
+            animation.save(filename, writer="pillow", dpi=300)
+        else:
+            plt.show()
 
     def swap_axes(self, new_axes: dict) -> Data_cube:
         """
@@ -240,6 +281,24 @@ class Data_cube(Fits_file):
             if header_element[-1] == "-":
                 new_header[header_element[:-1]] = new_header.pop(header_element)
         return new_header
+    
+    def invert_axis(self, axis: str) -> Data_cube:
+        """
+        Invert the elements' order along an axis.
+
+        Arguments
+        ---------
+        axis: str. Axis whose order must be flipped. Supported keywords are "x", "y" and "z".
+
+        Returns
+        -------
+        Data_cube object: newly axis-flipped Data_cube.
+        """
+        convert = {"x": 2, "y": 1, "z": 0}
+        assert axis in convert.keys(), (f"{C.RED}{C.BOLD}Provided keyword ('{axis}') is invalid. " +
+                                        f"Supported keywords are 'x', 'y' and 'z'.{C.END}")
+        return self.__class__(fits.PrimaryHDU(np.flip(self.data, axis=convert[axis]), self.header))        
+
 
 
 # N4 = Data_cube(fits.open("HI_regions/CO_data/Loop4N4_Conv_Med_FinalJS.fits"))

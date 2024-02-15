@@ -9,7 +9,6 @@ from astropy.visualization.wcsaxes import WCSAxes
 
 
 from data_cube import Data_cube
-from header import Header
 from coords import *
 
 from eztcolors import Colors as C
@@ -18,34 +17,6 @@ class HI_cube(Data_cube):
     """
     Encapsulate the methods useful for shear analysis in HI data.
     """
-
-    def plot_cube(self, z_coordinate: int, color_scale: tuple=(0,25), scatters: list[np.ndarray]=None):
-        """
-        Plot a Data_cube by taking a slice at a certain z coordinate.
-
-        Arguments
-        ---------
-        z_coordinate: int. Specifies the z coordinate at which the Data_cube is sliced to be plotted.
-            color_scale: tuple, default=(0,25). First element specifies the lower color_scale limit and the second
-            element sets the upper limit.
-        scatters: list of np.ndarray, optional. Gives the scatters to plot on top of the Data_cube slice.
-        """
-        fig = plt.figure()
-        # The axes are set to have celestial coordinates
-        ax = plt.axes()
-        # ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=WCS(self.header)[z_coordinate,:,:])
-        fig.add_axes(ax)
-        # The turbulence map is plotted along with the colorbar, inverting the axes so y=0 is at the bottom
-        plt.colorbar(ax.imshow(self.data[z_coordinate,:,:], origin="lower", vmin=color_scale[0], vmax=color_scale[1]))
-        # Add the scatters
-        if scatters is not None:
-            # Plot if a single scatter is given and the element is not a list
-            if isinstance(scatters, np.ndarray):
-                plt.scatter(*scatters, s=1, c="r", marker=",")
-            else:
-                for scatter in scatters:
-                    plt.scatter(*scatter, s=1, c="r", marker=",")
-        plt.show()
     
     def extract_shear(
             self,
@@ -332,7 +303,7 @@ class HI_slice:
 
 
 # HI = HI_cube(fits.open("HI_regions/LOOP4_FINAL_GLS.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
-# HI = HI_cube(fits.open("HI_regions/spider/spider_vlb.fits"), axes_info={"x":"v","y":"l","z":"b"})
+HI = HI_cube(fits.open("HI_regions/data_cubes/spider/spider_vlb.fits"), axes_info={"x":"v","y":"l","z":"b"})
 # HI.save_as_fits_file("alllloooooo.fits")
 
 # shear_points = HI.extract_shear(
@@ -353,27 +324,5 @@ class HI_slice:
 # )
 
 # HI.watch_shear(shear_points, fullscreen=True)
-
-# b.from_pixel(124, HI.header)
-
-
-dc = Data_cube(fits.open("HI_regions/spider/Spider_bin4.fits"))
-dc.header = Header(dc.header).to_galactic()
-
-dc.save_as_fits_file("HI_regions/spider/Spider_bin4_galactic.fits")
-
-
-# h = fits.Header()
-
-# keys = ["BITPIX", "SIMPLE", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3", "CTYPE1", "CRVAL1", "CRPIX1", "CDELT1", "CTYPE2", "CRVAL2", "CRPIX2", "CDELT2", "CTYPE3", "CRVAL3", "CRPIX3", "CDELT3", "BUNIT", "EQUINOX"]
-# values = [-32,"T",3,441,420,250,'GLON-SFL',123.0303313335672,212.875,121.6542957427338,'GLAT-SFL',-1.268610135718216,205.125,0.1517394989546054,'VELO-LSR',-6.0000000000000E+04,126.000000000,-8.2427179813385E+02,'K',2000.0
-# ]
-
-# for key, value in zip(keys, values):
-#     h.append((key, value))
-
-# dc.header = h
-
-# dc.save_as_fits_file("HI_regions/spider/Spider_bin4_galactic.fits")
 
 

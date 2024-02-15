@@ -257,7 +257,6 @@ class Data_cube(Fits_file):
         else:
             plt.show()
 
-
     def get_header_without_third_dimension(self) -> fits.Header:
         """
         Get the adaptation of a Data_cube object's header for a Map object by removing the spectral axis.

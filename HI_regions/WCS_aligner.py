@@ -1,3 +1,6 @@
+"""
+The Spider data cube's header was converted in galactic coordinates with this file.
+"""
 import numpy as np
 
 from astropy.io import fits
