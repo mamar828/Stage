@@ -45,7 +45,7 @@ class Fits_file():
             pass
         return header_copy
     
-    def save_as_fits_file(self, filename: str):
+    def save_as_fits_file(self, filename: str, *, overwrite=False):
         """
         Write an array as a fits file of the specified name with or without a header. If the object has a header, it
         will be saved.
@@ -54,12 +54,13 @@ class Fits_file():
         ---------
         filename: str. Indicates the path and name of the created file. If the file already exists, a warning will 
         appear and the file can be overwritten.
+        overwrite: bool, default=False. Specifies if the file should automatically be erased.
         """
         # Check if the file already exists
         try:
             fits.open(filename)[0]
             # The file already exists
-            while True:
+            while True and not overwrite:
                 answer = input(f"{C.RED}The file '{filename}' already exists, do you wish to overwrite it ? [y/n]"
                                + C.END)
                 if answer == "y":
