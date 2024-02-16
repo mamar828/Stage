@@ -108,10 +108,15 @@ class Data_cube(Fits_file):
     
     def __eq__(self, other):
         return np.array_equal(self.data, other.data) and self.header == other.header and self.info == other.info
-    
-    def __getitem__(self, slice):
+
+    def __getitem__(self, slices):
         """ Warning : indexing must be given in the order z:y:x. """
-        return self.__class__(fits.PrimaryHDU(self.data[slice], self.header))
+        new_header = self.header.copy()
+        for i, s in enumerate(slices):
+            if s.start is not None:
+                new_header[f"CRPIX{3-i}"] -= s.start
+        return self.__class__(fits.PrimaryHDU(self.data[slices], new_header))
+        # return self.__class__(fits.PrimaryHDU(self.data[slice], None))
 
     def get_header_without_third_dimension(self) -> fits.Header:
         """
@@ -297,9 +302,15 @@ class Data_cube(Fits_file):
         convert = {"x": 2, "y": 1, "z": 0}
         assert axis in convert.keys(), (f"{C.RED}{C.BOLD}Provided keyword ('{axis}') is invalid. " +
                                         f"Supported keywords are 'x', 'y' and 'z'.{C.END}")
-        return self.__class__(fits.PrimaryHDU(np.flip(self.data, axis=convert[axis]), self.header))        
+        new_header = self.header.copy()
+        h_axis = 3 - convert[axis]
+        new_header[f"CDELT{h_axis}"] *= -1
+        new_header[f"CRPIX{h_axis}"] = self.data.shape[convert[axis]] - self.header[f"CRPIX{h_axis}"] + 1
+        return self.__class__(fits.PrimaryHDU(np.flip(self.data, axis=convert[axis]), new_header))        
 
 
 
 # N4 = Data_cube(fits.open("HI_regions/CO_data/Loop4N4_Conv_Med_FinalJS.fits"))
 # N4.swap_axes({"x":"v","y":"b","z":"l"}).save_as_fits_file("vbl_N4.fits")
+
+Data_cube(fits.open("HI_regions/data_cubes/spider/spider_bin4.fits"))[:,20:-20,20:-20].save_as_fits_file("a.fits")
