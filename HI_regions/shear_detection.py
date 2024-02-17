@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib as mpl
+import scipy
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -13,6 +14,8 @@ from coords import *
 
 from eztcolors import Colors as C
 
+
+
 class HI_cube(Data_cube):
     """
     Encapsulate the methods useful for shear analysis in HI data.
@@ -22,10 +25,7 @@ class HI_cube(Data_cube):
             self,
             y_bounds: list,
             z_bounds: list,
-            tolerance: float,
-            max_regroup_separation: int,
-            pixel_width: int=1,
-            max_accepted_shear: int=None,
+            **kwargs
         ) -> dict:
         """
         Extract the shear's data between the given bounds using the provided parameters.
@@ -36,19 +36,8 @@ class HI_cube(Data_cube):
             included.
         z_bounds: list of b objects or pixel numbers. Specifies the z bounds between which the search will be made.
             Both values are included.
-        tolerance: float. Controls the sensitivity of signal drop detection. The value given corresponds to the
-            percentage of the average peak value along each horizontal line (determined with the
-            get_horizontal_maximums() method) that will be considered a signal drop. E.g. for a value of 0.5, if a
-            pixel along the central line has a value beneath 0.5 times the average peak value, it will be flagged as a
-            potential signal drop.
-        max_regroup_separation: int. Maximum separation of two consecutive points that will be considered to belong to
-            the same signal drop section. This controls how many different regions will be outputted and will merge
-            those that are close.
-        pixel_width: int, default=1. This parameter must be greater than or equal to 1 and specifies the width of the
-            search along every longitude. For example, pixel_width=3 will search along the pixel at v=0 and the two
-            pixels to its right. The default value will only search along v=0.
-        max_accepted_shear: int, optional. Maximum number of pixels to the left of v=0 that are analyzed to look for a
-            maximum.
+        kwargs. See LOOP4_slice.check_shear or Spider_slice.check_shear depending on the HI_cube's slice_type for more
+            information.
 
         Returns
         -------
@@ -56,10 +45,6 @@ class HI_cube(Data_cube):
             detected shear outputted by the HI_slice.check_shear() method. 0: bounds of the detected shear in pixels,
             1: shear width in km/s, 2: coordinates of the max shear point.
         """
-        # Verify provided arguments
-        assert isinstance(pixel_width, int), "pixel_width provided must be an integer"
-        assert pixel_width >= 1, "pixel_width must be greater than or equal to 1."
-
         collected_info = {}
         if self.info["z"] == "b":
             # Convert bounds to array indices
@@ -68,15 +53,13 @@ class HI_cube(Data_cube):
             elif isinstance(z_bounds[0], int):
                 z_bounds_array = z_bounds[0], z_bounds[1] + 1
             else:
-                raise NotImplementedError(C.RED + "z_bounds type not supported." + C.END)
+                raise NotImplementedError(C.RED + f"z_bounds type ({type(z_bounds)}) not supported." + C.END)
             for z in range(*z_bounds_array):
-                collected_info[z] = HI_slice(self, z, y_bounds).check_shear(
-                                                  (max_accepted_shear, tolerance, max_regroup_separation, pixel_width))
+                collected_info[z] = self.slice_type(self, z, y_bounds).check_shear(**kwargs)
         elif self.info["z"] == "l":
             # Convert bounds to array indices
             for l in range(z_bounds[0].to_pixel(self.header), z_bounds[1].to_pixel(self.header)+1):
-                collected_info[b] = HI_slice(self, l, z_bounds).check_shear(
-                                                                      (tolerance, max_regroup_separation, pixel_width))
+                collected_info[b] = self.slice_type(self, l, z_bounds).check_shear(**kwargs)
         else:
             raise TypeError("HI_cube should be a rotated cube with either longitude or latitude as z axis.")
 
@@ -95,12 +78,12 @@ class HI_cube(Data_cube):
         """
         for key, value in shear_info.items():
             try:
-                for bounds, shear_width, max_coords in value:
-                    current_slice = HI_slice(self, key)
-                    current_slice.plot(bounds, shear_width, max_coords, fullscreen)
+                if value is not None:
+                    for bounds, shear_width, max_coords in value:
+                        current_slice = self.slice_type(self, key)
+                        current_slice.plot(bounds, shear_width, max_coords, fullscreen)
             except Exception:
-                print(f"{C.RED}{C.BOLD}Exception occured at z={key}.{C.END}")
-                raise Exception
+                raise Exception(f"{C.RED}{C.BOLD}Exception occured at z={key}.{C.END}")
         
         print(f"{C.GREEN}{C.BOLD}Shear watching ended successfully.{C.END}")
 
@@ -131,10 +114,53 @@ class HI_slice:
         if y_limits:
             # Account for the fact that both values are included
             self.y_limits = y_limits[0], y_limits[1]+1
+        else:
+            self.y_limits = 0, self.data.shape[1]
+
+    def get_horizontal_maximums(self) -> np.ndarray:
+        """
+        Get the maximum of each horizontal line.
+
+        Returns
+        -------
+        np.ndarray: two dimensional array of the x_coordinate of the maximum of each line and value of that maximum, in
+            the order of increasing y.
+        """
+        return np.stack((np.argmax(self.data, axis=1), np.max(self.data, axis=1)), axis=1)
+    
+    def get_point_groups(self, points: list, max_regroup_separation: int) -> list:
+        """
+        Give the bounds of every group in a list.
+
+        Arguments
+        ---------
+        points: list. Data that needs to be grouped.
+        max_regroup_separation: int. Maximum separation of two consecutive points that will be considered to belong to
+            the same signal drop section. This controls how many different regions will be outputted and will merge
+            those that are close.
+        
+        Returns
+        -------
+        list: each element is a list containing the bounds of a group.
+        """
+        if points != []:
+            groups = [[points[0], points[0]]]
+            for point in points[1:]:
+                if groups[-1][1] + max_regroup_separation >= point:
+                    groups[-1][1] = point
+                else:
+                    groups.append([point, point])
+            return groups
+
+
+class LOOP4_slice(HI_slice):
+    """ 
+    Encapsulate the methods specific to the analysis of slices of LOOP4 data cubes.
+    """
 
     def plot(self, bounds: list=None, shear_width: float=None, max_coords: tuple=None, fullscreen: bool=False):
         """
-        Plot a HI_slice object.
+        Plot the object in a two-dimensional plot.
 
         Arguments
         ---------
@@ -188,65 +214,45 @@ class HI_slice:
             manager = plt.get_current_fig_manager()
             manager.full_screen_toggle()
         plt.show()
-    
-    def check_shear(self, params: tuple) -> list:
+
+    def check_shear(self, *,
+            tolerance: float,
+            max_regroup_separation: int=0,
+            pixel_width: int=1,
+            max_accepted_shear: int=None
+        ) -> list:
         """
         Extract potential shear zones and their maximum shear value in km/s.
 
         Arguments
         ---------
-        params: tuple. max_accepted_shear, tolerance, max_regroup_separation, pixel_width. See HI_cube.extract_shear()
-            for more informations.
+        tolerance: float. Controls the sensitivity of signal drop detection. The value given corresponds to the
+            percentage of the average peak value along each horizontal line (determined with the
+            get_horizontal_maximums method) that will be considered a signal drop. E.g. for a value of 0.5, if a
+            pixel along the central line has a value beneath 0.5 times the average peak value, it will be flagged as a
+            potential signal drop.
+        max_regroup_separation: int, default=0. Maximum separation of two consecutive points that will be considered to
+            belong to the same signal drop section. This controls how many different regions will be outputted and will
+            merge those that are close.
+        pixel_width: int, default=1. This parameter must be greater than or equal to 1 and specifies the width of the
+            search along every longitude. For example, pixel_width=3 will search along the pixel at v=0 and the two
+            pixels to its right. The default value will only search along v=0.
+        max_accepted_shear: int, optional. Maximum number of pixels to the left of v=0 that are analyzed to look for a
+            maximum.
 
         Returns
         -------
         list: data of every detected shear. Each element has 0: bounds of the detected shear in pixels, 1: shear width
             in km/s, 2: coordinates of the max shear point.
         """
-        max_accepted_shear, tolerance, max_regroup_separation, pixel_width = params
-
-        shear_bounds = self.get_point_groups(self.get_signal_drops(tolerance, pixel_width), max_regroup_separation)
+        shear_bounds = self.get_point_groups(self.get_shear_points(tolerance, pixel_width), max_regroup_separation)
 
         shear_data = []
         for bounds in shear_bounds:
             shear_data.append((bounds, *self.get_max_shear_width(bounds, max_accepted_shear)))
         return shear_data
-
-    def get_horizontal_maximums(self) -> np.ndarray:
-        """
-        Get the maximum of each horizontal line.
-
-        Returns
-        -------
-        np.ndarray: two dimensional array of the x_coordinate of the maximum of each line and value of that maximum, in
-            the order of increasing y.
-        """
-        return np.stack((np.argmax(self.data, axis=1), np.max(self.data, axis=1)), axis=1)
     
-    def get_point_groups(self, points: list, max_regroup_separation: int) -> list:
-        """
-        Give the bounds of every group in a list.
-
-        Arguments
-        ---------
-        points: list. Data that needs to be grouped.
-        max_regroup_separation: int. Maximum separation of two consecutive points that will be considered to belong to
-            the same signal drop section. This controls how many different regions will be outputted and will merge
-            those that are close.
-        
-        Returns
-        -------
-        list: each element is a list containing the bounds of a group.
-        """
-        groups = [[points[0], points[0]]]
-        for point in points[1:]:
-            if groups[-1][1] + max_regroup_separation >= point:
-                groups[-1][1] = point
-            else:
-                groups.append([point, point])
-        return groups
-    
-    def get_signal_drops(self, tolerance: float, pixel_width: int=1) -> list:
+    def get_shear_points(self, tolerance: float, pixel_width: int=1) -> list:
         """
         Get every signal drop along a line from v=0 to the pixel width.
 
@@ -254,7 +260,7 @@ class HI_slice:
         ---------
         tolerance: float. Controls the sensitivity of signal drop detection. The value given corresponds to the
             percentage of the average peak value along each horizontal line (determined with the
-            get_horizontal_maximums() method) that will be considered a signal drop. E.g. for a value of 0.5, if a
+            get_horizontal_maximums method) that will be considered a signal drop. E.g. for a value of 0.5, if a
             pixel along the central line has a value beneath 0.5 times the average peak value, it will be flagged as a
             potential signal drop.
         pixel_width: int, default=1. This parameter must be greater than or equal to 1 and specifies the width of the
@@ -263,7 +269,7 @@ class HI_slice:
 
         Returns
         -------
-        list: every element is a list that contains the bounds of the drop detected.
+        list: y_value of every detected shear.
         """
         # Extract useful informations
         maxs = self.get_horizontal_maximums()
@@ -275,7 +281,7 @@ class HI_slice:
                                   axis=1))[0]
         # Return only the values between the y_limits
         return y_shear[(self.y_limits[0] <= y_shear) & (y_shear <= self.y_limits[1])]
-
+    
     def get_max_shear_width(self, bounds: list, max_accepted_shear: int) -> tuple:
         """
         Get the maximum shear width of a certain region by computing the maximum distance between v=0 and the intensity
@@ -301,28 +307,177 @@ class HI_slice:
         return max_width, coords
 
 
+class Spider_slice(HI_slice):
+    """ 
+    Encapsulate the methods specific to the analysis of slices of Spider data cubes.
+    """
 
-# HI = HI_cube(fits.open("HI_regions/LOOP4_FINAL_GLS.fits")).swap_axes({"x": "v", "y": "l", "z": "b"})
-HI = HI_cube(fits.open("HI_regions/data_cubes/spider/spider_vlb.fits"), axes_info={"x":"v","y":"l","z":"b"})
-# HI.save_as_fits_file("alllloooooo.fits")
+    def plot(self, bounds: list=None, shear_width: float=None, max_coords: tuple=None, fullscreen: bool=False):
+        """
+        Plot the object in a two-dimensional plot.
 
-# shear_points = HI.extract_shear(
-#     y_bounds=[300,350], 
-#     z_bounds=[b("32:29:29.077"),b("32:31:15.078")], 
-#     tolerance=0.5,
-#     max_regroup_separation=5, 
-#     pixel_width=3, 
-#     max_accepted_shear=5
-# )
-# shear_points = HI.extract_shear(
-#     y_bounds=[300,500],
-#     z_bounds=[400,600],
-#     tolerance=1,
-#     max_regroup_separation=1,
-#     pixel_width=3,
-#     max_accepted_shear=15
-# )
+        Arguments
+        ---------
+        bounds: list, default=None. y limits of the detected shear.
+        shear_width: float, default=None. Width of the shear calculated for this specific region.
+        max_coords: tuple, default=None. Coordinates of the maximum used for shear_width calculation.
+        fullscreen: bool, default=False. Specify if the plot should be opened in full screen.
+        """
+        color_scale = 0, 25
+        fig = plt.figure()
+        # The axes are set to have celestial coordinates
+        # ax = plt.axes()
+        ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=WCS(self.header)[self.z_coordinate,:,:])
+        fig.add_axes(ax)
+        # The turbulence map is plotted along with the colorbar, inverting the axes so y=0 is at the bottom
+        plt.colorbar(ax.imshow(self.data, origin="lower", vmin=color_scale[0], vmax=color_scale[1]))
 
-# HI.watch_shear(shear_points, fullscreen=True)
+        # Set parameters
+        if bounds is not None and shear_width is not None and max_coords is not None:
+            x_center = max_coords[0] - shear_width/(self.header["CDELT1"]/1000)
+            min_xlim = min(x_center - 10, max_coords[0] - 10)
+            max_xlim = max(x_center + 10, max_coords[0] + 10)
+            plt.xlim(min_xlim, max_xlim)
+            plt.ylim(bounds[0]-40, bounds[1]+40)
 
+            # Build the rectangle around the detected shear and enlarge so that the border is at the outside of the
+            # concerned pixels
+            region = mpl.patches.Rectangle(
+                (min(x_center, max_coords[0]) - 0.5, min(bounds[0], max_coords[1]) - 0.5), 
+                np.abs(max_coords[0] - x_center) + 1, np.abs(bounds[1] - bounds[0]) + 1,
+                linewidth=1, edgecolor='r', facecolor='none'
+            )
+            # Build the rectangle around the max shear detected
+            max_shear = mpl.patches.Rectangle(
+                (max_coords[0] - 0.5, max_coords[1] - 0.5), 1, 1, linewidth=1, edgecolor='w', facecolor="none"
+            )
+            ax.add_patch(region)
+            ax.add_patch(max_shear)
+            z = self.z_coordinate
+
+            # Set info parameters
+            if "GLAT" in self.header["CTYPE3"]:
+                plt.title(
+                    f"Current z_coordinate: {z} ({b.from_pixel(z, self.header)}), shear_width: {shear_width:.2f} km/s"
+                )
+            else:
+                plt.title(
+                    f"Current z_coordinate: {z}, shear_width: {shear_width:.2f} km/s"
+                )
+        
+        if fullscreen:
+            manager = plt.get_current_fig_manager()
+            manager.full_screen_toggle()
+        plt.show()
+
+    def check_shear(self, *,
+            rejection: float,
+            accepted_width: int,
+            max_regroup_separation: int=0,
+            max_accepted_shear: int=None
+        ) -> list:
+        """
+        Extract potential shear zones and their maximum shear value in km/s.
+
+        Arguments
+        ---------
+        rejection: float. Controls the sensitivity of the shear detection. The value given corresponds to the minimum
+            of the percentage of the average peak value along each horizontal line (determined with the
+            get_horizontal_maximums method) that will be considered as a HI shift. E.g. for a value of 0.5, if a
+            sufficiently displaced maximum has a value beneath 0.5 times the average peak value, it will be considered
+            as too faint for a shear point and will be disregarded.
+        accepted_width: int. Normal width of the HI's central band. Greatest accepted distance, in pixels, between the
+            HI's center and the maximum of a horizontal line that will not be flagged as a shear point.
+        max_regroup_separation: int, default=0. Maximum separation of two consecutive points that will be considered to
+            belong to the same signal drop section. This controls how many different regions will be outputted and will
+            merge those that are close.
+        max_accepted_shear: int, optional. Maximum number of pixels to the left or right of the central band that are
+            analyzed to look for a maximum.
+
+        Returns
+        -------
+        list: data of every detected shear. Each element has 0: bounds of the detected shear in pixels, 1: shear width
+            in km/s, 2: coordinates of the max shear point.
+        """
+        shear_bounds = self.get_point_groups(self.get_shear_points(rejection, accepted_width), max_regroup_separation)
+
+        if shear_bounds is not None:
+            shear_data = []
+            for bounds in shear_bounds:
+                shear_width = self.get_max_shear_width(bounds, max_accepted_shear)
+                if shear_width[0] is not None:
+                    shear_data.append((bounds, *shear_width))
+            return shear_data
+    
+    def get_shear_points(self, rejection: float, accepted_width: int) -> list:
+        """
+        Get every shear whose intensity is greater to a certain number controlled by the rejection float provided.
+
+        Arguments
+        ---------
+        rejection: float. Controls the sensitivity of the shear detection. The value given corresponds to the minimum
+            of the percentage of the average peak value along each horizontal line (determined with the
+            get_horizontal_maximums method) that will be considered as a HI shift. E.g. for a value of 0.5, if a
+            sufficiently displaced maximum has a value beneath 0.5 times the average peak value, it will be considered
+            as too faint for a shear point and will be disregarded.
+        accepted_width: int. Greatest accepted distance, in pixels, between the HI's center and the maximum of a
+            horizontal line that will not be flagged as a shear point.
+
+        Returns
+        -------
+        list: y_value of every detected shear.
+        """
+        # Extract useful informations
+        maxs = self.get_horizontal_maximums()
+        y_slice = slice(*self.y_limits)
+        maxs_values = maxs[y_slice,1]
+        average_max = np.mean(maxs_values[maxs_values > np.median(maxs_values)])
+        x_center = scipy.stats.mode(maxs[y_slice,0])[0]
+
+        # Get the array representing every y value that has a sufficiently displaced maximum and whose maximum is
+        # bright enough
+        y_shear = np.where((np.abs(maxs[:,0] - x_center) > accepted_width) & 
+                           (maxs[:,1] >= rejection * average_max))[0]
+        # Return only the values between the y_limits
+        return y_shear[(self.y_limits[0] <= y_shear) & (y_shear <= self.y_limits[1])]
+    
+    def get_max_shear_width(self, bounds: list, max_accepted_shear: int) -> tuple:
+        """
+        Get the maximum shear width of a certain region by computing the maximum distance between the most frequent
+        peak value and the intensity peaks in a certain region in addition to its coordinates.
+
+        Arguments
+        ---------
+        bounds: list. Values between which the search for the farthest maximum should be made.
+        max_accepted_shear: int. Maximum number of pixels to the left or right of the most frequent speed that are
+            analyzed to look for a maximum.
+
+        Returns
+        -------
+        tuple: first element is the width in km/s computed using the header's informations and the second element is a
+            tuple of the detected maximum's coordinates.
+        """
+        maxs = self.get_horizontal_maximums()[slice(bounds[0], bounds[1]+1),0]
+        x_center = float(scipy.stats.mode(self.get_horizontal_maximums()[slice(*self.y_limits),0])[0])
+
+        if max_accepted_shear:
+            np.place(maxs, np.abs(maxs - x_center) > max_accepted_shear, 0)
+        
+        if not np.all(maxs) == 0:
+            # Find the relative horizontal position of the maximum shear
+            max_rel_y_pos = np.argmax(np.abs(maxs - x_center))
+            # Compute the distance using the header and convert m/s to km/s
+            max_width = (maxs[max_rel_y_pos] - x_center) * self.header["CDELT1"] / 1000
+            coords = maxs[max_rel_y_pos], max_rel_y_pos + bounds[0]
+            return max_width, coords
+        else:
+            return None, None
+
+
+class LOOP4_cube(HI_cube):
+    slice_type = LOOP4_slice
+
+
+class Spider_cube(HI_cube):
+    slice_type = Spider_slice
 

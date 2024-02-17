@@ -306,11 +306,4 @@ class Data_cube(Fits_file):
         h_axis = 3 - convert[axis]
         new_header[f"CDELT{h_axis}"] *= -1
         new_header[f"CRPIX{h_axis}"] = self.data.shape[convert[axis]] - self.header[f"CRPIX{h_axis}"] + 1
-        return self.__class__(fits.PrimaryHDU(np.flip(self.data, axis=convert[axis]), new_header))        
-
-
-
-# N4 = Data_cube(fits.open("HI_regions/CO_data/Loop4N4_Conv_Med_FinalJS.fits"))
-# N4.swap_axes({"x":"v","y":"b","z":"l"}).save_as_fits_file("vbl_N4.fits")
-
-Data_cube(fits.open("HI_regions/data_cubes/spider/spider_bin4.fits"))[:,20:-20,20:-20].save_as_fits_file("a.fits")
+        return self.__class__(fits.PrimaryHDU(np.flip(self.data, axis=convert[axis]), new_header), self.info)
