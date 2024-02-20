@@ -5,11 +5,11 @@ from coords import *
 
 
 def analyze_LOOP4():
-    HI = LOOP4_cube(fits.open("HI_regions/data_cubes/LOOP4/LOOP4_FINAL_GLS.fits")).swap_axes({"x":"v", "y":"l", "z":"b"})
+    HI = LOOP4_cube(fits.open("HI_regions/data_cubes/LOOP4/LOOP4_bin2.fits")).swap_axes({"x":"v", "y":"l", "z":"b"})
 
     shear_points = HI.extract_shear(
         y_bounds=[300,350], 
-        z_bounds=[b("32:29:29.077"),b("32:31:15.078")], 
+        z_bounds=[b("32:29:53.077"),b("32:31:15.078")], 
         tolerance=0.5,
         max_regroup_separation=5, 
         pixel_width=3, 

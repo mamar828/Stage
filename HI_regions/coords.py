@@ -163,6 +163,17 @@ class l(Galactic_coords):
             return round((self.sexagesimal - header["CRVAL3"]) / header["CDELT3"] + header["CRPIX3"])
         else:
             raise ValueError("Header does not have GLON type")
+    
+    def to_clock(self) -> str:
+        """
+        Display the object in the form of a string (DDD:MM:SS.SSS -> Degrees, Minutes, Seconds).
+
+        Returns
+        -------
+        str: clock-formatted object
+        """
+        sep = str(self.sexagesimal).split(".")
+        return f"{sep[0]}:{int(60*float(f'0.{sep[1]}')//1):00}:{60*float(f'0.{sep[1]}')%1*60:06.3f}"
 
 
 class b(Galactic_coords):
@@ -260,3 +271,15 @@ class b(Galactic_coords):
             return round((self.sexagesimal - header["CRVAL3"]) / header["CDELT3"] + header["CRPIX3"])
         else:
             raise ValueError("Header does not have GLAT type")
+    
+    def to_clock(self) -> str:
+        """
+        Display the object in the form of a string (DD:MM:SS.SSS -> Degrees, Minutes, Seconds).
+
+        Returns
+        -------
+        str: clock-formatted object
+        """
+        sep = str(self.sexagesimal).split(".")
+        print(self.sexagesimal)
+        return f"{sep[0]}:{int(60*float(f'0.{sep[1]}')//1):02d}:{60*float(f'0.{sep[1]}')%1*60:06.3f}"

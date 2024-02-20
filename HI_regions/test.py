@@ -52,11 +52,13 @@ from eztcolors import Colors as C
 # print(C().help())
 
 
-for i in range(10):
-    try:
-        print(i)
-        raise
-    except Exception:
-        print("YO")
-        raise Exception
+# for i in range(10):
+#     try:
+#         print(i)
+#         raise
+#     except Exception:
+#         print("YO")
+#         raise Exception
 
+a = 0.1243324
+print(f"{a:06.3f}")

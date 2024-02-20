@@ -55,11 +55,19 @@ class HI_cube(Data_cube):
             else:
                 raise NotImplementedError(C.RED + f"z_bounds type ({type(z_bounds)}) not supported." + C.END)
             for z in range(*z_bounds_array):
-                collected_info[z] = self.slice_type(self, z, y_bounds).check_shear(**kwargs)
+                # Filter no detected shear
+                current_info = self.slice_type(self, z, y_bounds).check_shear(**kwargs)
+                if current_info is not None:
+                    collected_info[z] = current_info
+
         elif self.info["z"] == "l":
             # Convert bounds to array indices
             for l in range(z_bounds[0].to_pixel(self.header), z_bounds[1].to_pixel(self.header)+1):
-                collected_info[b] = self.slice_type(self, l, z_bounds).check_shear(**kwargs)
+                # Filter no detected shear
+                current_info = self.slice_type(self, l, z_bounds).check_shear(**kwargs)
+                if current_info is not None:
+                    collected_info[b] = current_info
+
         else:
             raise TypeError("HI_cube should be a rotated cube with either longitude or latitude as z axis.")
 
@@ -78,10 +86,9 @@ class HI_cube(Data_cube):
         """
         for key, value in shear_info.items():
             try:
-                if value is not None:
-                    for bounds, shear_width, max_coords in value:
-                        current_slice = self.slice_type(self, key)
-                        current_slice.plot(bounds, shear_width, max_coords, fullscreen)
+                for bounds, shear_width, max_coords in value:
+                    current_slice = self.slice_type(self, key)
+                    current_slice.plot(bounds, shear_width, max_coords, fullscreen)
             except Exception:
                 raise Exception(f"{C.RED}{C.BOLD}Exception occured at z={key}.{C.END}")
         
@@ -203,7 +210,8 @@ class LOOP4_slice(HI_slice):
             # Set info parameters
             if "GLAT" in self.header["CTYPE3"]:
                 plt.title(
-                    f"Current z_coordinate: {z} ({b.from_pixel(z, self.header)}), shear_width: {shear_width:.2f} km/s"
+                    f"Current z_coordinate: {z} ({b.from_pixel(z, self.header).to_clock()})," + 
+                    f"shear_width: {shear_width:.2f} km/s"
                 )
             else:
                 plt.title(
@@ -246,12 +254,14 @@ class LOOP4_slice(HI_slice):
             in km/s, 2: coordinates of the max shear point.
         """
         shear_bounds = self.get_point_groups(self.get_shear_points(tolerance, pixel_width), max_regroup_separation)
+        if shear_bounds is not None:
+            shear_data = []
+            for bounds in shear_bounds:
+                shear_width = self.get_max_shear_width(bounds, max_accepted_shear)
+                if shear_width[0] is not None:
+                    shear_data.append((bounds, *shear_width))
+            return shear_data
 
-        shear_data = []
-        for bounds in shear_bounds:
-            shear_data.append((bounds, *self.get_max_shear_width(bounds, max_accepted_shear)))
-        return shear_data
-    
     def get_shear_points(self, tolerance: float, pixel_width: int=1) -> list:
         """
         Get every signal drop along a line from v=0 to the pixel width.
@@ -400,7 +410,6 @@ class Spider_slice(HI_slice):
             in km/s, 2: coordinates of the max shear point.
         """
         shear_bounds = self.get_point_groups(self.get_shear_points(rejection, accepted_width), max_regroup_separation)
-
         if shear_bounds is not None:
             shear_data = []
             for bounds in shear_bounds:
