@@ -22,28 +22,30 @@ class Fits_file():
     Encapsulate the methods specific to .fits files that can be used both in data cube and map analysis.
     """
 
-    def bin_header(self, nb_pix_bin: int) -> fits.Header:
+    def bin_header(self, nb_pix_bin: int, axis: int | tuple[int]) -> fits.Header:
         """
         Bin the header to make the WCS match with a binned map.
 
         Arguments
         ---------
         nb_pix_bin: int. Specifies the number of pixels to be binned together along a single axis.
+        axis: int | tuple[int]. Specifies the axis along which the binning is performed. It must be 1, 2 or 3.
 
         Returns
         -------
         astropy.io.fits.Header: binned header.
         """
         header_copy = self.header.copy()
+        # Convert the axis into an iterable if necessary
+        if isinstance(axis, int): axis = [axis]
         # The try statement makes it so calibration maps/cubes, which don't have WCS, can also be binned
-        try:
-            header_copy["CDELT1"] *= nb_pix_bin
-            header_copy["CDELT2"] *= nb_pix_bin
-            # The CRPIX values correspond to the pixel's center and this must be accounted for when binning
-            header_copy["CRPIX1"] = (self.header["CRPIX1"] - 0.5) / nb_pix_bin + 0.5
-            header_copy["CRPIX2"] = (self.header["CRPIX2"] - 0.5) / nb_pix_bin + 0.5
-        except:
-            pass
+        for ax in list(axis):
+            try:
+                header_copy[f"CDELT{ax}"] *= nb_pix_bin
+                # The CRPIX values correspond to the pixel's center and this must be accounted for when binning
+                header_copy[f"CRPIX{ax}"] = (self.header[f"CRPIX{ax}"] - 0.5) / nb_pix_bin + 0.5
+            except:
+                pass
         return header_copy
     
     def save_as_fits_file(self, filename: str, *, overwrite=False):
@@ -62,11 +64,11 @@ class Fits_file():
             fits.open(filename)[0]
             # The file already exists
             while True and not overwrite:
-                answer = input(f"{C.RED}The file '{filename}' already exists, do you wish to overwrite it ? [y/n]"
-                               + C.END)
+                answer = input(f"{C.RED+C.BOLD}The file '{filename}' already exists, do you wish to overwrite it ? "
+                               + f"[y/n]{C.END}")
                 if answer == "y":
                     fits.writeto(filename, self.data, self.header, overwrite=True)
-                    print(f"{C.GREEN}File overwritten.{C.END}")
+                    print(f"{C.GREEN+C.BOLD}File overwritten.{C.END}")
                     break
 
                 elif answer == "n":
@@ -103,7 +105,7 @@ class Data_cube(Fits_file):
         self.info = {"x":axes_info["x"], "y":axes_info["y"], "z":axes_info["z"]}
 
     def __str__(self):
-        return f"\033[1;31;40mFOLLOWING FITS STANDARDS (axes are given in the following order: z,y,x)\033[0m\n" + \
+        return f"{C.RED+C.BOLD}FOLLOWING FITS STANDARDS (axes are given in the following order: z,y,x){C.END}\n" + \
                 f"Data_cube shape: {self.data.shape}\nData_cube axes: {list(reversed(self.info.items()))}"
     
     def __eq__(self, other):
@@ -160,7 +162,33 @@ class Data_cube(Fits_file):
         bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
                                                 int(data.shape[2]/nb_pix_bin), nb_pix_bin)
         
-        return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin)))
+        return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin, (1,2))))
+    
+    def bin_cube_wavelengths(self, nb_pix_bin: int=2) -> Data_cube:
+        """
+        Bin a specific cube by the amount of pixels given for every channel.
+
+        Arguments
+        ---------
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For 
+        example, the default value 2 will give a new cube in which every pixel at a specific channel is the mean value 
+        of every 4 pixels (2x2 bin) at that same channel.
+
+        Returns
+        -------
+        Data_cube object: binned cube with a binned header.
+        """
+        # Calculate the pixels that must be cropped to permit the bin
+        cropped_pixels = self.data.shape[0]%nb_pix_bin
+        data = np.copy(self.data)[:self.data.shape[0] - cropped_pixels,:,:]
+        if cropped_pixels != 0:
+            print(f"Cube to bin will be cut along the wavelength axis by {cropped_pixels} pixel(s).")
+
+        # Create a 4 dimensional array that places along the same axis the number of pixel to bin of the wavelength
+        # axis
+        bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, data.shape[1], data.shape[2])
+        
+        return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=1), self.bin_header(nb_pix_bin, 3)))
 
     def plot_cube(self,
             cbar_bounds: tuple=None,
@@ -300,7 +328,7 @@ class Data_cube(Fits_file):
         Data_cube object: newly axis-flipped Data_cube.
         """
         convert = {"x": 2, "y": 1, "z": 0}
-        assert axis in convert.keys(), (f"{C.RED}{C.BOLD}Provided keyword ('{axis}') is invalid. " +
+        assert axis in convert.keys(), (f"{C.RED+C.BOLD}Provided keyword ('{axis}') is invalid. " +
                                         f"Supported keywords are 'x', 'y' and 'z'.{C.END}")
         new_header = self.header.copy()
         h_axis = 3 - convert[axis]

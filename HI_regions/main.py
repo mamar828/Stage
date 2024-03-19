@@ -39,4 +39,4 @@ def analyze_spider():
     HI.watch_shear(shear_points, fullscreen=True)
 
 
-analyze_spider()
+# analyze_spider()

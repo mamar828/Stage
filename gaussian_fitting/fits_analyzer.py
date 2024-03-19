@@ -793,7 +793,8 @@ class Map(Fits_file):
         only saved.
         """
         if cbar_bounds:
-            plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis", vmin=cbar_bounds[0], vmax=cbar_bounds[1]))
+            plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis",
+                                           vmin=cbar_bounds[0], vmax=cbar_bounds[1]))
         else:
             plot = plt.colorbar(plt.imshow(self.data, origin="lower", cmap="viridis"))
         if x_bounds:
