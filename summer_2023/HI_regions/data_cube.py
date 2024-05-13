@@ -186,7 +186,7 @@ class Data_cube(Fits_file):
 
         # Create a 4 dimensional array that places along the same axis the number of pixel to bin of the wavelength
         # axis
-        bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, data.shape[1], data.shape[2])
+        bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, data.shape[1], data.shape[2]) # try unpacking !
         
         return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=1), self.bin_header(nb_pix_bin, 3)))
 

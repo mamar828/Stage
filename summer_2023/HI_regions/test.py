@@ -66,13 +66,15 @@ from eztcolors import Colors as C
 
 # print(list((0,3,4)))
 # print([(0,3,4)])
-a = 0,3
-# a = 0
-if isinstance(a, int): a = [a]
-for i in a:
-    print(i)
+# a = 0,3
+# # a = 0
+# if isinstance(a, int): a = [a]
+# for i in a:
+#     print(i)
 
-print("\033[1;31;40m allo")
+# print("\033[1;31;40m allo")
 
 
-print(f"{C.BOLD+C.BLUE}YOYOYOY YAYYY{C.BOLD}")
+# print(f"{C.BOLD+C.BLUE}YOYOYOY YAYYY{C.BOLD}")
+
+print(eval("58,10,720,680,3".replace(",","*")))
