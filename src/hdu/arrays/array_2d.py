@@ -1,22 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
-from astropy.io import fits
 
-from src.headers.header import Header
+from src.hdu.arrays.array import Array
 
 
-class Array2D(np.ndarray):
+class Array2D(Array):
     """
     Encapsulates the methods specific to two-dimensional arrays.
     """
-
-    def __new__(cls, data):
-        obj = np.asarray(data).view(cls)
-        return obj
-
-    def get_ImageHDU(self, header: Header=None):
-        return fits.ImageHDU(self.data, header)
 
     def plot(self, ax, **kwargs):
         """

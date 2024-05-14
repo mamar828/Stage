@@ -118,7 +118,6 @@ class Data_cube(Fits_file):
             if s.start is not None:
                 new_header[f"CRPIX{3-i}"] -= s.start
         return self.__class__(fits.PrimaryHDU(self.data[slices], new_header))
-        # return self.__class__(fits.PrimaryHDU(self.data[slice], None))
 
     def get_header_without_third_dimension(self) -> fits.Header:
         """
