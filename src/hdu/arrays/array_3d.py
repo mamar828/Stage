@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.animation import FuncAnimation
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from src.hdu.arrays.array import Array
 
@@ -11,14 +13,16 @@ class Array3D(Array):
     Encapsulates the methods specific to three-dimensional arrays.
     """
 
-    def plot(self, fig, ax, **kwargs) -> FuncAnimation:
+    def plot(self, fig: Figure, ax: Axes, **kwargs) -> FuncAnimation:
         """
         Plots an Array3D onto an axis.
         Note that the returned object needs to be assigned to a variable to stay alive.
 
         Parameters
         ----------
-        ax : matplotlib.axes.Axes
+        fig : Figure
+            Figure on which to plot the Array3D.
+        ax : Axes
             Axis on which to plot the Array2D.
         kwargs : dict
             Additional parameters to parametrize the plot. Supported keywords and types are :

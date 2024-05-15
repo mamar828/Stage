@@ -5,12 +5,13 @@ from astropy import units as u
 from astropy.modeling import models, fitting, CompoundModel
 from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
-
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from src.headers.header import Header
 
 
-class Spectrum():
+class Spectrum:
     """
     Encapsulate all the methods of any data cube's spectrum.
     """
@@ -30,58 +31,66 @@ class Spectrum():
         self.header = header
         self.fitted_function = None
 
-    def plot(self, text: str=None, fullscreen: bool=False, **kwargs):
+    def plot(self, ax: Axes, **kwargs):
         """
-        Plots the spectrum along with the fit's residue, if a fit was made. If plotting the fit is desired, the 
-        plot_fit() method should be used as it wraps this method in case of plotting fits.
+        Plots the spectrum on an axis.
+
+        Parameters
+        ----------
+        ax : Axes
+            Axis on which to plot the Array2D.
+        kwargs : dict
+            This argument may take any distribution to be plotted and is used to plot all the gaussian fits on the same
+            plot. The name used for each keyword argument will be present in the plot's legend. The keyword "fit" plots
+            the values in red and the keyword "initial_guesses" plots the values as a point scatter.
+        """
+        ax.plot(np.arange(1, len(self.data) + 1), self.data, "k-", label="spectrum", linewidth=1, alpha=1)
+        for key, value in kwargs.items():
+            if value is not None:
+                x_plot_gaussian = np.linspace(1, len(self.data), 1000)
+                if key == "fit":
+                    # Fitted entire function
+                    ax.plot(x_plot_gaussian*u.Jy, value(x_plot_gaussian*u.um), "r-", label=key)
+                elif key == "initial_guesses":
+                    # Simple points plotting
+                    ax.plot(value[:,0], value[:,1], "bv", label=key, markersize="4", alpha=0.5)
+                else:
+                    # Fitted individual gaussians
+                    ax.plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=key, linewidth="1")
+        
+        ax.legend(loc="upper left", fontsize="7")
+
+    def plot_residue(self, ax: Axes):
+        """
+        Plots the fit's residue.
+
+        Parameters
+        ----------
+        ax : Axes
+            Axis on which to plot the fit's residue
+        """
+        ax.plot(np.arange(1, len(self.data) + 1), self.get_subtracted_fit())
+
+    def auto_plot(self, text: str=None, fullscreen: bool=False):
+        """
+        Plots automatically a Spectrum in a preprogrammed way. The shown Figure will present on one axis the spectrum
+        and on the other the residue if a fit was made.
 
         Parameters
         ----------
         text : str, default=None
             Text to be displayed as the title of the plot. This is used for debugging purposes.
         fullscreen : bool, default=False
-            Specifies if the graph must be opened in fullscreen.
-        kwargs : dict
-            This argument may take any distribution to be plotted and is used to plot all the gaussian fits on the same
-            plot. The name used for each keyword argument will be present in the plot's legend.
+            Specifies if the graph must be opened in fullscreen.  
         """
         if self.fitted_function is None:
-            fig, axs = plt.subplots(1)
-            axs = [axs]
+            fig, ax = plt.subplots(1)
+            self.plot(ax)
         else:
             fig, axs = plt.subplots(2)
-            
-        axs[0].plot(np.arange(1, len(self.data) + 1), self.data, "k-", label="spectrum", linewidth=1, alpha=1)
-        for key, value in kwargs.items():
-            if value is None:
-                continue
-            x_plot_gaussian = np.linspace(1, len(self.data), 1000)
-            if key == "fit":
-                # Fitted entire function
-                axs[0].plot(x_plot_gaussian*u.Jy, value(x_plot_gaussian*u.um), "r-", label=key)
-            elif key == "subtracted_fit":
-                # Residual distribution
-                axs[1].plot(np.arange(1, len(self.data) + 1), value, label=key)
-            elif key == "NII":
-                # NII gaussian
-                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=key, linewidth="1")
-            elif key == "NII_2":
-                # Second NII gaussian
-                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=key, linewidth="1")
-            elif key == "SII1":
-                # First SII gaussian
-                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=key, linewidth="1")
-            elif key == "SII2":
-                # Second SII gaussian
-                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=key, linewidth="1")
-            elif key == "initial_guesses":
-                # Simple points plotting
-                axs[0].plot(value[:,0], value[:,1], "bv", label=key, markersize="4", alpha=0.5)
-            else:
-                # Fitted individual gaussians
-                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=key, linewidth="1")
+            self.plot(axs[0], fit=self.fitted_function)
+            self.plot_residue(axs[1])
         
-        axs[0].legend(loc="upper left", fontsize="7")
         fig.supxlabel("Channels")
         fig.supylabel("Intensity")
 

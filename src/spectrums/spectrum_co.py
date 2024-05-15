@@ -1,6 +1,7 @@
 from __future__ import annotations
 import numpy as np
-import scipy
+from matplotlib.axes import Axes
+from scipy.constants import c
 from astropy.modeling import models
 from astropy import units as u
 
@@ -12,16 +13,14 @@ class SpectrumCO(Spectrum):
     Encapsulates the methods specific to CO spectrums.
     """
 
-    def plot_fit(self, text: str=None, fullscreen: bool=False, plot_all: bool=False, plot_initial_guesses: bool=False):
+    def plot_fit(self, ax: Axes, plot_all: bool=False, plot_initial_guesses: bool=False):
         """
-        Sends the fitted functions and the subtracted fit to the plot() method.
+        Sends the fitted functions to the plot() method to be plotted on an axis.
 
         Parameters
         ----------
-        text : str, default=None.
-            Text to be displayed as the title of the plot. This is used for debugging purposes.
-        fullscreen : bool, default=False
-            Specifies if the graph must be opened in fullscreen.
+        ax : Axes
+            Axis on which to plot the Array2D.
         plot_all : bool, default=False
             Specifies if all gaussian functions contributing to the main fit must be plotted individually.
         plot_initial_guesses : bool, default=False
@@ -35,10 +34,8 @@ class SpectrumCO(Spectrum):
             ])
 
         base_params = {
-            "text" : text,
-            "fullscreen" : fullscreen,
+            "ax" : ax,
             "fit" : self.fitted_function,
-            "subtracted_fit" : self.get_subtracted_fit(),
             "initial_guesses" : initial_guesses_array
         }
 
@@ -74,7 +71,7 @@ class SpectrumCO(Spectrum):
         """
         parameter_bounds = {
             "amplitude" : (0, 8)*u.Jy,
-            "stddev" : (1.5, 10)*u.um
+            "stddev" : (1.5, 15)*u.um
         }
 
         return super().fit(parameter_bounds)
@@ -89,12 +86,12 @@ class SpectrumCO(Spectrum):
         initial guesses : dict
             To every ray (key) is associated another dict in which the keys are the amplitude, stddev and mean.
         """
-        guesses = {}
-        SIGMAS_THRESHOLD = 2                # Number of sigmas that will be considered inside the normal distribution
-        ACCEPTED_DISTANCE = 9               # Maximum distance between two points to be considered in the same peak
+        SIGMAS_THRESHOLD = 2.1         # Number of sigmas that will be considered inside the normal distribution
+        ACCEPTED_DISTANCE = 7          # Maximum distance between two points to be considered in the same peak
+        self.y_threshold = np.std(self.data) * SIGMAS_THRESHOLD
 
         data_array = np.stack((np.arange(1, len(self.data) + 1), self.data), axis=1)
-        high_values = data_array[self.data > (np.mean(self.data) + np.std(self.data) * SIGMAS_THRESHOLD),:]
+        high_values = data_array[self.data > (self.y_threshold),:]
         spaces = np.argwhere(np.diff(high_values[:,0]) > ACCEPTED_DISTANCE).flatten()
 
         peak_coords = []
@@ -153,7 +150,7 @@ class SpectrumCO(Spectrum):
         angstroms_center = np.array((params.mean.value, uncertainties["mean"])) * spectral_length / number_of_channels
         angstroms_center[0] +=  wavelength_channel_1
         angstroms_FWHM = channels_FWHM * spectral_length / number_of_channels
-        speed_FWHM = scipy.constants.c * angstroms_FWHM[0] / angstroms_center[0] / 1000
+        speed_FWHM = c * angstroms_FWHM[0] / angstroms_center[0] / 1000
         speed_FWHM_uncertainty = speed_FWHM * (angstroms_FWHM[1]/angstroms_FWHM[0] +
                                                angstroms_center[1]/angstroms_center[0])
         speed_array = np.array((speed_FWHM, speed_FWHM_uncertainty))
@@ -226,6 +223,7 @@ class SpectrumCO(Spectrum):
             ))
 
     def get_mean_7_components_array(self) -> np.ndarray:
+        raise NotImplementedError
         """
         Get the 7x3 dimensional array representing the mean of every fitted gaussian function and 7 components fit.
         This method is used in the fits_analyzer.worker_fit() function which creates heavy arrays.

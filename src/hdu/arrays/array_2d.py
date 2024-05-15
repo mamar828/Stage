@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.axes import Axes
 
 from src.hdu.arrays.array import Array
 
@@ -10,13 +11,13 @@ class Array2D(Array):
     Encapsulates the methods specific to two-dimensional arrays.
     """
 
-    def plot(self, ax, **kwargs):
+    def plot(self, ax: Axes, **kwargs):
         """
         Plots an Array2D onto an axis.
 
         Parameters
         ----------
-        ax : matplotlib.axes.Axes
+        ax : Axes
             Axis on which to plot the Array2D.
         kwargs : dict
             Additional parameters to parametrize the plot. Supported keywords and types are :
