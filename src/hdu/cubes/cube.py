@@ -4,7 +4,7 @@ from astropy.io import fits
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
-from src.hdu.array_3d import Array3D
+from src.hdu.arrays.array_3d import Array3D
 from src.headers.header import Header
 
 
@@ -13,34 +13,65 @@ class Cube(FitsFile):
     Encapsulates the methods specific to data cubes.
     """
 
-    def __init__(self, value: Array3D, header: Header=None):
+    def __init__(self, data: Array3D, header: Header=None):
         """
         Initialize a Cube object.
 
         Parameters
         ----------
-        value : Array3D
+        data : Array3D
             The values of the Cube.
         header : Header, default=None
             The header of the Cube.
         """
-        self.value = value
+        self.data = data
         self.header = header
 
     def __eq__(self, other):
         return np.array_equal(self.data, other.data) and self.header == other.header
 
-    def __getitem__(self, slices):
-        """ Warning : indexing must be given in the order z,y,x. """
-        new_header = self.header.copy()
-        for i, s in enumerate(slices):
-            if s.start is not None:
-                new_header[f"CRPIX{3-i}"] -= s.start
-        return self.__class__(fits.PrimaryHDU(self.data[slices], new_header))
+    def __getitem__(self, slices: slice):
+        """ Warning : indexing must be given in the order z, y, x. """
+        return self.__class__(self.data[slices], self.header.get_cropped_axes(slices))
     
     def copy(self):
-        return self.__class__(self.value.copy(), self.header.copy())
+        return self.__class__(self.data.copy(), self.header.copy())
     
+    @classmethod
+    def load(cls, filename: str) -> Cube:
+        """
+        Loads a Cube from a .fits file.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file to load.
+        
+        Returns
+        -------
+        cube : Cube
+            Loaded Cube.
+        """
+        fits_object = fits.open(filename)[0]
+        cube = cls(
+            Array3D(fits_object.data),
+            Header(fits_object.header)
+        )
+        return cube
+
+    def save(self, filename, overwrite=False):
+        """
+        Saves a Cube to a file.
+
+        Parameters
+        ----------
+        filename : str
+            Filename in which to save the Cube.
+        overwrite : bool, default=False
+            Whether the file should be forcefully overwritten if it already exists.
+        """
+        super().save(filename, fits.HDUList([self.data.get_PrimaryHDU(self.header)]), overwrite)
+
     def bin(self, bins: tuple[int, int, int]) -> Cube:
         """
         Bins a Cube.
@@ -88,4 +119,4 @@ class Cube(FitsFile):
         cube : Cube
             Cube with the newly axis-flipped Data_cube.
         """
-        return self.__class__(np.flip(self.data, axis=axis), self.header.get_inverted(axis))
+        return self.__class__(np.flip(self.data, axis=axis), self.header.get_inverted_axis(axis))

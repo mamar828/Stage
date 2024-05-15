@@ -69,7 +69,7 @@ class Header(fits.Header):
         header = wcs.to_header(relax=True)
         return header
 
-    def get_switched(self, axis_1: int, axis_2: int) -> Header:
+    def get_switched_axes(self, axis_1: int, axis_2: int) -> Header:
         """
         Gets a Header with switched axes to fit a Cube whose axes were also swapped.
         
@@ -103,9 +103,9 @@ class Header(fits.Header):
                 new_header[header_element[:-1]] = new_header.pop(header_element)
         return new_header
 
-    def get_inverted(self, axis: int) -> Header:
+    def get_inverted_axis(self, axis: int) -> Header:
         """
-        Get a Header inverted along an axis.
+        Gets a Header inverted along an axis.
 
         Parameters
         ----------
@@ -121,4 +121,25 @@ class Header(fits.Header):
         h_axis = 3 - axis
         new_header[f"CDELT{h_axis}"] *= -1
         new_header[f"CRPIX{h_axis}"] = self.data.shape[axis] - self.header[f"CRPIX{h_axis}"] + 1
+        return new_header
+    
+    def get_cropped_axes(self, slices: slice) -> Header:
+        """
+        Crops the Header to account for a cropped Cube.
+
+        Parameters
+        ----------
+        slices : slice
+            Slices to crop each axis. The axes are given in the order z, y, x, which corresponds to axes 3, 2, 1
+            respectively.
+        
+        Returns
+        -------
+        header : Header
+            Cropped Header.
+        """
+        new_header = self.copy()
+        for i, s in enumerate(slices):
+            if s.start is not None:
+                new_header[f"CRPIX{3-i}"] -= s.start
         return new_header

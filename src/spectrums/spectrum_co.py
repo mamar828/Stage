@@ -1,15 +1,9 @@
 from __future__ import annotations
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from astropy.modeling import models, fitting
-from astropy.io import fits
+from astropy.modeling import models
 from astropy import units as u
-from specutils.spectra import Spectrum1D
-from specutils.fitting import fit_lines
-from eztcolors import Colors as C
 
-from src.headers.header import Header
 from src.spectrums.spectrum import Spectrum
 
 
@@ -33,34 +27,39 @@ class SpectrumCO(Spectrum):
         plot_initial_guesses : bool, default=False
             Specifies if the initial guesses should be plotted.
         """
+        initial_guesses_array = None
         if plot_initial_guesses:
-            i = self.get_initial_guesses()
+            initial_guesses = self.get_initial_guesses()
             initial_guesses_array = np.array([
-                [i["OH1"]["x0"], i["OH2"]["x0"], i["OH3"]["x0"], i["OH4"]["x0"], i["NII"]["x0"], i["Ha"]["x0"]],
-                [i["OH1"]["a"],  i["OH2"]["a"],  i["OH3"]["a"],  i["OH4"]["a"],  i["NII"]["a"],  i["Ha"]["a"]]
+                [peak["mean"], peak["amplitude"]] for peak in initial_guesses.values()
             ])
-        else:
-            initial_guesses_array = None
 
         base_params = {
-            "title" : text,
+            "text" : text,
             "fullscreen" : fullscreen,
-            "fit" : self.fit,
+            "fit" : self.fitted_function,
             "subtracted_fit" : self.get_subtracted_fit(),
             "initial_guesses" : initial_guesses_array
         }
 
         if plot_all:
-            g = self.fit
-            # Define the functions to be plotted
-            oh1 = models.Gaussian1D(amplitude=g.amplitude_0.value, mean=g.mean_0.value, stddev=g.stddev_0.value)
-            oh2 = models.Gaussian1D(amplitude=g.amplitude_1.value, mean=g.mean_1.value, stddev=g.stddev_1.value)
-            oh3 = models.Gaussian1D(amplitude=g.amplitude_2.value, mean=g.mean_2.value, stddev=g.stddev_2.value)
-            oh4 = models.Gaussian1D(amplitude=g.amplitude_3.value, mean=g.mean_3.value, stddev=g.stddev_3.value)
-            nii = models.Gaussian1D(amplitude=g.amplitude_4.value, mean=g.mean_4.value, stddev=g.stddev_4.value)
-            ha  = models.Gaussian1D(amplitude=g.amplitude_5.value, mean=g.mean_5.value, stddev=g.stddev_5.value)
-            self.plot(**base_params, OH1=oh1, OH2=oh2, OH3=oh3, OH4=oh4, NII=nii, Ha=ha)
-
+            if isinstance(self.fitted_function, models.Gaussian1D):
+                gaussians = {
+                    "0" : models.Gaussian1D(
+                        amplitude=getattr(self.fitted_function, f"amplitude").value, 
+                        mean=getattr(self.fitted_function, f"mean").value, 
+                        stddev=getattr(self.fitted_function, f"stddev").value
+                    )
+                }
+            else:
+                gaussians = {
+                    str(i) : models.Gaussian1D(
+                        amplitude=getattr(self.fitted_function, f"amplitude_{i}").value, 
+                        mean=getattr(self.fitted_function, f"mean_{i}").value, 
+                        stddev=getattr(self.fitted_function, f"stddev_{i}").value
+                    ) for i in range(len(self.fitted_function.parameters)//3)
+                }
+            self.plot(**base_params, **gaussians)
         else:
             self.plot(**base_params)
 
@@ -74,9 +73,9 @@ class SpectrumCO(Spectrum):
             Model of the fitted distribution using two gaussian functions.
         """
         parameter_bounds = {
-            0 : {"amplitude": (0, 8)*u.Jy},
-            1 : {"amplitude": (0, 8)*u.Jy}
-        } # stddev and mean also possible (*u.um)
+            "amplitude" : (0, 8)*u.Jy,
+            "stddev" : (1.5, 10)*u.um
+        }
 
         return super().fit(parameter_bounds)
 
@@ -91,92 +90,22 @@ class SpectrumCO(Spectrum):
             To every ray (key) is associated another dict in which the keys are the amplitude, stddev and mean.
         """
         guesses = {}
-        # Trial and error determined value that allows the best detection of a peak by measuring the difference between
-        # consecutive derivatives
-        diff_threshold = -0.45
-        # Trial and error determined value that acts specifically on the determination of the OH3 peak by looking at
-        # the difference between consecutive derivatives in the case that no peak is present
-        diff_threshold_OH3 = 1.8
+        SIGMAS_THRESHOLD = 2                # Number of sigmas that will be considered inside the normal distribution
+        ACCEPTED_DISTANCE = 9               # Maximum distance between two points to be considered in the same peak
 
-        derivatives = np.zeros(shape=(47,2))
-        for i in range(0, len(self.x_values)-1):
-            derivatives[i,0] = i + 1
-            derivatives[i,1] = self.y_values[i+1] - self.y_values[i]
+        data_array = np.stack((np.arange(1, len(self.data) + 1), self.data), axis=1)
+        high_values = data_array[self.data > (np.mean(self.data) + np.std(self.data) * SIGMAS_THRESHOLD),:]
+        spaces = np.argwhere(np.diff(high_values[:,0]) > ACCEPTED_DISTANCE).flatten()
 
-        # Create a list to compute the difference between consecutive derivatives
-        derivatives_diff = []
-        for x in range(2,48):
-            # Simplify the indices in lists (channel one is element zero of a list)
-            x_list = x - 1
-            derivatives_diff.append(derivatives[x_list,1] - derivatives[x_list-1,1])
-        # Note that the first element of the list is the derivative difference between channels 2 and 3 and channels 1
-        # and 2
-
-        x_peaks = {}
-        for ray, bounds in [("OH1", (1,5)), ("OH2", (19,22)), ("OH3", (36,39)), ("OH4", (47,48)),
-                            ("NII", (13,17)), ("Ha", (42,45))]:
-            # Initial x value of the peak
-            x_peak = 0
-            # Separate value for the OH3 ray that predominates on x_peak if a distinct peak is found
-            x_peak_OH3 = 0
-            # Specify when a big difference in derivatives has been detected and allows to keep the x_value
-            stop_OH3 = False
-            # Consecutive drops signify a very probable peak in the vicinity
-            consecutive_drops_OH2 = 0
-            # For the OH1 and OH4 rays, the maximum intensity is used as the initial guess
-            if ray != "OH1" and ray != "OH4":
-                for x in range(bounds[0], bounds[1]):
-                    # Variables used to ease the use of lists
-                    current_derivatives_diff = derivatives_diff[x-2]
-                    current_y_value = self.y_values[x-1]
-                    if ray == "OH2":
-                        if current_derivatives_diff < 0.5:     # A minor rise is also considered for consecutive 
-                                                               # "drops"
-                            consecutive_drops_OH2 += 1
-                        else:
-                            consecutive_drops_OH2 = 0
-                        if consecutive_drops_OH2 == 2:
-                            # 2 consecutive drops are interpreted as a ray
-                            x_peaks[ray] = x - 1
-                            break
-
-                    if ray == "OH3":
-                        # First condition checks if a significant change in derivative is noticed which could indicate
-                        # a peak
-                        # Also makes sure that the peak is higher than any peak that might have been found previously
-                        if current_derivatives_diff < diff_threshold and (
-                            current_y_value > self.y_values[x_peak_OH3-1] or x_peak_OH3 == 0):
-                            x_peak_OH3 = x
-
-                        # In the case that no peak is noticed, the second condition checks when the derivative
-                        # suddenly rises
-                        # This can indicate a "bump" in the emission ray's shape, betraying the presence of another
-                        # component
-                        # This condition is only True once as the derivatives keep rising after the "bump"
-                        if current_derivatives_diff > diff_threshold_OH3 and not stop_OH3:
-                            x_peak = x
-                            stop_OH3 = True
-
-                    else:
-                        # For other rays, only a significant change in derivative is checked while making sure it is
-                        # the max value
-                        if current_derivatives_diff < diff_threshold and (
-                            current_y_value > self.y_values[x_peak-1] or x_peak == 0):
-                            x_peak = x
-            if consecutive_drops_OH2 != 2:
-                # If no peak is found, the peak is chosen to be the maximum value within the bounds
-                if x_peak == 0:
-                    x_peak = bounds[0] + np.argmax(self.y_values[bounds[0]-1:bounds[1]-1])
-
-                # If a real peak has been found for the OH3 ray, it predominates over a big rise in derivative
-                if x_peak_OH3 != 0:
-                    x_peak = x_peak_OH3
-
-                x_peaks[ray] = x_peak
-
-        for ray in ["OH1", "OH2", "OH3", "OH4", "NII", "Ha"]:
-            guesses[ray] = {"x0": x_peaks[ray], "a": self.y_values[x_peaks[ray]-1]}
-        return guesses
+        peak_coords = []
+        for lower_bound, upper_bound in zip(np.concatenate(([0], spaces + 1)),
+                                            np.concatenate((spaces, [len(high_values)])) + 1):
+            peak_coords.append(high_values[lower_bound + np.argmax(high_values[lower_bound:upper_bound, 1]),:])
+        
+        initial_guesses = {
+            i : {"mean" : coords[0], "amplitude" : coords[1], "stddev" : 5} for i, coords in enumerate(peak_coords)
+        }
+        return initial_guesses
 
     def get_uncertainties(self) -> dict:
         """

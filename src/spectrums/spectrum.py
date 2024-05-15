@@ -2,7 +2,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units as u
-from astropy.modeling import models, fitting
+from astropy.modeling import models, fitting, CompoundModel
 from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
 
@@ -30,14 +30,14 @@ class Spectrum():
         self.header = header
         self.fitted_function = None
 
-    def plot(self, title: str=None, fullscreen: bool=False, **kwargs):
+    def plot(self, text: str=None, fullscreen: bool=False, **kwargs):
         """
         Plots the spectrum along with the fit's residue, if a fit was made. If plotting the fit is desired, the 
         plot_fit() method should be used as it wraps this method in case of plotting fits.
 
         Parameters
         ----------
-        title : str, default=None
+        text : str, default=None
             Text to be displayed as the title of the plot. This is used for debugging purposes.
         fullscreen : bool, default=False
             Specifies if the graph must be opened in fullscreen.
@@ -45,45 +45,48 @@ class Spectrum():
             This argument may take any distribution to be plotted and is used to plot all the gaussian fits on the same
             plot. The name used for each keyword argument will be present in the plot's legend.
         """
-        fig, axs = plt.subplots(2)
-        axs[0].plot(self.arange(1, len(self.data) + 1), self.data, "g-", label="spectrum", linewidth=3, alpha=0.6)
-        # for key, value in kwargs.items():
-        #     if value is None:
-        #         continue
-        #     x_plot_gaussian = np.arange(1,self.x_values[-1]+0.05,0.05)
-        #     if key == "fit":
-        #         # Fitted entire function
-        #         axs[0].plot(x_plot_gaussian*u.Jy, value(x_plot_gaussian*u.um), "r-", label=key)
-        #     elif key == "subtracted_fit":
-        #         # Residual distribution
-        #         axs[1].plot(self.x_values, value, label=key)
-        #     elif key == "NII":
-        #         # NII gaussian
-        #         axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=key, linewidth="1")
-        #     elif key == "NII_2":
-        #         # Second NII gaussian
-        #         axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=key, linewidth="1")
-        #     elif key == "SII1":
-        #         # First SII gaussian
-        #         axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=key, linewidth="1")
-        #     elif key == "SII2":
-        #         # Second SII gaussian
-        #         axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=key, linewidth="1")
-        #     elif key == "initial_guesses":
-        #         # Simple points plotting
-        #         axs[0].plot(value[0], value[1], "kx", label=key, markersize="10")
-        #     else:
-        #         # Fitted individual gaussians
-        #         axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=key, linewidth="1")
+        if self.fitted_function is None:
+            fig, axs = plt.subplots(1)
+            axs = [axs]
+        else:
+            fig, axs = plt.subplots(2)
+            
+        axs[0].plot(np.arange(1, len(self.data) + 1), self.data, "k-", label="spectrum", linewidth=1, alpha=1)
+        for key, value in kwargs.items():
+            if value is None:
+                continue
+            x_plot_gaussian = np.linspace(1, len(self.data), 1000)
+            if key == "fit":
+                # Fitted entire function
+                axs[0].plot(x_plot_gaussian*u.Jy, value(x_plot_gaussian*u.um), "r-", label=key)
+            elif key == "subtracted_fit":
+                # Residual distribution
+                axs[1].plot(np.arange(1, len(self.data) + 1), value, label=key)
+            elif key == "NII":
+                # NII gaussian
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=key, linewidth="1")
+            elif key == "NII_2":
+                # Second NII gaussian
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=key, linewidth="1")
+            elif key == "SII1":
+                # First SII gaussian
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "m-", label=key, linewidth="1")
+            elif key == "SII2":
+                # Second SII gaussian
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "c-", label=key, linewidth="1")
+            elif key == "initial_guesses":
+                # Simple points plotting
+                axs[0].plot(value[:,0], value[:,1], "bv", label=key, markersize="4", alpha=0.5)
+            else:
+                # Fitted individual gaussians
+                axs[0].plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=key, linewidth="1")
         
         axs[0].legend(loc="upper left", fontsize="7")
-        axs[1].legend(loc="upper left", fontsize="7")
-        plt.xlabel("channels")
-        axs[0].set_ylabel("intensity")
-        axs[1].set_ylabel("intensity")
+        fig.supxlabel("Channels")
+        fig.supylabel("Intensity")
 
-        if title:
-            fig.title(title)
+        if text:
+            fig.suptitle(text)
 
         if fullscreen:
             manager = plt.get_current_fig_manager()
@@ -120,7 +123,7 @@ class Spectrum():
         subtracted fit : np.ndarray
             Result values of the gaussian fit subtracted to the y values.
         """
-        subtracted_y = self.data - self.fitted_function(self.x_values*u.um)/u.Jy
+        subtracted_y = self.data - self.fitted_function(np.arange(1, len(self.data) + 1)*u.um)/u.Jy
         return subtracted_y
 
     def get_FWHM_channels(self, gaussian_function_index: int) -> np.ndarray:
@@ -158,7 +161,7 @@ class Spectrum():
         """
         return getattr(self.fitted_function, gaussian_function_index).amplitude / self.get_residue_stddev()#/u.Jy after amplitude
 
-    def fit(self, parameter_bounds: dict) -> models:
+    def fit(self, parameter_bounds: dict) -> CompoundModel:
         """
         Fits a Spectrum using the get_initial_guesses method and with parameter bounds. Also set the astropy model of
         the fitted gaussian to the variable self.fit.
@@ -171,7 +174,7 @@ class Spectrum():
         
         Returns
         -------
-        fit : models
+        fit : CompoundModel
             Model of the fitted Spectrum.
         """
         initial_guesses = self.get_initial_guesses()
@@ -179,18 +182,38 @@ class Spectrum():
         spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=np.arange(1, len(self.data) + 1)*u.um)
         gaussians = [
             models.Gaussian1D(
-                amplitude=initial_guesses[i].get("amplitude"),
-                mean=initial_guesses[i].get("mean"),
-                stddev=initial_guesses[i].get("stddev"),
-                bounds=parameter_bounds[i]
-            ) for i in range(len(parameter_bounds))
+                amplitude=initial_guesses[i]["amplitude"]*u.Jy,
+                mean=initial_guesses[i]["mean"]*u.um,
+                stddev=initial_guesses[i]["stddev"]*u.um,
+                bounds=parameter_bounds
+            ) for i in range(len(initial_guesses))
         ]
         self.fitted_function = fit_lines(
             spectrum,
-            sum(gaussians),
+            self.sum_gaussians(gaussians),
             fitter=fitting.LMLSQFitter(calc_uncertainties=True),
             get_fit_info=True,
-            maxiter=1e4
+            maxiter=int(1e4)
         )
-
         return self.fitted_function
+    
+    @staticmethod
+    def sum_gaussians(gaussians: list) -> CompoundModel:
+        """
+        Sums a list of models.Gaussian1D objects.
+
+        Parameters
+        ----------
+        gaussians : list
+            List of Gaussian1D objects to sum together.
+
+        Returns
+        -------
+        function : CompoundModel
+            Model representing the sum of all gaussians.
+        """
+        total = gaussians[0]
+        if len(gaussians) >= 1:
+            for gaussian in gaussians[1:]:
+                total += gaussian
+        return total

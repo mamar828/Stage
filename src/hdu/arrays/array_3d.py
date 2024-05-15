@@ -6,7 +6,7 @@ from matplotlib.animation import FuncAnimation
 from src.hdu.arrays.array import Array
 
 
-class Array3D(np.ndarray):
+class Array3D(Array):
     """
     Encapsulates the methods specific to three-dimensional arrays.
     """
@@ -14,6 +14,7 @@ class Array3D(np.ndarray):
     def plot(self, fig, ax, **kwargs) -> FuncAnimation:
         """
         Plots an Array3D onto an axis.
+        Note that the returned object needs to be assigned to a variable to stay alive.
 
         Parameters
         ----------
@@ -34,9 +35,11 @@ class Array3D(np.ndarray):
         Returns
         -------
         animation : FuncAnimation
-            Animation that can be saved using FuncAnimation.save.
+            Animation that can be saved using FuncAnimation.save. Assign the object to a variable to keep the animation
+            running.
         """
         DEFAULT_TIME_INTERVAL = 100
+        zlim = kwargs.get("zlim", (0, self.shape[0]))
 
         if kwargs.get("discrete_colormap"):
             viridis_cmap = plt.cm.viridis
@@ -45,14 +48,12 @@ class Array3D(np.ndarray):
             bounds = np.linspace(*cbar_limits, interval + 1)
             cmap = ListedColormap(viridis_cmap(np.linspace(0, 1, interval)))
             norm = BoundaryNorm(bounds, cmap.N)
-            imshow = ax.imshow(self.data, origin="lower", cmap=cmap, norm=norm)
+            imshow = ax.imshow(self[zlim[0],...], origin="lower", cmap=cmap, norm=norm)
             cbar = plt.colorbar(imshow, ticks=np.linspace(*cbar_limits, interval//2 + 1), fraction=0.046, pad=0.04)
 
         else:
-            imshow = ax.imshow(self.data, origin="lower")
+            imshow = ax.imshow(self[zlim[0],...], origin="lower")
             cbar = plt.colorbar(imshow, fraction=0.046, pad=0.04)
-
-        zlim = kwargs.get("zlim", (0, self.data.shape[0]))
 
         if kwargs.get("cbar_limits") and not kwargs.get("discrete_colormap"):
             imshow.set_clim(*kwargs.get("cbar_limits"))
@@ -67,7 +68,7 @@ class Array3D(np.ndarray):
         ax.tick_params(axis='both', direction='in')
 
         def next_slice(frame_number):
-            imshow.set_array(self.data[frame_number,:,:])
+            imshow.set_array(self[frame_number,:,:])
             cbar.update_normal(imshow)
         
         animation = FuncAnimation(fig, next_slice, frames=range(*zlim), interval=kwargs.get("time_interval", 

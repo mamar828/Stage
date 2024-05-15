@@ -23,7 +23,7 @@ class FitsFile:
             Specifies if the file should automatically be erased.
         """
         try:
-            hdu_list.writeto(filename, overwrite)
+            hdu_list.writeto(filename, overwrite=overwrite)
         except OSError:
             while True:
                 decision = input(f"{C.RED}{filename} already exists, do you wish to overwrite it? [y/n]{C.END}")

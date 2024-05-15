@@ -35,11 +35,11 @@ class Array2D(Array):
             bounds = np.linspace(*cbar_limits, interval + 1)
             cmap = ListedColormap(viridis_cmap(np.linspace(0, 1, interval)))
             norm = BoundaryNorm(bounds, cmap.N)
-            imshow = ax.imshow(self.data, origin="lower", cmap=cmap, norm=norm)
+            imshow = ax.imshow(self, origin="lower", cmap=cmap, norm=norm)
             cbar = plt.colorbar(imshow, ticks=np.linspace(*cbar_limits, interval//2 + 1), fraction=0.046, pad=0.04)
 
         else:
-            imshow = ax.imshow(self.data, origin="lower")
+            imshow = ax.imshow(self, origin="lower")
             cbar = plt.colorbar(imshow, fraction=0.046, pad=0.04)
 
         if kwargs.get("cbar_limits") and not kwargs.get("discrete_colormap"):

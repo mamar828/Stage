@@ -13,6 +13,22 @@ class Array(np.ndarray):
         obj = np.asarray(data).view(cls)
         return obj
 
+    def get_PrimaryHDU(self, header: Header) -> fits.PrimaryHDU:
+        """
+        Get the PrimaryHDU object of the Array.
+
+        Parameters
+        ----------
+        header : Header
+            Header of the Array.
+        
+        Returns
+        -------
+        PrimaryHDU : fits.PrimaryHDU
+            PrimaryHDU object of the Array.
+        """
+        return fits.PrimaryHDU(self.data, header)
+
     def get_ImageHDU(self, header: Header) -> fits.ImageHDU:
         """
         Get the ImageHDU object of the Array.
