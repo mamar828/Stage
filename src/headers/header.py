@@ -46,10 +46,10 @@ class Header(fits.Header):
         
         header_copy = self.copy()
         for ax, bin_ in zip(range(1, len(bins) + 1), bins):
-            if f"CDELT{ax}" in list(self.keys()):
-                header_copy[f"CDELT{ax}"] *= bin_
-            if f"CRPIX{ax}" in list(self.keys()):
-                header_copy[f"CRPIX{ax}"] = (self[f"CRPIX{ax}"] - 0.5) / bin_ + 0.5
+            if f"CDELT{4-ax}" in list(self.keys()):
+                header_copy[f"CDELT{4-ax}"] *= bin_
+            if f"CRPIX{4-ax}" in list(self.keys()):
+                header_copy[f"CRPIX{4-ax}"] = (self[f"CRPIX{4-ax}"] - 0.5) / bin_ + 0.5
         
         return header_copy
 

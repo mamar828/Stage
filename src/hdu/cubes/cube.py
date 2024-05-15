@@ -98,10 +98,9 @@ class Cube(FitsFile):
         for ax, b in enumerate(bins):
             if b != 1:
                 indices = list(data_copy.shape)
-                indices[ax] = [data_copy.shape[ax] // b, b]
-                # indices[ax:ax+1] = [int(data_copy.shape[ax]/b), b]
+                indices[ax:ax+1] = [data_copy.shape[ax] // b, b]
                 reshaped_data = data_copy.reshape(indices)
-                data_copy = reshaped_data.mean(axis=ax+1)
+                data_copy = np.nanmean(reshaped_data, axis=ax+1)
 
         return self.__class__(data_copy, self.header.bin(bins))
 
