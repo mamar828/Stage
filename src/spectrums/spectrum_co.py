@@ -57,7 +57,7 @@ class SpectrumCO(Spectrum):
         Parameters
         ----------
         ax : Axes
-            Axis on which to plot the Array2D.
+            Axis on which to plot the Spectrum.
         plot_all : bool, default=False
             Specifies if all gaussian functions contributing to the main fit must be plotted individually.
         plot_initial_guesses : bool, default=False
@@ -123,7 +123,6 @@ class SpectrumCO(Spectrum):
         initial guesses : dict
             To every ray (key) is associated another dict in which the keys are the amplitude, stddev and mean.
         """
-        
         peaks = find_peaks(
             self.data,
             prominence=self.PEAK_PROMINENCE,
@@ -139,28 +138,6 @@ class SpectrumCO(Spectrum):
         else:
             return {}
 
-    def get_uncertainties(self) -> dict:
-        """
-        Gets the uncertainty on every parameter of every gaussian component.
-
-        Returns
-        -------
-        uncertainties : dict
-            Every key is the index of a gaussian function and the value is another dict with the uncertainty values
-            linked to the keys "amplitude", "mean" and "stddev".
-        """
-        cov_matrix = self.fitted_function.meta["fit_info"]["param_cov"]
-        uncertainty_matrix = np.sqrt(np.diag(cov_matrix))
-        # The uncertainty matrix is stored as a_0, x0_0, sigma_0, a_1, x0_1, sigma_1, ...
-        ordered_uncertainties = {
-            i : {
-                "amplitude": uncertainty_matrix[3*i],
-                "mean": uncertainty_matrix[3*i+1],
-                "stddev": uncertainty_matrix[3*i+2]
-            } for i in range(len(uncertainty_matrix)//3)
-        }
-        return ordered_uncertainties
-
     def get_FWHM_speed(self, gaussian_function_index: int) -> np.ndarray:
         """
         Gets the full width at half max of a function along with its uncertainty in km/s.
@@ -175,21 +152,8 @@ class SpectrumCO(Spectrum):
         FWHM : np.ndarray
             FWHM in km/s and its uncertainty measured in km/s.
         """
-        spectral_length = self.header["FP_I_A"]
-        wavelength_channel_1 = self.header["FP_B_L"]
-        number_of_channels = self.header["NAXIS3"]
-        params = getattr(self.fitted_function, gaussian_function_index)
-        uncertainties = self.get_uncertainties()[gaussian_function_index]
         channels_FWHM = self.get_FWHM_channels(gaussian_function_index)
-
-        angstroms_center = np.array((params.mean.value, uncertainties["mean"])) * spectral_length / number_of_channels
-        angstroms_center[0] +=  wavelength_channel_1
-        angstroms_FWHM = channels_FWHM * spectral_length / number_of_channels
-        speed_FWHM = c * angstroms_FWHM[0] / angstroms_center[0] / 1000
-        speed_FWHM_uncertainty = speed_FWHM * (angstroms_FWHM[1]/angstroms_FWHM[0] +
-                                               angstroms_center[1]/angstroms_center[0])
-        speed_array = np.array((speed_FWHM, speed_FWHM_uncertainty))
-        return speed_array
+        return np.abs(channels_FWHM * self.header["CDELT3"]/1000)
 
     def get_FWHM_snr_7_components_array(self) -> np.ndarray:
         raise NotImplementedError

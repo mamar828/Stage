@@ -1,8 +1,7 @@
 from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
-from xarray import Dataset
-from pandas import DataFrame
+import pandas as pd
 from astropy import units as u
 from astropy.modeling import models, fitting, CompoundModel
 from specutils.spectra import Spectrum1D
@@ -31,7 +30,7 @@ class Spectrum:
         self.data = data
         self.header = header
         self.fitted_function: models.Gaussian1D | CompoundModel = None
-        self.fit_results: DataFrame = None
+        self.fit_results: pd.DataFrame = None
 
     def plot(self, ax: Axes, **kwargs):
         """
@@ -40,7 +39,7 @@ class Spectrum:
         Parameters
         ----------
         ax : Axes
-            Axis on which to plot the Array2D.
+            Axis on which to plot the Spectrum.
         kwargs : dict
             This argument may take any distribution to be plotted and is used to plot all the gaussian fits on the same
             plot. The name used for each keyword argument will be present in the plot's legend. The keyword "fit" plots
@@ -122,9 +121,9 @@ class Spectrum:
             Value of the residue's standard deviation.
         """
         if bounds is None:
-            stddev = np.std(self.get_subtracted_fit())#/u.Jy)
+            stddev = np.std(self.get_subtracted_fit())
         else:
-            stddev = np.std(self.get_subtracted_fit()[bounds])#/u.Jy)
+            stddev = np.std(self.get_subtracted_fit()[bounds])
         return stddev
 
     def get_subtracted_fit(self) -> np.ndarray:
@@ -153,10 +152,10 @@ class Spectrum:
         FWHM : np.ndarray
             Array of the FWHM and its uncertainty measured in channels.
         """
-        stddev = np.array()
-        fwhm = 2*np.sqrt(2*np.log(2))*self.fit_results.stddev[gaussian_function_index]
-        fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*self.get_uncertainties()[gaussian_function_index]["stddev"]
-        return np.array((fwhm, fwhm_uncertainty))
+        stddev = np.array([self.fit_results.stddev.value[gaussian_function_index],
+                           self.fit_results.stddev.uncertainty[gaussian_function_index]])
+        fwhm = 2 * np.sqrt(2*np.log(2)) * stddev
+        return fwhm
 
     def get_snr(self, gaussian_function_index: int) -> float:
         """
@@ -173,7 +172,7 @@ class Spectrum:
         snr : float
             Value of the signal to noise ratio.
         """
-        return getattr(self.fitted_function, gaussian_function_index).amplitude / self.get_residue_stddev()
+        return self.fit_results.amplitude.value[gaussian_function_index] / self.get_residue_stddev()
 
     def fit(self, parameter_bounds: dict) -> CompoundModel:
         """
@@ -237,22 +236,13 @@ class Spectrum:
         """
         Stores the results of the fit in the fit_results variable in the forme of a DataFrame.
         """
-        parameters = self.fitted_function.parameters.reshape(len(self.fitted_function.parameters) // 3, 3)
-        raw_uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"]))
-        uncertainties = raw_uncertainties.reshape(len(self.fitted_function.parameters) // 3, 3)
-        ds = Dataset(
-            data_vars={
-                "amplitude": (["type", "gaussian_function_index"],
-                              np.stack((parameters[:,0], uncertainties[:,0]), axis=0)),
-                "mean": (["type", "gaussian_function_index"],
-                              np.stack((parameters[:,1], uncertainties[:,1]), axis=0)),
-                "stddev": (["type", "gaussian_function_index"],
-                              np.stack((parameters[:,2], uncertainties[:,2]), axis=0))
-            },
-            coords={
-                "type": ["parameter", "uncertainty"],
-                "gaussian_function_index": list(range(parameters.shape[0]))
-            }
-        )
+        values = self.fitted_function.parameters
+        uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"]))
 
-        self.fit_results = ds.to_dataframe()
+        title = np.repeat(["amplitude", "mean", "stddev"], 2)
+        subtitle = np.array(["value", "uncertainty"]*3)
+        data = np.vstack((values, uncertainties)).T.reshape(len(values) // 3, 6)
+        df = pd.DataFrame(zip(title, subtitle, data), columns=["title", "subtitle", "data"])
+        df.set_index(["title", "subtitle"], inplace=True)
+
+        self.fit_results = pd.DataFrame(data=data, columns=pd.MultiIndex.from_tuples(zip(title, subtitle)))
