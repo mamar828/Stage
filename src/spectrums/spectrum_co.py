@@ -2,16 +2,53 @@ from __future__ import annotations
 import numpy as np
 from matplotlib.axes import Axes
 from scipy.constants import c
+from scipy.signal import find_peaks
 from astropy.modeling import models
 from astropy import units as u
 
 from src.spectrums.spectrum import Spectrum
+from src.headers.header import Header
 
 
 class SpectrumCO(Spectrum):
     """
     Encapsulates the methods specific to CO spectrums.
     """
+
+    def __init__(
+            self,
+            data: np.ndarray,
+            header: Header,
+            peak_prominence: float=0.7,
+            peak_minimum_height_sigmas: float=6.0,
+            peak_minimum_distance: int=10,
+            noise_channels: slice=slice(0,100)
+        ):
+        """
+        Initializes a SpectrumCO object with a certain header, whose spectral information will be taken.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Detected intensity at each channel.
+        header : Header
+            Allows for the calculation of the FWHM using the header's informations.
+        peak_prominence : float, default=0.7
+            Required prominence of peaks to be detected as such. This is used in the scipy.signal.find_peaks function.
+        peak_minimum_height_sigmas : float, default=6.0
+            Minimum number of sigmas (stddev) above the continuum to be considered as a peak. This is used in the
+            scipy.signal.find_peak function.
+        peak_minimum_distance : int, default=10
+            Minimum horizontal distance between peaks, in channels. This is used in the scipy.signal.find_peak function.
+        noise_channels : slice, default=slice(0,100)
+            Channels used to measure the noise's stddev. No peaks should be found in this region. 
+        """
+        super().__init__(data, header)
+        self.PEAK_PROMINENCE = peak_prominence
+        self.PEAK_MINIMUM_HEIGHT_SIGMAS = peak_minimum_height_sigmas
+        self.PEAK_MINIMUM_DISTANCE = peak_minimum_distance
+        self.NOISE_CHANNELS = noise_channels
+        self.y_threshold = np.std(self.data[self.NOISE_CHANNELS]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS
 
     def plot_fit(self, ax: Axes, plot_all: bool=False, plot_initial_guesses: bool=False):
         """
@@ -36,24 +73,24 @@ class SpectrumCO(Spectrum):
         base_params = {
             "ax" : ax,
             "fit" : self.fitted_function,
-            "initial_guesses" : initial_guesses_array
+            "initial_guesses" : initial_guesses_array if self.fitted_function else None
         }
 
-        if plot_all:
+        if plot_all and self.fitted_function:
             if isinstance(self.fitted_function, models.Gaussian1D):
                 gaussians = {
                     "0" : models.Gaussian1D(
-                        amplitude=getattr(self.fitted_function, f"amplitude").value, 
-                        mean=getattr(self.fitted_function, f"mean").value, 
-                        stddev=getattr(self.fitted_function, f"stddev").value
+                        amplitude=self.fitted_function.amplitude.value, 
+                        mean=self.fitted_function.mean.value, 
+                        stddev=self.fitted_function.stddev.value
                     )
                 }
             else:
                 gaussians = {
                     str(i) : models.Gaussian1D(
-                        amplitude=getattr(self.fitted_function, f"amplitude_{i}").value, 
-                        mean=getattr(self.fitted_function, f"mean_{i}").value, 
-                        stddev=getattr(self.fitted_function, f"stddev_{i}").value
+                        amplitude=self.fitted_function[i].amplitude.value, 
+                        mean=self.fitted_function[i].mean.value, 
+                        stddev=self.fitted_function[i].stddev.value
                     ) for i in range(len(self.fitted_function.parameters)//3)
                 }
             self.plot(**base_params, **gaussians)
@@ -70,8 +107,8 @@ class SpectrumCO(Spectrum):
             Model of the fitted distribution using two gaussian functions.
         """
         parameter_bounds = {
-            "amplitude" : (0, 8)*u.Jy,
-            "stddev" : (1.5, 15)*u.um
+            "amplitude" : (0, 100)*u.Jy,
+            "stddev" : (0, 100)*u.um
         }
 
         return super().fit(parameter_bounds)
@@ -86,23 +123,21 @@ class SpectrumCO(Spectrum):
         initial guesses : dict
             To every ray (key) is associated another dict in which the keys are the amplitude, stddev and mean.
         """
-        SIGMAS_THRESHOLD = 2.1         # Number of sigmas that will be considered inside the normal distribution
-        ACCEPTED_DISTANCE = 7          # Maximum distance between two points to be considered in the same peak
-        self.y_threshold = np.std(self.data) * SIGMAS_THRESHOLD
-
-        data_array = np.stack((np.arange(1, len(self.data) + 1), self.data), axis=1)
-        high_values = data_array[self.data > (self.y_threshold),:]
-        spaces = np.argwhere(np.diff(high_values[:,0]) > ACCEPTED_DISTANCE).flatten()
-
-        peak_coords = []
-        for lower_bound, upper_bound in zip(np.concatenate(([0], spaces + 1)),
-                                            np.concatenate((spaces, [len(high_values)])) + 1):
-            peak_coords.append(high_values[lower_bound + np.argmax(high_values[lower_bound:upper_bound, 1]),:])
         
-        initial_guesses = {
-            i : {"mean" : coords[0], "amplitude" : coords[1], "stddev" : 5} for i, coords in enumerate(peak_coords)
-        }
-        return initial_guesses
+        peaks = find_peaks(
+            self.data,
+            prominence=self.PEAK_PROMINENCE,
+            height=float(np.std(self.data[:100]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS),
+            distance=self.PEAK_MINIMUM_DISTANCE
+        )[0]
+
+        if list(peaks) != []:
+            initial_guesses = {
+                i : {"mean" : peak, "amplitude" : self.data[peak], "stddev" : 5} for i, peak in enumerate(peaks)
+            }
+            return initial_guesses
+        else:
+            return {}
 
     def get_uncertainties(self) -> dict:
         """

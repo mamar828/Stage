@@ -44,7 +44,7 @@ class Spectrum:
             plot. The name used for each keyword argument will be present in the plot's legend. The keyword "fit" plots
             the values in red and the keyword "initial_guesses" plots the values as a point scatter.
         """
-        ax.plot(np.arange(1, len(self.data) + 1), self.data, "k-", label="spectrum", linewidth=1, alpha=1)
+        ax.plot(self.data, "k-", label="spectrum", linewidth=1, alpha=1)
         for key, value in kwargs.items():
             if value is not None:
                 x_plot_gaussian = np.linspace(1, len(self.data), 1000)
@@ -69,7 +69,8 @@ class Spectrum:
         ax : Axes
             Axis on which to plot the fit's residue
         """
-        ax.plot(np.arange(1, len(self.data) + 1), self.get_subtracted_fit())
+        if self.fitted_function:
+            ax.plot(self.get_subtracted_fit())
 
     def auto_plot(self, text: str=None, fullscreen: bool=False):
         """
@@ -157,7 +158,7 @@ class Spectrum:
         """
         Gets the signal to noise ratio of a peak. This is calculated as the amplitude of the peak divided by the
         residue's standard deviation.
-
+    
         Parameters
         ----------
         gaussian_function_index : str
@@ -168,7 +169,7 @@ class Spectrum:
         snr : float
             Value of the signal to noise ratio.
         """
-        return getattr(self.fitted_function, gaussian_function_index).amplitude / self.get_residue_stddev()#/u.Jy after amplitude
+        return getattr(self.fitted_function, gaussian_function_index).amplitude / self.get_residue_stddev()
 
     def fit(self, parameter_bounds: dict) -> CompoundModel:
         """
@@ -187,24 +188,24 @@ class Spectrum:
             Model of the fitted Spectrum.
         """
         initial_guesses = self.get_initial_guesses()
-
-        spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=np.arange(1, len(self.data) + 1)*u.um)
-        gaussians = [
-            models.Gaussian1D(
-                amplitude=initial_guesses[i]["amplitude"]*u.Jy,
-                mean=initial_guesses[i]["mean"]*u.um,
-                stddev=initial_guesses[i]["stddev"]*u.um,
-                bounds=parameter_bounds
-            ) for i in range(len(initial_guesses))
-        ]
-        self.fitted_function = fit_lines(
-            spectrum,
-            self.sum_gaussians(gaussians),
-            fitter=fitting.LMLSQFitter(calc_uncertainties=True),
-            get_fit_info=True,
-            maxiter=int(1e4)
-        )
-        return self.fitted_function
+        if initial_guesses:
+            spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=np.arange(1, len(self.data) + 1)*u.um)
+            gaussians = [
+                models.Gaussian1D(
+                    amplitude=initial_guesses[i]["amplitude"]*u.Jy,
+                    mean=initial_guesses[i]["mean"]*u.um,
+                    stddev=initial_guesses[i]["stddev"]*u.um,
+                    bounds=parameter_bounds
+                ) for i in range(len(initial_guesses))
+            ]
+            self.fitted_function = fit_lines(
+                spectrum,
+                self.sum_gaussians(gaussians),
+                fitter=fitting.LMLSQFitter(calc_uncertainties=True),
+                get_fit_info=True,
+                maxiter=int(1e4)
+            )
+            return self.fitted_function
     
     @staticmethod
     def sum_gaussians(gaussians: list) -> CompoundModel:
