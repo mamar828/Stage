@@ -1,3 +1,8 @@
+import numpy as np
+from multiprocessing import Pool
+from tqdm import tqdm
+from eztcolors import Colors as C
+
 from src.hdu.cubes.cube import Cube
 
 
@@ -35,17 +40,13 @@ class CubeCO(Cube):
         self.verify_extract_list(extract)
 
         data = np.copy(self.data)
-        pool = multiprocessing.Pool()           # This automatically generates an optimal number of workers
-        print(f"Number of processes used: {pool._processes}")
-        self.reset_update_file()
-        start = time.time()
-        fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(NII_data_cube(fits.PrimaryHDU(data[:,y,:], 
-                                                                        self.header), double_NII_peak_authorized),
-                                                                 data.shape[1]) for y in range(data.shape[1])]))
-        stop = time.time()
-        print("\nFinished in", stop-start, "s.")
-        pool.close()
-        new_header = self.get_header_without_third_dimension()
+        with Pool() as pool:
+            print(f"{C.YELLOW}Number of processes used: {pool._processes}{C.END}")
+            fit_fwhm_map = np.array(pool.starmap(worker_split_fit, [(NII_data_cube(fits.PrimaryHDU(data[:,y,:], 
+                                                                            self.header), double_NII_peak_authorized),
+                                                                    data.shape[1]) for y in range(data.shape[1])]))
+        
+        new_header = self.header.get_flattened()
         # The fit_fwhm_map has 5 dimensions (x_shape,y_shape,3,7,3) and the last three dimensions are given at every 
         # pixel
         # Third dimension: all three gaussian parameters. 0: fwhm, 1: amplitude, 2: mean
@@ -56,23 +57,23 @@ class CubeCO(Cube):
         # 1 iftwo components were considered
         fwhm_maps = Maps([
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,0,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,0,2])]), name="OH1_fwhm"),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,0,1]),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,0,2])]), name="OH1_fwhm"),
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,1,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,1,2])]), name="OH2_fwhm"),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,1,1]),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,1,2])]), name="OH2_fwhm"),
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,2,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,2,2])]), name="OH3_fwhm"),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,2,1]),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,2,2])]), name="OH3_fwhm"),
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,3,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,3,2])]), name="OH4_fwhm"),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,3,1]),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,3,2])]), name="OH4_fwhm"),
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,4,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,4,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,4,2])]), name="NII_fwhm"),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,4,1]),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,4,2])]), name="NII_fwhm"),
             Map_usnr(fits.HDUList([fits.PrimaryHDU(fit_fwhm_map[:,:,0,5,0], new_header),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,5,1]),
-                                   fits.ImageHDU(fit_fwhm_map[:,:,0,5,2])]), name="Ha_fwhm"),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,5,1]),
+                                fits.ImageHDU(fit_fwhm_map[:,:,0,5,2])]), name="Ha_fwhm"),
             Map(fits.PrimaryHDU(fit_fwhm_map[:,:,0,6,0], new_header), name="7_components_fit")
         ])
         amplitude_maps = Maps([

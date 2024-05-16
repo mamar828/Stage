@@ -77,22 +77,13 @@ class SpectrumCO(Spectrum):
         }
 
         if plot_all and self.fitted_function:
-            if isinstance(self.fitted_function, models.Gaussian1D):
-                gaussians = {
-                    "0" : models.Gaussian1D(
-                        amplitude=self.fitted_function.amplitude.value, 
-                        mean=self.fitted_function.mean.value, 
-                        stddev=self.fitted_function.stddev.value
-                    )
-                }
-            else:
-                gaussians = {
-                    str(i) : models.Gaussian1D(
-                        amplitude=self.fitted_function[i].amplitude.value, 
-                        mean=self.fitted_function[i].mean.value, 
-                        stddev=self.fitted_function[i].stddev.value
-                    ) for i in range(len(self.fitted_function.parameters)//3)
-                }
+            gaussians = {
+                str(i) : models.Gaussian1D(
+                    amplitude=self.fit_results.amplitude.value[i], 
+                    mean=self.fit_results["mean"].value[i], 
+                    stddev=self.fit_results.stddev.value[i]
+                ) for i in self.fit_results.index
+            }
             self.plot(**base_params, **gaussians)
         else:
             self.plot(**base_params)
