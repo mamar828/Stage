@@ -1,11 +1,12 @@
 from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
+from xarray import Dataset
+from pandas import DataFrame
 from astropy import units as u
 from astropy.modeling import models, fitting, CompoundModel
 from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
-from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 
 from src.headers.header import Header
@@ -29,7 +30,8 @@ class Spectrum:
         """
         self.data = data
         self.header = header
-        self.fitted_function = None
+        self.fitted_function: models.Gaussian1D | CompoundModel = None
+        self.fit_results: DataFrame = None
 
     def plot(self, ax: Axes, **kwargs):
         """
@@ -103,26 +105,27 @@ class Spectrum:
             manager.full_screen_toggle()
         plt.show()
 
-    def get_residue_stddev(self, bounds: tuple[int, int]=None) -> float:
+    def get_residue_stddev(self, bounds: slice[int, int]=None) -> float:
         """
         Gets the standard deviation of the fit's residue.
 
         Parameters
         ----------
-        bounds: tuple[int, int], default=None
+        bounds: slice[int, int], default=None
             Bounds between which the residue's standard deviation should be calculated. If None is provided, the
-            residue's stddev is calculated for all values. Bounds indexing is the same as lists, e.g. bounds=(0,2) gives
-            x=1 and x=2.
+            residue's stddev is calculated for all values. Bounds indexing is the same as lists, e.g. bounds=slice(0,2)
+            gives x=1 and x=2.
 
         Returns
         -------
-        residue's std : float
+        residue's stddev : float
             Value of the residue's standard deviation.
         """
         if bounds is None:
-            return np.std(self.get_subtracted_fit())#/u.Jy)
+            stddev = np.std(self.get_subtracted_fit())#/u.Jy)
         else:
-            return np.std(self.get_subtracted_fit()[slice(*bounds)])#/u.Jy)
+            stddev = np.std(self.get_subtracted_fit()[bounds])#/u.Jy)
+        return stddev
 
     def get_subtracted_fit(self) -> np.ndarray:
         """
@@ -150,7 +153,8 @@ class Spectrum:
         FWHM : np.ndarray
             Array of the FWHM and its uncertainty measured in channels.
         """
-        fwhm = 2*np.sqrt(2*np.log(2))*getattr(self.fitted_function, gaussian_function_index).stddev.value
+        stddev = np.array()
+        fwhm = 2*np.sqrt(2*np.log(2))*self.fit_results.stddev[gaussian_function_index]
         fwhm_uncertainty = 2*np.sqrt(2*np.log(2))*self.get_uncertainties()[gaussian_function_index]["stddev"]
         return np.array((fwhm, fwhm_uncertainty))
 
@@ -205,6 +209,7 @@ class Spectrum:
                 get_fit_info=True,
                 maxiter=int(1e4)
             )
+            self.store_fit_results()
             return self.fitted_function
     
     @staticmethod
@@ -227,3 +232,27 @@ class Spectrum:
             for gaussian in gaussians[1:]:
                 total += gaussian
         return total
+
+    def store_fit_results(self):
+        """
+        Stores the results of the fit in the fit_results variable in the forme of a DataFrame.
+        """
+        parameters = self.fitted_function.parameters.reshape(len(self.fitted_function.parameters) // 3, 3)
+        raw_uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"]))
+        uncertainties = raw_uncertainties.reshape(len(self.fitted_function.parameters) // 3, 3)
+        ds = Dataset(
+            data_vars={
+                "amplitude": (["type", "gaussian_function_index"],
+                              np.stack((parameters[:,0], uncertainties[:,0]), axis=0)),
+                "mean": (["type", "gaussian_function_index"],
+                              np.stack((parameters[:,1], uncertainties[:,1]), axis=0)),
+                "stddev": (["type", "gaussian_function_index"],
+                              np.stack((parameters[:,2], uncertainties[:,2]), axis=0))
+            },
+            coords={
+                "type": ["parameter", "uncertainty"],
+                "gaussian_function_index": list(range(parameters.shape[0]))
+            }
+        )
+
+        self.fit_results = ds.to_dataframe()
