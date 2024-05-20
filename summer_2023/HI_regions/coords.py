@@ -281,5 +281,4 @@ class b(Galactic_coords):
         str: clock-formatted object
         """
         sep = str(self.sexagesimal).split(".")
-        print(self.sexagesimal)
         return f"{sep[0]}:{int(60*float(f'0.{sep[1]}')//1):02d}:{60*float(f'0.{sep[1]}')%1*60:06.3f}"

@@ -12,7 +12,8 @@ def analyze_LOOP4():
         z_bounds=[b("32:29:53.077"),b("32:31:15.078")], 
         tolerance=0.5,
         max_regroup_separation=5, 
-        pixel_width=3, 
+        pixel_width=3,
+        accepted_width=1,
         max_accepted_shear=5
     )
 

@@ -150,7 +150,7 @@ class HI_slice:
         -------
         list: each element is a list containing the bounds of a group.
         """
-        if points != []:
+        if list(points) != []:
             groups = [[points[0], points[0]]]
             for point in points[1:]:
                 if groups[-1][1] + max_regroup_separation >= point:
@@ -180,7 +180,10 @@ class LOOP4_slice(HI_slice):
         fig = plt.figure()
         # The axes are set to have celestial coordinates
         # ax = plt.axes()
-        ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=WCS(self.header)[self.z_coordinate,:,:])
+        header_copy = self.header.copy()
+        header_copy["CDELT1"] /= 1000
+        ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=WCS(header_copy)[self.z_coordinate,:,:])
+        ax.set_xlabel(r"Speed [$\frac{\rm{km}}{\rm{s}}$]")
         fig.add_axes(ax)
         # The turbulence map is plotted along with the colorbar, inverting the axes so y=0 is at the bottom
         plt.colorbar(ax.imshow(self.data, origin="lower", vmin=color_scale[0], vmax=color_scale[1]))
@@ -210,7 +213,7 @@ class LOOP4_slice(HI_slice):
             # Set info parameters
             if "GLAT" in self.header["CTYPE3"]:
                 plt.title(
-                    f"Current z_coordinate: {z} ({b.from_pixel(z, self.header).to_clock()})," + 
+                    f"Current z_coordinate: {z} ({b.from_pixel(z, self.header).to_clock()}), " + 
                     f"shear_width: {shear_width:.2f} km/s"
                 )
             else:
@@ -225,6 +228,7 @@ class LOOP4_slice(HI_slice):
 
     def check_shear(self, *,
             tolerance: float,
+            accepted_width: int=None,
             max_regroup_separation: int=0,
             pixel_width: int=1,
             max_accepted_shear: int=None
@@ -239,6 +243,10 @@ class LOOP4_slice(HI_slice):
             get_horizontal_maximums method) that will be considered a signal drop. E.g. for a value of 0.5, if a
             pixel along the central line has a value beneath 0.5 times the average peak value, it will be flagged as a
             potential signal drop.
+        accepted_width: int, default=None. Normal width of the HI's central band. Greatest accepted distance, in pixels,
+            between the HI's center and the maximum of a horizontal line that will not be flagged as a shear point. For
+            example, a value of 0 will remove shears of 0 pixels and a value of 1 will remove shears of 1 pixels. Use
+            None to accept all shears.
         max_regroup_separation: int, default=0. Maximum separation of two consecutive points that will be considered to
             belong to the same signal drop section. This controls how many different regions will be outputted and will
             merge those that are close.
@@ -253,11 +261,12 @@ class LOOP4_slice(HI_slice):
         list: data of every detected shear. Each element has 0: bounds of the detected shear in pixels, 1: shear width
             in km/s, 2: coordinates of the max shear point.
         """
-        shear_bounds = self.get_point_groups(self.get_shear_points(tolerance, pixel_width), max_regroup_separation)
+        shear_bounds = self.get_point_groups(
+            self.get_shear_points(tolerance, pixel_width), max_regroup_separation)
         if shear_bounds is not None:
             shear_data = []
             for bounds in shear_bounds:
-                shear_width = self.get_max_shear_width(bounds, max_accepted_shear)
+                shear_width = self.get_max_shear_width(bounds, max_accepted_shear, accepted_width)
                 if shear_width[0] is not None:
                     shear_data.append((bounds, *shear_width))
             return shear_data
@@ -270,7 +279,7 @@ class LOOP4_slice(HI_slice):
         ---------
         tolerance: float. Controls the sensitivity of signal drop detection. The value given corresponds to the
             percentage of the average peak value along each horizontal line (determined with the
-            get_horizontal_maximums method) that will be considered a signal drop. E.g. for a value of 0.5, if a
+            get_horizontal_maximums method) that will be considered as a signal drop. E.g. for a value of 0.5, if a
             pixel along the central line has a value beneath 0.5 times the average peak value, it will be flagged as a
             potential signal drop.
         pixel_width: int, default=1. This parameter must be greater than or equal to 1 and specifies the width of the
@@ -289,10 +298,9 @@ class LOOP4_slice(HI_slice):
         # Get the array representing every y value that has a drop
         y_shear = np.where(np.any(self.data[:,self.x_center:self.x_center+pixel_width] <= average_max * tolerance, 
                                   axis=1))[0]
-        # Return only the values between the y_limits
         return y_shear[(self.y_limits[0] <= y_shear) & (y_shear <= self.y_limits[1])]
-    
-    def get_max_shear_width(self, bounds: list, max_accepted_shear: int) -> tuple:
+
+    def get_max_shear_width(self, bounds: list, max_accepted_shear: int, accepted_width: int=None) -> tuple:
         """
         Get the maximum shear width of a certain region by computing the maximum distance between v=0 and the intensity
         peaks in a certain region in addition to its coordinates.
@@ -301,6 +309,10 @@ class LOOP4_slice(HI_slice):
         ---------
         bounds: list. Values between which the search for the farthest maximum should be made.
         max_accepted_shear: int. Maximum number of pixels to the left of v=0 that are analyzed to look for a maximum.
+        accepted_width: int, default=None. Normal width of the HI's central band. Greatest accepted distance, in pixels,
+            between the HI's center and the maximum of a horizontal line that will not be flagged as a shear point. For
+            example, a value of 0 will remove shears of 0 pixels and a value of 1 will remove shears of 1 pixels. Use
+            None to accept all shears.
 
         Returns
         -------
@@ -311,10 +323,17 @@ class LOOP4_slice(HI_slice):
         if max_accepted_shear:
             np.place(maxs, maxs > max_accepted_shear + self.x_center, 0)
 
-        # Compute the distance using the header and convert m/s to km/s
-        max_width = - (np.max(maxs) - self.x_center) * self.header["CDELT1"] / 1000
-        coords = np.max(maxs), np.argmax(maxs) + bounds[0]
-        return max_width, coords
+        if not np.all(maxs) == 0:
+            # Compute the distance using the header and convert m/s to km/s
+            max_width = - (np.max(maxs - self.x_center))
+            if accepted_width is not None:
+                if np.abs(max_width) <= accepted_width:
+                    return None, None
+            coords = np.max(maxs), np.argmax(maxs) + bounds[0]
+            return max_width * self.header["CDELT1"] / 1000, coords
+
+        else:
+            return None, None
 
 
 class Spider_slice(HI_slice):
