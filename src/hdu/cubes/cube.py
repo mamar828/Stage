@@ -5,6 +5,7 @@ from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_3d import Array3D
+from src.hdu.map import Map
 from src.headers.header import Header
 
 
@@ -30,10 +31,23 @@ class Cube(FitsFile):
     def __eq__(self, other):
         return np.array_equal(self.data, other.data) and self.header == other.header
 
-    def __getitem__(self, slices: slice):
-        """ Warning : indexing must be given in the order z, y, x. """
-        return self.__class__(self.data[slices], self.header.get_cropped_axes(slices))
+    def __getitem__(self, slices: tuple[slice]) -> Map | Cube:
+        if True in [isinstance(slice_i, int) for slice_i in slices]:
+            return Map.from_cube(self.__class__(self.data[slices], self.header))
+        else:
+            return self.__class__(self.data[slices], self.header.crop_axes(slices))
     
+    def __iter__(self):
+        self.iter_n = -1
+        return self
+    
+    def __next__(self):
+        self.iter_n += 1
+        if self.iter_n >= self.data.shape[1]:
+            raise StopIteration
+        else:
+            return self[:,self.iter_n,:]
+
     def copy(self):
         return self.__class__(self.data.copy(), self.header.copy())
     
@@ -118,4 +132,4 @@ class Cube(FitsFile):
         cube : Cube
             Cube with the newly axis-flipped Data_cube.
         """
-        return self.__class__(np.flip(self.data, axis=axis), self.header.get_inverted_axis(axis))
+        return self.__class__(np.flip(self.data, axis=axis), self.header.invert_axis(axis))

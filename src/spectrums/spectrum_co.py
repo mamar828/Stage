@@ -45,10 +45,20 @@ class SpectrumCO(Spectrum):
         """
         super().__init__(data, header)
         self.PEAK_PROMINENCE = peak_prominence
-        self.PEAK_MINIMUM_HEIGHT_SIGMAS = peak_minimum_height_sigmas
+        self._PEAK_MINIMUM_HEIGHT_SIGMAS = peak_minimum_height_sigmas
         self.PEAK_MINIMUM_DISTANCE = peak_minimum_distance
-        self.NOISE_CHANNELS = noise_channels
-        self.y_threshold = np.std(self.data[self.NOISE_CHANNELS]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS
+        self._NOISE_CHANNELS = noise_channels
+        self._y_threshold = np.std(self.data[self._NOISE_CHANNELS]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS
+
+    @property
+    def PEAK_MINIMUM_HEIGHT_SIGMAS(self, value: float):
+        self._PEAK_MINIMUM_HEIGHT_SIGMAS = value
+        self._y_threshold = np.std(self.data[self._NOISE_CHANNELS]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS
+
+    @property
+    def NOISECHANNELS(self, value: slice):
+        self._NOISECHANNELS = value
+        self._y_threshold = np.std(self.data[self._NOISE_CHANNELS]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS
 
     def plot_fit(self, ax: Axes, plot_all: bool=False, plot_initial_guesses: bool=False):
         """
@@ -117,13 +127,13 @@ class SpectrumCO(Spectrum):
         peaks = find_peaks(
             self.data,
             prominence=self.PEAK_PROMINENCE,
-            height=float(np.std(self.data[:100]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS),
+            height=float(np.std(self.data[:100]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS),
             distance=self.PEAK_MINIMUM_DISTANCE
         )[0]
 
         if list(peaks) != []:
             initial_guesses = {
-                i : {"mean" : peak, "amplitude" : self.data[peak], "stddev" : 5} for i, peak in enumerate(peaks)
+                i : {"mean" : peak, "amplitude" : self.data[peak], "stddev" : 3} for i, peak in enumerate(peaks)
             }
             return initial_guesses
         else:
@@ -144,7 +154,42 @@ class SpectrumCO(Spectrum):
             FWHM in km/s and its uncertainty measured in km/s.
         """
         channels_FWHM = self.get_FWHM_channels(gaussian_function_index)
-        return np.abs(channels_FWHM * self.header["CDELT3"]/1000)
+        # Get the axis index that represents the velocity by searching for the keyword "VELO-LSR"
+        h_axis_velocity = list(self.header.keys())[list(self.header.values()).index("VELO-LSR")][-1]
+        return np.abs(channels_FWHM * self.header[f"CDELT{h_axis_velocity}"] / 1000)
+    
+    @property
+    def fit_valid(self) -> bool:
+        """
+        Checks if the fit is valid by verifying that there is no single gaussian function with a very large stddev.
+
+        Returns
+        -------
+        bool
+            True if the fit is valid, False otherwise.
+        """
+        MAX_FWHM = 2    # Threshold for maximum accepted FWHM (km/s)
+        if self.fit_results is not None:
+            if self.fit_results.shape[0] == 1 and self.get_FWHM_speed(0)[0] > MAX_FWHM:
+                valid = False
+            else:
+                valid = True
+        else:
+            valid = True
+        return valid
+    
+    def get_chi2(self) -> float:
+        """
+        Gets the chi-square of the fit.
+
+        Returns
+        -------
+        chi2 : float
+            Chi-square of the fit.
+        """
+        chi2 = np.sum(self.get_subtracted_fit()**2 / np.var(self.data[self._NOISE_CHANNELS]))
+        normalized_chi2 = chi2 / self.data.shape[0]
+        return normalized_chi2
 
     def get_FWHM_snr_7_components_array(self) -> np.ndarray:
         raise NotImplementedError

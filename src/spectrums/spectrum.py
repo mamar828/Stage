@@ -31,6 +31,26 @@ class Spectrum:
         self.header = header
         self.fitted_function: models.Gaussian1D | CompoundModel = None
         self.fit_results: pd.DataFrame = None
+    
+    def from_spectrum(self, cls: Spectrum) -> Spectrum:
+        """
+        Constructs an upper-level Spectrum object from a given spectrum.
+        
+        Parameters
+        ----------
+        cls : Spectrum-inherited class
+            Class of a Spectrum that inherits from this base Spectrum class.
+
+        Returns
+        -------
+        spectrum : cls
+            Converted spectrum
+        """
+        spectrum = cls(
+            data=self.data.copy(),
+            header=self.header.copy()
+        )
+        return spectrum
 
     def plot(self, ax: Axes, **kwargs):
         """

@@ -53,59 +53,72 @@ class Header(fits.Header):
         
         return header_copy
 
-    def get_flattened(self) -> Header:
+    def flatten(self, axis: int) -> Header:
         """
-        Get the adaptation of a Cube Header for a Map Header by removing the spectral axis.
+        Flattens a Header by removing an axis.
+
+        Parameters
+        ----------
+        axis : int
+            Axis to flatten. Axes are given in their numpy array format, not in the fits header format : axis=0 will
+            remove the last header axis.
 
         Returns
         -------
         header : Header
-            Header with the same data but with the third axis removed.
+            Flattened header with the remaining data.
         """
-        header = self.header.copy()
-        wcs = WCS(header)
-        wcs.sip = None
-        wcs = wcs.dropaxis(2)
-        header = wcs.to_header(relax=True)
-        return header
+        new_header = self.copy()
+        for i in range(axis):
+            # Swap axes to place the axis to remove at indice 0 (NAXIS3)
+            new_header = new_header.switch_axes(axis - i - 1, axis - i)
 
-    def get_switched_axes(self, axis_1: int, axis_2: int) -> Header:
+        # Erase the axis
+        new_header = new_header.remove_axis(0)
+
+        return new_header
+
+    def switch_axes(self, axis_1: int, axis_2: int) -> Header:
         """
-        Gets a Header with switched axes to fit a Cube whose axes were also swapped.
+        Switches a Header's axes to fit a FitsFile object with swapped axes.
         
         Arguments
         ---------
         axis_1: int
-            Source axis.
+            Source axis, Axes are given in their numpy array format, not in the fits header format : axis=0 will 
+            remove the last header axis (NAXIS3).
         axis_2: int
-            Destination axis.
+            Destination axis, Axes are given in their numpy array format, not in the fits header format : axis=0 will 
+            remove the last header axis (NAXIS3).
         
         Returns
         -------
         header : Header
             Header with the switched axes.
         """
-        h_axis_1, h_axis_2 = axis_1 + 1, axis_2 + 1             # The header uses 1-based indexing
+        # Make header readable keywords
+        h_axis_1, h_axis_2 = self["NAXIS"] - axis_1, self["NAXIS"] - axis_2
 
         new_header = self.copy()
 
-        for header_element in deepcopy(list(self.keys())):
-            if header_element[-1] == str(h_axis_1):
-                new_header[f"{header_element[:-1]}{h_axis_2}-"] = new_header.pop(header_element)
-            elif header_element[-1] == str(h_axis_2):
-                new_header[f"{header_element[:-1]}{h_axis_1}-"] = new_header.pop(header_element)
+        for key in deepcopy(list(self.keys())):
+            if key[-1] == str(h_axis_1):
+                new_header[f"{key[:-1]}{h_axis_2}-"] = new_header.pop(key)
+            elif key[-1] == str(h_axis_2):
+                new_header[f"{key[:-1]}{h_axis_1}-"] = new_header.pop(key)
         
         # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the
         # process
         # After the process is done, the suffix is removed
-        for header_element in deepcopy(list(new_header.keys())):
-            if header_element[-1] == "-":
-                new_header[header_element[:-1]] = new_header.pop(header_element)
+        for key in deepcopy(list(new_header.keys())):
+            if key[-1] == "-":
+                new_header[key[:-1]] = new_header.pop(key)
+
         return new_header
 
-    def get_inverted_axis(self, axis: int) -> Header:
+    def invert_axis(self, axis: int) -> Header:
         """
-        Gets a Header inverted along an axis.
+        Inverts a Header along an axis.
 
         Parameters
         ----------
@@ -118,18 +131,18 @@ class Header(fits.Header):
             Header with the inverted axis.
         """
         new_header = self.copy()
-        h_axis = 3 - axis
+        h_axis = self["NAXIS"] - axis
         new_header[f"CDELT{h_axis}"] *= -1
         new_header[f"CRPIX{h_axis}"] = self.data.shape[axis] - self.header[f"CRPIX{h_axis}"] + 1
         return new_header
     
-    def get_cropped_axes(self, slices: slice) -> Header:
+    def crop_axes(self, slices: tuple[slice | int]) -> Header:
         """
         Crops the Header to account for a cropped Cube.
 
         Parameters
         ----------
-        slices : slice
+        slices : tuple[slice | int]
             Slices to crop each axis. The axes are given in the order z, y, x, which corresponds to axes 3, 2, 1
             respectively.
         
@@ -140,6 +153,34 @@ class Header(fits.Header):
         """
         new_header = self.copy()
         for i, s in enumerate(slices):
-            if s.start is not None:
-                new_header[f"CRPIX{3-i}"] -= s.start
+            if isinstance(s, slice):
+                if s.start is not None:
+                    new_header[f"CRPIX{self["NAXIS"]-i}"] -= s.start
+                    new_header[f"NAXIS{self["NAXIS"]-i}"] = s.stop - s.start
+
+        return new_header
+    
+    def remove_axis(self, axis: int) -> Header:
+        """
+        Removes an axis from a Header.
+
+        Parameters
+        ----------
+        axis : int
+            Axis to remove. Axes are given in their numpy array format, not in the fits header format : axis=0 will
+            remove the last header axis (NAXIS3).
+
+        Returns
+        -------
+        header : Header
+            Header with the removed axis.
+        """
+        new_header = self.copy()
+        h_axis = str(self["NAXIS"] - axis)
+        for key in deepcopy(list(new_header.keys())):
+            if key[-1] == h_axis:
+                new_header.pop(key)
+        
+        new_header["NAXIS"] -= 1
+
         return new_header

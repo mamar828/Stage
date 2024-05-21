@@ -7,7 +7,8 @@ from eztcolors import Colors as C
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
 from src.headers.header import Header
-
+from src.spectrums.spectrum import Spectrum
+ 
 
 class Map(FitsFile):
     """
@@ -115,12 +116,34 @@ class Map(FitsFile):
     def __rtruediv__(self, other):
         return self.__truediv__(other)
     
-    def __getitem__(self, key: slice) -> Map:
-        return Map(
-            self.data[key],
-            self.uncertainties[key]
-        )
+    def __getitem__(self, slices: tuple[slice]) -> Spectrum | Map:
+        if True in [isinstance(slice_i, int) for slice_i in slices]:
+            sliced_data = self.data[slices]
+            header_naxes = [self.header[f"NAXIS{i}"] for i in range(self.header["NAXIS"], 0, -1)]
+            missing_axis = header_naxes.index((set(header_naxes) - set(sliced_data.shape)).pop())
+            spec = Spectrum(
+                data=sliced_data, 
+                header=self.header.flatten(axis=missing_axis)
+            )
+            return spec
+        else:
+            return Map(
+                self.data[slices],
+                self.uncertainties[slices] if isinstance(self.uncertainties, Array2D) else np.NAN,
+                header=self.header.crop_axes(slices)
+            )
+
+    def __iter__(self):
+        self.iter_n = -1
+        return self
     
+    def __next__(self):
+        self.iter_n += 1
+        if self.iter_n >= self.data.shape[1]:
+            raise StopIteration
+        else:
+            return self[:,self.iter_n]
+
     def __str__(self):
         return (f"Value : {True if isinstance(self.data, Array2D) else False}, "
               + f"Uncertainty : {True if isinstance(self.uncertainties, Array2D) else False}")
@@ -150,8 +173,30 @@ class Map(FitsFile):
         if len(hdu_list) == 2:
             uncertainties = Array2D(hdu_list[1].data)
         return cls(data, uncertainties, Header(hdu_list[0].header))
-        # return cls(data, uncertainties, Header.from_header(hdu_list[0].header))
     
+    @classmethod
+    def from_cube(cls, cube) -> Map:
+        """
+        Loads a Map from a Cube.
+        
+        Parameters
+        ----------
+        cube : Cube
+            Cube to load the Map from. This must be a previously sliced Cube with two dimensions.
+        
+        Returns
+        -------
+        map : Map
+            Two-dimensional Map of the 2D Cube.
+        """
+        header_naxes = [cube.header[f"NAXIS{i}"] for i in range(cube.header["NAXIS"], 0, -1)]
+        missing_axis = header_naxes.index((set(header_naxes) - set(cube.data.shape)).pop())
+        map_ = cls(
+            data=Array2D(cube.data),
+            header=cube.header.flatten(axis=missing_axis)
+        )
+        return map_
+
     def save(self, filename, overwrite=False):
         """
         Saves a Map to a file.
