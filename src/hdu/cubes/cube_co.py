@@ -35,9 +35,9 @@ class CubeCO(Cube):
 
         """
         import dill
-        # with open("fit4.pkl", "rb") as f:
-        #     dilly = dill.load(f)
-        # """"""""" 
+        with open("fit4.pkl", "rb") as f:
+            dilly = dill.load(f)
+        """"""""" 
         self.spectrum_parameters = spectrum_parameters
         with ProcessPool() as pool:
             print(f"{C.YELLOW}Number of processes used: {pool.nodes}{C.END}")
@@ -57,61 +57,25 @@ class CubeCO(Cube):
                 results.append(result)
                 progressbar.update(1)
             # results is now a list of [y_shape, x_shape, (chi2, fit_results)]
-            # """""""""
+            """""""""
 
-        def extract_awkward(array: ak.Array, slices: tuple):
-            # Function to ease the use of awkward arrays
-            new_array = []
-            for row in array:
-                for sub_array in row:
-                    # try:
-                    #     np.all(np.isnan(sub_array))
-                    # except:
-                    #     print(sub_array)
-                    if np.NAN in sub_array:
-                        new_array.append([np.nan for _ in slices])
-                    else:
-                        try:
-                            new_array.append(sub_array[1][*slices])
-                        except:
-                            print(sub_array)
-            return ak.Array(new_array)
-
-
-        def extract_awkward_array(array: ak.Array, slices: tuple):
-            new_array = []
-            for row in array.to_list():
-                row_array = []
-                for pixel in row:
-                    if np.all(np.isnan(pixel)):
-                        row_array.append([[np.nan for _ in slices]])
-                    else:
-                        row_array.append(np.array(pixel)[*slices])
-                new_array.append(row_array)
-            return new_array
-
-        """return [[subarr[1][*slices] for subarr in row] for row in arr]"""
-
-        # """""""""
-        results_array = ak.Array(results)
-        with open("fit4.pkl", "wb") as f:
-            dill.dump(results_array, f)
+        # results_array = ak.Array(results)
+        # with open("fit4.pkl", "wb") as f:
+        #     dill.dump(results_array, f)
         results_array = dilly
-        chi2_array = Array2D(results_array[:,:,0].to_list())
+        chi2_array = Array2D(results_array[:,:,0,0,0])
         # print(results_array[:,:,1].to_list())
         # extract_awkward_array(results_array[:,:,1], (slice(None), slice(0, 2)))
-        fit_array = ak.Array([
-            extract_awkward_array(results_array[:,:,1], (slice(None), slice(i, 2+i))) for i in range(0, 6, 2)
-        ]) 
-        # """""""""
-
-
 
 
 
 
         # print(fit_array[0,:,:,:,0])
-        amps_1 = fit_array[0,:,:,0,0].to_numpy()
+        amps = results_array[:,:,1,:,0]
+        max_len = ak.max(ak.num(amps, axis=2))
+        padded_amps = ak.fill_none(ak.pad_none(amps, max_len, axis=2, clip=False), np.NAN)
+
+        amps_1 = padded_amps[:,:,3]
 
         return Array2D(amps_1)
 
@@ -211,10 +175,13 @@ class CubeCO(Cube):
             fit results is the converted DataFrame of the spectrum, now in a numpy array of shape (n_components, 6)
             where n_components is the number of fitted gaussians. The numpy array's format is determined by the
             spectrum's fit_results DataFrame.
+            Note : the float is actually nested inside two other lists to preserve the number of dimensions.
         """
         map_ = self[:,row,:]
         results = []
-        nans = [np.NAN, [[np.NAN]]]
+        # A list of invalid values is created for further use
+        # Warning ! To ease slicing with ak.Arrays, the number of dimensions should be constant
+        nans = [[[np.NAN]], [[np.NAN]]]
         for spectrum in map_:
             if np.all(np.isnan(spectrum.data)):
                 # Empty spectrum
@@ -230,7 +197,7 @@ class CubeCO(Cube):
 
                 if spectrum.is_successfully_fitted:
                     results.append([
-                        spectrum.get_fit_chi2(),
+                        [[spectrum.get_fit_chi2()]],
                         spectrum.fit_results.to_numpy()
                     ])
                 else:
