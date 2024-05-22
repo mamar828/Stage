@@ -20,7 +20,7 @@ class SpectrumCO(Spectrum):
             data: np.ndarray,
             header: Header,
             peak_prominence: float=0.7,
-            peak_minimum_height_sigmas: float=6.0,
+            peak_minimum_height_sigmas: float=5.0,
             peak_minimum_distance: int=10,
             noise_channels: slice=slice(0,100)
         ):
@@ -45,21 +45,15 @@ class SpectrumCO(Spectrum):
         """
         super().__init__(data, header)
         self.PEAK_PROMINENCE = peak_prominence
-        self._PEAK_MINIMUM_HEIGHT_SIGMAS = peak_minimum_height_sigmas
+        self.PEAK_MINIMUM_HEIGHT_SIGMAS = peak_minimum_height_sigmas
         self.PEAK_MINIMUM_DISTANCE = peak_minimum_distance
-        self._NOISE_CHANNELS = noise_channels
-        self._y_threshold = np.std(self.data[self._NOISE_CHANNELS]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS
+        self.NOISE_CHANNELS = noise_channels
 
     @property
-    def PEAK_MINIMUM_HEIGHT_SIGMAS(self, value: float):
-        self._PEAK_MINIMUM_HEIGHT_SIGMAS = value
-        self._y_threshold = np.std(self.data[self._NOISE_CHANNELS]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS
+    def y_threshold(self):
+        return float(np.std(self.data[self.NOISE_CHANNELS]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
 
-    @property
-    def NOISECHANNELS(self, value: slice):
-        self._NOISECHANNELS = value
-        self._y_threshold = np.std(self.data[self._NOISE_CHANNELS]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS
-
+    @Spectrum.fit_needed
     def plot_fit(self, ax: Axes, plot_all: bool=False, plot_initial_guesses: bool=False):
         """
         Sends the fitted functions to the plot() method to be plotted on an axis.
@@ -109,7 +103,7 @@ class SpectrumCO(Spectrum):
         """
         parameter_bounds = {
             "amplitude" : (0, 100)*u.Jy,
-            "stddev" : (0, 100)*u.um
+            "stddev" : (1e-5, 100)*u.um
         }
 
         return super().fit(parameter_bounds)
@@ -127,18 +121,20 @@ class SpectrumCO(Spectrum):
         peaks = find_peaks(
             self.data,
             prominence=self.PEAK_PROMINENCE,
-            height=float(np.std(self.data[:100]) * self._PEAK_MINIMUM_HEIGHT_SIGMAS),
+            height=self.y_threshold,
             distance=self.PEAK_MINIMUM_DISTANCE
         )[0]
 
         if list(peaks) != []:
+            # Account for the fact that scipy uses 0-based indexing and headers/ds9 use 1-based indexing
             initial_guesses = {
-                i : {"mean" : peak, "amplitude" : self.data[peak], "stddev" : 3} for i, peak in enumerate(peaks)
+                i : {"mean" : peak + 1, "amplitude" : self.data[peak], "stddev" : 3} for i, peak in enumerate(peaks)
             }
             return initial_guesses
         else:
             return {}
 
+    @Spectrum.fit_needed
     def get_FWHM_speed(self, gaussian_function_index: int) -> np.ndarray:
         """
         Gets the full width at half max of a function along with its uncertainty in km/s.
@@ -159,6 +155,7 @@ class SpectrumCO(Spectrum):
         return np.abs(channels_FWHM * self.header[f"CDELT{h_axis_velocity}"] / 1000)
     
     @property
+    @Spectrum.fit_needed
     def fit_valid(self) -> bool:
         """
         Checks if the fit is valid by verifying that there is no single gaussian function with a very large stddev.
@@ -177,19 +174,6 @@ class SpectrumCO(Spectrum):
         else:
             valid = True
         return valid
-    
-    def get_chi2(self) -> float:
-        """
-        Gets the chi-square of the fit.
-
-        Returns
-        -------
-        chi2 : float
-            Chi-square of the fit.
-        """
-        chi2 = np.sum(self.get_subtracted_fit()**2 / np.var(self.data[self._NOISE_CHANNELS]))
-        normalized_chi2 = chi2 / self.data.shape[0]
-        return normalized_chi2
 
     def get_FWHM_snr_7_components_array(self) -> np.ndarray:
         raise NotImplementedError

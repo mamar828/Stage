@@ -31,6 +31,9 @@ class Spectrum:
         self.header = header
         self.fitted_function: models.Gaussian1D | CompoundModel = None
         self.fit_results: pd.DataFrame = None
+
+    def __len__(self) -> int:
+        return len(self.data)
     
     def from_spectrum(self, cls: Spectrum) -> Spectrum:
         """
@@ -51,6 +54,55 @@ class Spectrum:
             header=self.header.copy()
         )
         return spectrum
+    
+    @staticmethod
+    def fit_needed(func):
+        # Decorator to handle exceptions when a fit has not been made 
+        def inner_func(self, *args, **kwargs):
+            if self.fitted_function:
+                return func(self, *args, **kwargs)
+            else:
+                return None
+        return inner_func
+
+    @property
+    def x_values(self) -> np.ndarray:
+        """
+        Gives the x values associated with the Spectrum's data.
+        
+        Returns
+        -------
+        x_values : np.ndarray
+            Range from 1 and has the same length than the data array. The start value is chosen to match with SAOImage
+            ds9 and with the headers, whose axes start at 1.
+        """
+        return np.arange(1, len(self) + 1)
+
+    @property
+    @fit_needed
+    def predicted_data(self) -> np.ndarray:
+        """
+        Gives the y values predicted by the fit in the form of data points.
+        
+        Returns
+        -------
+        predicted_data : np.ndarray
+            Array representing the predicted intensity at every channel. The first element corresponds to channel 1.
+        """
+        return self.fitted_function(self.x_values * u.um) / u.Jy
+    
+    @property
+    def is_successfully_fitted(self) -> bool:
+        """
+        Outputs whether the fit succeeded.
+        
+        Returns
+        -------
+        success : bool
+            True if the fit succeeded, False otherwise.
+        """
+        state = True if self.fitted_function is not None else False
+        return state
 
     def plot(self, ax: Axes, **kwargs):
         """
@@ -65,19 +117,18 @@ class Spectrum:
             plot. The name used for each keyword argument will be present in the plot's legend. The keyword "fit" plots
             the values in red and the keyword "initial_guesses" plots the values as a point scatter.
         """
-        ax.plot(self.data, "k-", label="spectrum", linewidth=1, alpha=1)
+        ax.plot(self.x_values, self.data, "k-", label="spectrum", linewidth=1, alpha=1)
         for key, value in kwargs.items():
             if value is not None:
-                x_plot_gaussian = np.linspace(1, len(self.data), 1000)
                 if key == "fit":
                     # Fitted entire function
-                    ax.plot(x_plot_gaussian*u.Jy, value(x_plot_gaussian*u.um), "r-", label=key)
+                    ax.plot(self.x_values*u.Jy, value(self.x_values*u.um), "r-", label=key)
                 elif key == "initial_guesses":
                     # Simple points plotting
                     ax.plot(value[:,0], value[:,1], "bv", label=key, markersize="4", alpha=0.5)
                 else:
                     # Fitted individual gaussians
-                    ax.plot(x_plot_gaussian, value(x_plot_gaussian), "y-", label=key, linewidth="1")
+                    ax.plot(self.x_values, value(self.x_values), "y-", label=key, linewidth="1")
         
         ax.legend(loc="upper left", fontsize="7")
 
@@ -124,6 +175,7 @@ class Spectrum:
             manager.full_screen_toggle()
         plt.show()
 
+    @fit_needed
     def get_residue_stddev(self, bounds: slice[int, int]=None) -> float:
         """
         Gets the standard deviation of the fit's residue.
@@ -146,6 +198,7 @@ class Spectrum:
             stddev = np.std(self.get_subtracted_fit()[bounds])
         return stddev
 
+    @fit_needed
     def get_subtracted_fit(self) -> np.ndarray:
         """
         Gets the subtracted fit's values.
@@ -155,9 +208,10 @@ class Spectrum:
         subtracted fit : np.ndarray
             Result values of the gaussian fit subtracted to the y values.
         """
-        subtracted_y = self.data - self.fitted_function(np.arange(1, len(self.data) + 1)*u.um)/u.Jy
+        subtracted_y = self.data - self.predicted_data
         return subtracted_y
 
+    @fit_needed
     def get_FWHM_channels(self, gaussian_function_index: int) -> np.ndarray:
         """
         Gets the full width at half maximum of a gaussian function along with its uncertainty in channels.
@@ -177,6 +231,7 @@ class Spectrum:
         fwhm = 2 * np.sqrt(2*np.log(2)) * stddev
         return fwhm
 
+    @fit_needed
     def get_snr(self, gaussian_function_index: int) -> float:
         """
         Gets the signal to noise ratio of a peak. This is calculated as the amplitude of the peak divided by the
@@ -193,6 +248,26 @@ class Spectrum:
             Value of the signal to noise ratio.
         """
         return self.fit_results.amplitude.value[gaussian_function_index] / self.get_residue_stddev()
+
+    @fit_needed    
+    def get_fit_chi2(self) -> float:
+        """
+        Gets the chi-square of the fit.
+
+        Returns
+        -------
+        chi2 : float
+            Chi-square of the fit.
+        """
+        # from scipy.stats import chisquare
+        # print((self.data - self.predicted_data))
+        # print(np.sum((self.data - self.predicted_data)**2 / self.predicted_data) / len(self))
+        # print(chisquare(self.data, self.predicted_data)[0] / len(self))
+
+        # raise
+        chi2 = np.sum(self.get_subtracted_fit()**2 / np.var(self.data[self.NOISE_CHANNELS]))
+        normalized_chi2 = chi2 / len(self)
+        return float(normalized_chi2)
 
     def fit(self, parameter_bounds: dict) -> CompoundModel:
         """
@@ -212,7 +287,7 @@ class Spectrum:
         """
         initial_guesses = self.get_initial_guesses()
         if initial_guesses:
-            spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=np.arange(1, len(self.data) + 1)*u.um)
+            spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=self.x_values*u.um)
             gaussians = [
                 models.Gaussian1D(
                     amplitude=initial_guesses[i]["amplitude"]*u.Jy,
@@ -228,7 +303,7 @@ class Spectrum:
                 get_fit_info=True,
                 maxiter=int(1e4)
             )
-            self.store_fit_results()
+            self._store_fit_results()
             return self.fitted_function
     
     @staticmethod
@@ -252,7 +327,7 @@ class Spectrum:
                 total += gaussian
         return total
 
-    def store_fit_results(self):
+    def _store_fit_results(self):
         """
         Stores the results of the fit in the fit_results variable in the forme of a DataFrame.
         """
