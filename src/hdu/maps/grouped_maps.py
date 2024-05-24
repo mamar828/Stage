@@ -75,12 +75,14 @@ class GroupedMaps(FitsFile):
 
     def save(self, filename: str, overwrite=False):
         """
-        Saves a GroupedMaps to a file.
+        Saves a GroupedMaps to a file. Saving a GroupedMaps object is discouraged as the format is more restrictive than
+        Tesseracts. This may however be useful for a more descriptive header and when no furthur change will be made to
+        the data.
 
         Parameters
         ----------
         filename : str
-            Filename in which to save the Cube.
+            Filename in which to save the GroupedMaps.
         overwrite : bool, default=False
             Whether the file should be forcefully overwritten if it already exists.
         """

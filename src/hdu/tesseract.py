@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 import awkward as ak
 from collections import namedtuple
+from astropy.io import fits
 
 from src.hdu.fits_file import FitsFile
 from src.headers.header import Header
@@ -27,6 +28,8 @@ class Tesseract(FitsFile):
             The header of the Tesseract.
         """
         self.data = data
+        header["CTYPE3"] = "amplitude + unc., mean + unc., stddev + unc."
+        header["CTYPE4"] = "gaussian function index"
         self.header = header
     
     @property
@@ -54,6 +57,48 @@ class Tesseract(FitsFile):
                 self.rectangularize()
             return func(self, *args, **kwargs)
         return inner_func
+    
+    @classmethod
+    def load(cls, filename: str) -> Tesseract:
+        """
+        Loads a Tesseract from a .fits file.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file to load.
+
+        Returns
+        -------
+        tesseract : Tesseract
+            Loaded Tesseract.
+        """
+        fits_object = fits.open(filename)[0]
+        data = np.swapaxes(np.swapaxes(fits_object.data, 0, 2), 1, 3)
+        ak_data = ak.Array(data.tolist())
+        header = Header(fits_object.header)
+        tesseract = cls(
+            ak_data,
+            header
+        )
+        return tesseract
+
+    @requires_rectangular
+    def save(self, filename: str, overwrite=False):
+        """
+        Saves a Tesseract to a file.
+
+        Parameters
+        ----------
+        filename : str
+            Filename in which to save the Tesseract.
+        overwrite : bool, default=False
+            Whether the file should be forcefully overwritten if it already exists.
+        """
+        new_header = self.header.copy()
+        new_data = np.swapaxes(np.swapaxes(self.data.to_numpy(), 0, 2), 1, 3)
+        hdu_list = fits.HDUList([fits.PrimaryHDU(new_data, self.header)])
+        super().save(filename, hdu_list, overwrite)
 
     @requires_rectangular
     def __getitem__(self, slice: slice) -> Tesseract:
@@ -114,13 +159,17 @@ class Tesseract(FitsFile):
         maps = namedtuple("maps", names)
         maps = maps([], [], [])
 
+        new_header = self.header.copy()
+        for i in range(self.header["NAXIS"] - 2):
+            new_header = self.header.flatten(axis=0)
+
         for i in range(number_of_maps):
             for j, name in zip(range(0, 6, 2), names):
                 getattr(maps, name).append(
                     Map(
                         data=Array2D(self.data[:,:,i,j]),
                         uncertainties=Array2D(self.data[:,:,i,j+1]),
-                        header=self.header.flatten(axis=0)
+                        header=new_header
                     )
                 )
 

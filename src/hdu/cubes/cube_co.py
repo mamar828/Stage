@@ -59,11 +59,11 @@ class CubeCO(Cube):
         results_array = ak.Array(results)
         chi2_array = Map(
             data=Array2D(results_array[:,:,0,0,0]),
-            header=self.header
+            header=self.header.copy()
         )
         fit_results = Tesseract(
             data=results_array[:,:,1],
-            header=self.header
+            header=self.header.copy()
         )
 
         return chi2_array, fit_results

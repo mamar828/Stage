@@ -29,7 +29,9 @@ class Cube(FitsFile):
         self.header = header
 
     def __eq__(self, other):
-        return np.array_equal(self.data, other.data) and self.header == other.header
+        same_array = np.allclose(self.data, other.data, equal_nan=True)
+        same_header = self.header == other.header
+        return same_array and same_header
 
     def __getitem__(self, slices: tuple[slice]) -> Map | Cube:
         if True in [isinstance(slice_i, int) for slice_i in slices]:
