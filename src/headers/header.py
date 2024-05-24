@@ -1,6 +1,5 @@
 from __future__ import annotations
 from astropy.io import fits
-from astropy.wcs import WCS
 from copy import deepcopy
 from eztcolors import Colors as C
 
@@ -24,6 +23,23 @@ class Header(fits.Header):
             values_equal = True
 
         return keys_equal and values_equal
+    
+    def h_axis(self, axis: int) -> int:
+        """
+        Converts a numpy axis to a header axis.
+
+        Parameters
+        ----------
+        axis : int
+            Axis to convert to a header axis. This is specified in numpy format : 0-2 for z-y.
+
+        Returns
+        -------
+        header axis : int
+            Axis converted to a header axis.
+        """
+        h_axis = self["NAXIS"] - axis
+        return h_axis
 
     def bin(self, bins: tuple[int, int] | tuple[int, int, int]) -> Header:
         """
@@ -45,11 +61,12 @@ class Header(fits.Header):
             f"{C.LIGHT_RED}All values in bins must be greater than or equal to 1 and must be integers.{C.END}"
         
         header_copy = self.copy()
-        for ax, bin_ in zip(range(1, len(bins) + 1), bins):
-            if f"CDELT{4-ax}" in list(self.keys()):
-                header_copy[f"CDELT{4-ax}"] *= bin_
-            if f"CRPIX{4-ax}" in list(self.keys()):
-                header_copy[f"CRPIX{4-ax}"] = (self[f"CRPIX{4-ax}"] - 0.5) / bin_ + 0.5
+        for ax, bin_ in enumerate(bins):
+            h_ax = self.h_axis(ax)
+            if f"CDELT{h_ax}" in list(self.keys()):
+                header_copy[f"CDELT{h_ax}"] *= bin_
+            if f"CRPIX{h_ax}" in list(self.keys()):
+                header_copy[f"CRPIX{h_ax}"] = (self[f"CRPIX{h_ax}"] - 0.5) / bin_ + 0.5
         
         return header_copy
 
@@ -97,8 +114,7 @@ class Header(fits.Header):
             Header with the switched axes.
         """
         # Make header readable keywords
-        h_axis_1, h_axis_2 = self["NAXIS"] - axis_1, self["NAXIS"] - axis_2
-
+        h_axis_1, h_axis_2 = self.h_axis(axis_1), self.h_axis(axis_2)
         new_header = self.copy()
 
         for key in deepcopy(list(self.keys())):
@@ -131,7 +147,7 @@ class Header(fits.Header):
             Header with the inverted axis.
         """
         new_header = self.copy()
-        h_axis = self["NAXIS"] - axis
+        h_axis = self.h_axis(axis)
         new_header[f"CDELT{h_axis}"] *= -1
         new_header[f"CRPIX{h_axis}"] = self.data.shape[axis] - self.header[f"CRPIX{h_axis}"] + 1
         return new_header
@@ -155,8 +171,9 @@ class Header(fits.Header):
         for i, s in enumerate(slices):
             if isinstance(s, slice):
                 if s.start is not None:
-                    new_header[f"CRPIX{self["NAXIS"]-i}"] -= s.start
-                    new_header[f"NAXIS{self["NAXIS"]-i}"] = s.stop - s.start
+                    h_axis = self.h_axis(i)
+                    new_header[f"CRPIX{h_axis}"] -= s.start
+                    new_header[f"NAXIS{h_axis}"] = s.stop - s.start
 
         return new_header
     
@@ -176,7 +193,7 @@ class Header(fits.Header):
             Header with the removed axis.
         """
         new_header = self.copy()
-        h_axis = str(self["NAXIS"] - axis)
+        h_axis = str(self.h_axis(axis))
         for key in deepcopy(list(new_header.keys())):
             if key[-1] == h_axis:
                 new_header.pop(key)
@@ -184,3 +201,24 @@ class Header(fits.Header):
         new_header["NAXIS"] -= 1
 
         return new_header
+    
+    def get_frame(self, value: float, axis: int) -> int:
+        """
+        Gives the number of the frame closest to the specified value, along the given axis.
+        
+        Parameters
+        ----------
+        value : float
+            Value to determine the frame. This can be a value in the range of any axis.
+        axis : int
+            Axis along which to get the frame. The axes are given in numpy format : 0-2 for z-x.
+
+        Returns
+        -------
+        frame : int
+            Number of the frame closest to the specified value.
+        """
+        h_axis = self.h_axis(axis)
+        frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
+        rounded_frame = round(frame_number)
+        return rounded_frame
