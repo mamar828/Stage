@@ -25,10 +25,14 @@ class Array2D(Array):
             "ylabel" : str, default=None. Specify the label for the y axis.
             "xlim" : str, default=None. Specify the x bounds.
             "ylim" : str, default=None. Specify the y bounds.
+            "show_cbar" : bool, default=True. Specify whether to show the colorbar.
             "cbar_label" : str, default=None. Specify the label for the colorbar.
             "discrete_colormap" : bool, default=False. Specify if the colormap should be discrete.
             "cbar_limits" : tuple, default=None. Specify the limits of the colorbar. Essential for a discrete_colormap.
+            "alpha" : float, default=1.0. Specify the alpha of the imshow.
         """
+        imshow_params = {}
+        cbar_params = {}
         if kwargs.get("discrete_colormap"):
             viridis_cmap = plt.cm.viridis
             cbar_limits = kwargs["cbar_limits"]
@@ -36,13 +40,14 @@ class Array2D(Array):
             bounds = np.linspace(*cbar_limits, interval + 1)
             cmap = ListedColormap(viridis_cmap(np.linspace(0, 1, interval)))
             norm = BoundaryNorm(bounds, cmap.N)
-            imshow = ax.imshow(self, origin="lower", cmap=cmap, norm=norm)
-            cbar = plt.colorbar(imshow, ticks=np.linspace(*cbar_limits, interval//2 + 1), fraction=0.046, pad=0.04)
+            imshow_params = {"cmap" : cmap, "norm" : norm}
+            cbar_params = {"ticks" : np.linspace(*cbar_limits, interval//2 + 1)}
 
-        else:
-            imshow = ax.imshow(self, origin="lower")
-            cbar = plt.colorbar(imshow, fraction=0.046, pad=0.04)
+        imshow = ax.imshow(self, origin="lower", alpha=kwargs.get("alpha", 1), **imshow_params)
+        cbar = plt.colorbar(imshow, fraction=0.046, pad=0.04, **cbar_params)
 
+        if not kwargs.get("show_cbar", True):
+            cbar.remove()
         if kwargs.get("cbar_limits") and not kwargs.get("discrete_colormap"):
             imshow.set_clim(*kwargs.get("cbar_limits"))
         if kwargs.get("cbar_label"):

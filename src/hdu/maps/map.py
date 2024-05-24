@@ -177,12 +177,13 @@ class Map(FitsFile):
     @classmethod
     def from_cube(cls, cube) -> Map:
         """
-        Loads a Map from a Cube.
+        Creates a Map from a Cube.
         
         Parameters
         ----------
         cube : Cube
-            Cube to load the Map from. This must be a previously sliced Cube with two dimensions.
+            Cube to load the Map from. This must be a previously sliced Cube with now two dimensions, but with the
+            header of a Cube (3 dimensions).
         
         Returns
         -------
@@ -196,8 +197,23 @@ class Map(FitsFile):
             header=cube.header.flatten(axis=missing_axis)
         )
         return map_
+    
+    def get_hdu_list(self) -> fits.HDUList:
+        """
+        Gives the Map's HDUList.
+        
+        Returns
+        -------
+        hdu_list : fits.HDUList
+            List of PrimaryHDU and ImageHDU objects representing the Map.
+        """
+        hdu_list = fits.HDUList([])
+        hdu_list.append(self.data.get_PrimaryHDU(self.header))
+        if self.uncertainties is not np.NAN:
+            hdu_list.append(self.uncertainties.get_ImageHDU(self.header))
+        return hdu_list
 
-    def save(self, filename, overwrite=False):
+    def save(self, filename: str, overwrite=False):
         """
         Saves a Map to a file.
 
@@ -208,11 +224,7 @@ class Map(FitsFile):
         overwrite : bool, default=False
             Whether the file should be forcefully overwritten if it already exists.
         """
-        hdu_list = fits.HDUList([])
-        hdu_list.append(self.data.get_PrimaryHDU(self.header))
-        if self.uncertainties is not None:
-            hdu_list.append(self.uncertainties.get_ImageHDU(self.header))
-        super().save(filename, hdu_list, overwrite)
+        super().save(filename, self.get_hdu_list(), overwrite)
 
     def assert_shapes(self, other: Map):
         """

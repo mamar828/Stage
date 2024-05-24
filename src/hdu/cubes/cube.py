@@ -5,7 +5,7 @@ from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_3d import Array3D
-from src.hdu.map import Map
+from src.hdu.maps.map import Map
 from src.headers.header import Header
 
 
@@ -73,7 +73,7 @@ class Cube(FitsFile):
         )
         return cube
 
-    def save(self, filename, overwrite=False):
+    def save(self, filename: str, overwrite=False):
         """
         Saves a Cube to a file.
 
