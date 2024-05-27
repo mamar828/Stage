@@ -174,7 +174,4 @@ class SpectrumCO(Spectrum):
         else:
             valid = True
         return valid
-
-    @property
-    @Spectrum.fit_needed
-    def fitted_gaussian(self) -> models:
+        

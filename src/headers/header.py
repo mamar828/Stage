@@ -172,8 +172,9 @@ class Header(fits.Header):
             if isinstance(s, slice):
                 if s.start is not None:
                     h_axis = self.h_axis(i)
+                    stop = s.stop if s.stop is not None else self[f"NAXIS{h_axis}"]
                     new_header[f"CRPIX{h_axis}"] -= s.start
-                    new_header[f"NAXIS{h_axis}"] = s.stop - s.start
+                    new_header[f"NAXIS{h_axis}"] = stop - s.start
 
         return new_header
     
