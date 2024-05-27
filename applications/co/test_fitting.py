@@ -1,6 +1,8 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from astropy.io import fits
+import os
 
 from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.cubes.cube import Cube
@@ -13,7 +15,9 @@ c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
 # s = SpectrumCO(c.data[:,17,20], c.header)
 # s.auto_plot()
 
-for i in range(15*40+25, c.data.shape[1] * c.data.shape[2]):
+# for i in range(0*40+0, c.data.shape[1] * c.data.shape[2]):
+
+for i in range(512, c.data.shape[1] * c.data.shape[2]):
     x = i % c.data.shape[2]
     y = i // c.data.shape[2]
     was_valid = True
@@ -41,6 +45,7 @@ for i in range(15*40+25, c.data.shape[1] * c.data.shape[2]):
         fig.text(x=0.2, y=0.9, s=was_valid)
         # manager = plt.get_current_fig_manager()
         # manager.full_screen_toggle()
+        fig.tight_layout()
         plt.show()
         # input()
 

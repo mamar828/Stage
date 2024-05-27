@@ -100,7 +100,7 @@ class CubeCO(Cube):
                 spectrum = spectrum.upgrade(SpectrumCO)
                 if self.spectrum_parameters is not None:
                     for param, value in self.spectrum_parameters.items():
-                        setattr(spectrum, param, value)
+                        setattr(spectrum, param.upper(), value)
 
                 spectrum.fit()
 

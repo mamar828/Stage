@@ -10,23 +10,23 @@ from src.hdu.maps.grouped_maps import GroupedMaps
 
 if __name__ == "__main__":
     cube = CubeCO.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
-    print(500 + cube.header.get_frame(-4000, axis=0))
     cube.header["COMMENT"] = "Loop4N1_FinalJS was previously sliced at channel 500, all values of mean must then be " \
                            + "added to 500 to account for this shift."
-    chi2, fit_results = cube.fit()
-    # chi2.save("data/Loop4_co/N1/fit_chi2.fits")
-    fit_results.save("data/Loop4_co/N1/fit_tesseract_2.fits")
+    spectrum_parameters = {
+        "peak_prominence" : 0.7,
+        "peak_minimum_height_sigmas" : 5.0,
+        "peak_minimum_distance" : 10,
+        "noise_channels" : slice(0,100)
+    }
+    chi2_list = []
+    for i in np.linspace(2, 20, 40):
+        print(i)
+        spectrum_parameters["peak_minimum_distance"] = i
+        chi2 = cube.fit(spectrum_parameters)[0]
+        chi2_list.append([i, np.nanmean(chi2.data)])
 
-    # ----------------------------------------------------------------
-    # Make cube output a spectrum if two ints are provided
-    # ----------------------------------------------------------------
-
-    # results = fit_results.to_grouped_maps()
-    # results.save("data/Loop4_co/Loop4N1_fit.fits")
-
-    # results = GroupedMaps.load("data/Loop4_co/Loop4N1_fit.fits")
-    # object_ray = results[195:230]
-    # fig, axs = plt.subplots(1)
-    # (cube[0,:,:].data*0).plot(axs, alpha=0.5, show_cbar=False)
-    # object_ray.mean[0].data.plot(axs)
-    # plt.show()
+    array = np.array(chi2_list)
+    plt.plot(array[:,0], array[:,1])
+    plt.xlabel("peak_minimum_distance")
+    plt.ylabel("chi2")
+    plt.savefig("figures/peak_minimum_distance.png", dpi=600, bbox_inches="tight")
