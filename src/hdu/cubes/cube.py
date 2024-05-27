@@ -92,7 +92,7 @@ class Cube(FitsFile):
         """
         super().save(filename, fits.HDUList([self.data.get_PrimaryHDU(self.header)]), overwrite)
 
-    def bin(self, bins: tuple[int, int, int]) -> Cube:
+    def bin(self, bins: tuple[int, int, int], ignore_nans: bool=False) -> Cube:
         """
         Bins a Cube.
 
@@ -101,6 +101,11 @@ class Cube(FitsFile):
         bins : tuple[int, int, int]
             Number of pixels to be binned together along each axis (1-3). A value of 1 results in the axis not being
             binned. The axes are in the order z, y, x.
+        ignore_nans : bool, default=False
+            Whether to ignore the nan values in the process of binning. If no nan values are present, this parameter is
+            obsolete. If False, the function np.mean is used for binning whereas np.nanmean is used if True. If the nans
+            are ignored, the cube might increase in size as pixels will take the place of nans. If the nans are not
+            ignored, the cube might decrease in size as every new pixel that contains a nan will be made a nan also.
 
         Returns
         -------
@@ -109,6 +114,10 @@ class Cube(FitsFile):
         """
         assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
             f"{C.LIGHT_RED}All values in bins must be greater than or equal to 1 and must be integers.{C.END}"
+        if ignore_nans:
+            func = np.nanmean
+        else:
+            func = np.mean
 
         cropped_pixels = np.array(self.data.shape) % np.array(bins)
         data_copy = self.data[:self.data.shape[0] - cropped_pixels[0],
@@ -120,7 +129,7 @@ class Cube(FitsFile):
                 indices = list(data_copy.shape)
                 indices[ax:ax+1] = [data_copy.shape[ax] // b, b]
                 reshaped_data = data_copy.reshape(indices)
-                data_copy = np.nanmean(reshaped_data, axis=ax+1)
+                data_copy = func(reshaped_data, axis=ax+1)
 
         return self.__class__(data_copy, self.header.bin(bins))
 
