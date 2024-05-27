@@ -6,7 +6,7 @@ from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.cubes.cube import Cube
 
 
-c = Cube.load("data/external/loop_co/Loop4N1_FinalJS.fits")[500:800,:,:]
+c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
 # c = Cube.load("data/external/loop_co/Loop4N2_Conv_Med_FinalJS.fits")[500:800,:,:]
 # c = Cube.load("data/external/loop_co/Loop4N4_Conv_Med_FinalJS.fits")[500:850,:,:]
 # c = Cube.load("data/external/loop_co/Loop4p_Conv_Med_FinalJS.fits")[500:850,:,:]
@@ -26,7 +26,8 @@ for i in range(15*40+25, c.data.shape[1] * c.data.shape[2]):
         #     was_valid = False
 
         print(s.fit_results)
-        print(s.get_fit_chi2())
+        chi2 = s.get_fit_chi2()
+        print(chi2)
 
         fig, axs = plt.subplots(2)
         s.plot_fit(ax=axs[0], plot_initial_guesses=True, plot_all=True)

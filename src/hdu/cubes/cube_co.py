@@ -59,11 +59,11 @@ class CubeCO(Cube):
         results_array = ak.Array(results)
         chi2_array = Map(
             data=Array2D(results_array[:,:,0,0,0]),
-            header=self.header.copy()
+            header=self.header
         )
         fit_results = Tesseract(
             data=results_array[:,:,1],
-            header=self.header.copy()
+            header=self.header
         )
 
         return chi2_array, fit_results
@@ -97,7 +97,7 @@ class CubeCO(Cube):
                 results.append(nans)
 
             else:
-                spectrum = spectrum.from_spectrum(SpectrumCO)
+                spectrum = spectrum.upgrade(SpectrumCO)
                 if self.spectrum_parameters is not None:
                     for param, value in self.spectrum_parameters.items():
                         setattr(spectrum, param, value)

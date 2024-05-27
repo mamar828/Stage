@@ -14,8 +14,8 @@ if __name__ == "__main__":
     cube.header["COMMENT"] = "Loop4N1_FinalJS was previously sliced at channel 500, all values of mean must then be " \
                            + "added to 500 to account for this shift."
     chi2, fit_results = cube.fit()
-    chi2.save("data/Loop4_co/N1/fit_chi2.fits")
-    fit_results.save("data/Loop4_co/N1/fit_tesseract.fits")
+    # chi2.save("data/Loop4_co/N1/fit_chi2.fits")
+    fit_results.save("data/Loop4_co/N1/fit_tesseract_2.fits")
 
     # ----------------------------------------------------------------
     # Make cube output a spectrum if two ints are provided

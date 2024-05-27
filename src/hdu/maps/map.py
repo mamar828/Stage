@@ -118,14 +118,12 @@ class Map(FitsFile):
     
     def __getitem__(self, slices: tuple[slice]) -> Spectrum | Map:
         if True in [isinstance(slice_i, int) for slice_i in slices]:
-            sliced_data = self.data[slices]
-            header_naxes = [self.header[f"NAXIS{i}"] for i in range(self.header["NAXIS"], 0, -1)]
-            missing_axis = header_naxes.index((set(header_naxes) - set(sliced_data.shape)).pop())
-            spec = Spectrum(
-                data=sliced_data, 
-                header=self.header.flatten(axis=missing_axis)
+            cropped_map = self.__class__(
+                self.data[slices],
+                self.uncertainties[slices] if not isinstance(self.uncertainties, float) else self.uncertainties,
+                self.header
             )
-            return spec
+            return Spectrum.from_map(cropped_map)
         else:
             return Map(
                 self.data[slices],

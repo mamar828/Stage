@@ -27,10 +27,10 @@ class Tesseract(FitsFile):
         header : Header, default=None
             The header of the Tesseract.
         """
-        self.data = data
-        header["CTYPE3"] = "amplitude + unc., mean + unc., stddev + unc."
-        header["CTYPE4"] = "gaussian function index"
-        self.header = header
+        self.data = ak.copy(data)
+        self.header = header.copy()
+        self.header["CTYPE3"] = "amplitude + unc., mean + unc., stddev + unc."
+        self.header["CTYPE4"] = "gaussian function index"
     
     @property
     def is_rectangular(self) -> bool:

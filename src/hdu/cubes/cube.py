@@ -6,6 +6,7 @@ from eztcolors import Colors as C
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_3d import Array3D
 from src.hdu.maps.map import Map
+from src.spectrums.spectrum import Spectrum
 from src.headers.header import Header
 
 
@@ -34,8 +35,11 @@ class Cube(FitsFile):
         return same_array and same_header
 
     def __getitem__(self, slices: tuple[slice]) -> Map | Cube:
-        if True in [isinstance(slice_i, int) for slice_i in slices]:
+        int_slices = [isinstance(slice_, int) for slice_ in slices].count(True)
+        if int_slices == 1:
             return Map.from_cube(self.__class__(self.data[slices], self.header))
+        elif int_slices == 2:
+            return Spectrum.from_cube(self.__class__(self.data[slices], self.header))
         else:
             return self.__class__(self.data[slices], self.header.crop_axes(slices))
     
