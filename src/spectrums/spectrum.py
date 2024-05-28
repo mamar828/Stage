@@ -2,6 +2,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from copy import deepcopy
 from astropy import units as u
 from astropy.modeling import models, fitting, CompoundModel
 from specutils.spectra import Spectrum1D
@@ -29,6 +30,7 @@ class Spectrum:
         """
         self.data = data
         self.header = header
+        self.initial_guesses = {}
         self.fitted_function: models.Gaussian1D | CompoundModel = None
         self.fit_results: pd.DataFrame = None
 
@@ -106,6 +108,9 @@ class Spectrum:
             header=self.header.copy()
         )
         return spectrum
+
+    def copy(self) -> Spectrum:
+        return deepcopy(self)
     
     @staticmethod
     def fit_needed(func):
@@ -227,14 +232,109 @@ class Spectrum:
             manager.full_screen_toggle()
         plt.show()
 
+    def bin(self, bin: int) -> Spectrum:
+        """
+        Bins a Spectrum.
+
+        Parameters
+        ----------
+        bin : int
+            Number of channels to be binned together. A value of 2 would mean that the number of channels will be
+            divided by two and each new channel will represent the mean of two previous channels.
+
+        Returns
+        -------
+        spectrum : Spectrum
+            Binned Spectrum.
+        """
+        cropped_pixels = np.array(self.data.shape) % np.array(bin)
+        data_copy = self.data[:self.data.shape[0] - cropped_pixels[0]]
+
+        reshaped_data = data_copy.reshape((data_copy.shape[0] // bin, bin))
+        data_copy = np.mean(reshaped_data, axis=1)
+        return self.__class__(data_copy, self.header.bin([bin]))
+
+    def fit(self, parameter_bounds: dict) -> CompoundModel:
+        """
+        Fits a Spectrum using the get_initial_guesses method and with parameter bounds. Also set the astropy model of
+        the fitted gaussians to the variable self.fitted_function.
+
+        Parameters
+        ----------
+        parameter_bounds : dict
+            Bounds of each gaussian (numbered keys) and corresponding dictionary of bounded parameters. For example,
+            parameter_bounds = {0 : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}}.
+        
+        Returns
+        -------
+        fit : CompoundModel
+            Model of the fitted Spectrum.
+        """
+        initial_guesses = self.get_initial_guesses()
+        if initial_guesses:
+            spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=self.x_values*u.um)
+            gaussians = [
+                models.Gaussian1D(
+                    amplitude=initial_guesses[i]["amplitude"]*u.Jy,
+                    mean=initial_guesses[i]["mean"]*u.um,
+                    stddev=initial_guesses[i]["stddev"]*u.um,
+                    bounds=parameter_bounds
+                ) for i in range(len(initial_guesses))
+            ]
+            self.fitted_function = fit_lines(
+                spectrum,
+                self.sum_gaussians(gaussians),
+                fitter=fitting.LMLSQFitter(calc_uncertainties=True),
+                get_fit_info=True,
+                maxiter=int(1e4)
+            )
+            self._store_fit_results()
+            return self.fitted_function
+    
+    @staticmethod
+    def sum_gaussians(gaussians: list) -> CompoundModel:
+        """
+        Sums a list of models.Gaussian1D objects.
+
+        Parameters
+        ----------
+        gaussians : list
+            List of Gaussian1D objects to sum together.
+
+        Returns
+        -------
+        function : CompoundModel
+            Model representing the sum of all gaussians.
+        """
+        total = gaussians[0]
+        if len(gaussians) >= 1:
+            for gaussian in gaussians[1:]:
+                total += gaussian
+        return total
+
+    def _store_fit_results(self):
+        """
+        Stores the results of the fit in the fit_results variable in the forme of a DataFrame.
+        """
+        values = self.fitted_function.parameters
+        uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"]))
+
+        title = np.repeat(["amplitude", "mean", "stddev"], 2)
+        subtitle = np.array(["value", "uncertainty"]*3)
+        data = np.vstack((values, uncertainties)).T.reshape(len(values) // 3, 6)
+        df = pd.DataFrame(zip(title, subtitle, data), columns=["title", "subtitle", "data"])
+        df.set_index(["title", "subtitle"], inplace=True)
+
+        self.fit_results = pd.DataFrame(data=data, columns=pd.MultiIndex.from_tuples(zip(title, subtitle)))
+
     @fit_needed
-    def get_residue_stddev(self, bounds: slice[int, int]=None) -> float:
+    def get_residue_stddev(self, bounds: slice=None) -> float:
         """
         Gets the standard deviation of the fit's residue.
 
         Parameters
         ----------
-        bounds: slice[int, int], default=None
+        bounds: slice, default=None
             Bounds between which the residue's standard deviation should be calculated. If None is provided, the
             residue's stddev is calculated for all values. Bounds indexing is the same as lists, e.g. bounds=slice(0,2)
             gives x=1 and x=2.
@@ -311,85 +411,6 @@ class Spectrum:
         chi2 : float
             Chi-square of the fit.
         """
-        # from scipy.stats import chisquare
-        # print((self.data - self.predicted_data))
-        # print(np.sum((self.data - self.predicted_data)**2 / self.predicted_data) / len(self))
-        # print(chisquare(self.data, self.predicted_data)[0] / len(self))
-
-        # raise
         chi2 = np.sum(self.get_subtracted_fit()**2 / np.var(self.data[self.NOISE_CHANNELS]))
         normalized_chi2 = chi2 / len(self)
         return float(normalized_chi2)
-
-    def fit(self, parameter_bounds: dict) -> CompoundModel:
-        """
-        Fits a Spectrum using the get_initial_guesses method and with parameter bounds. Also set the astropy model of
-        the fitted gaussian to the variable self.fit.
-
-        Parameters
-        ----------
-        parameter_bounds : dict
-            Bounds of each gaussian (numbered keys) and corresponding dictionary of bounded parameters. For example,
-            parameter_bounds = {0 : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}}.
-        
-        Returns
-        -------
-        fit : CompoundModel
-            Model of the fitted Spectrum.
-        """
-        initial_guesses = self.get_initial_guesses()
-        if initial_guesses:
-            spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=self.x_values*u.um)
-            gaussians = [
-                models.Gaussian1D(
-                    amplitude=initial_guesses[i]["amplitude"]*u.Jy,
-                    mean=initial_guesses[i]["mean"]*u.um,
-                    stddev=initial_guesses[i]["stddev"]*u.um,
-                    bounds=parameter_bounds
-                ) for i in range(len(initial_guesses))
-            ]
-            self.fitted_function = fit_lines(
-                spectrum,
-                self.sum_gaussians(gaussians),
-                fitter=fitting.LMLSQFitter(calc_uncertainties=True),
-                get_fit_info=True,
-                maxiter=int(1e4)
-            )
-            self._store_fit_results()
-            return self.fitted_function
-    
-    @staticmethod
-    def sum_gaussians(gaussians: list) -> CompoundModel:
-        """
-        Sums a list of models.Gaussian1D objects.
-
-        Parameters
-        ----------
-        gaussians : list
-            List of Gaussian1D objects to sum together.
-
-        Returns
-        -------
-        function : CompoundModel
-            Model representing the sum of all gaussians.
-        """
-        total = gaussians[0]
-        if len(gaussians) >= 1:
-            for gaussian in gaussians[1:]:
-                total += gaussian
-        return total
-
-    def _store_fit_results(self):
-        """
-        Stores the results of the fit in the fit_results variable in the forme of a DataFrame.
-        """
-        values = self.fitted_function.parameters
-        uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"]))
-
-        title = np.repeat(["amplitude", "mean", "stddev"], 2)
-        subtitle = np.array(["value", "uncertainty"]*3)
-        data = np.vstack((values, uncertainties)).T.reshape(len(values) // 3, 6)
-        df = pd.DataFrame(zip(title, subtitle, data), columns=["title", "subtitle", "data"])
-        df.set_index(["title", "subtitle"], inplace=True)
-
-        self.fit_results = pd.DataFrame(data=data, columns=pd.MultiIndex.from_tuples(zip(title, subtitle)))

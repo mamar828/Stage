@@ -22,7 +22,10 @@ class SpectrumCO(Spectrum):
             peak_prominence: float=0.7,
             peak_minimum_height_sigmas: float=5.0,
             peak_minimum_distance: int=10,
-            noise_channels: slice=slice(0,100)
+            peak_width: int=3,
+            noise_channels: slice=slice(0,100),
+            initial_guesses_binning: int=1,
+            max_residue_sigmas: int=6
         ):
         """
         Initializes a SpectrumCO object with a certain header, whose spectral information will be taken.
@@ -40,18 +43,31 @@ class SpectrumCO(Spectrum):
             scipy.signal.find_peak function.
         peak_minimum_distance : int, default=10
             Minimum horizontal distance between peaks, in channels. This is used in the scipy.signal.find_peak function.
+        peak_width : int, default=3
+            Minimum width acceptable to detect a peak. This is used in the scipy.signal.find_peak function.
         noise_channels : slice, default=slice(0,100)
             Channels used to measure the noise's stddev. No peaks should be found in this region. 
+        initial_guesses_binning : int, default=1
+            Factor by which to bin the data to find the initial guesses. If kept at 1, the initial guesses are found
+            with the raw data.
+        max_residue_sigmas : int, default=6
+            Minimum residue signal, in sigmas, at which the fit will not be marked as well fitted. This is used to refit
+            abnormal spectrums.
         """
         super().__init__(data, header)
         self.PEAK_PROMINENCE = peak_prominence
         self.PEAK_MINIMUM_HEIGHT_SIGMAS = peak_minimum_height_sigmas
         self.PEAK_MINIMUM_DISTANCE = peak_minimum_distance
+        self.PEAK_WIDTH = peak_width
         self.NOISE_CHANNELS = noise_channels
+        self.INITIAL_GUESSES_BINNING = initial_guesses_binning
+        self.MAX_RESIDUE_SIGMAS = max_residue_sigmas
 
     @property
     def y_threshold(self):
-        return float(np.std(self.data[self.NOISE_CHANNELS]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
+        noise_channels = slice(self.NOISE_CHANNELS.start // self.INITIAL_GUESSES_BINNING,
+                               self.NOISE_CHANNELS.stop // self.INITIAL_GUESSES_BINNING)
+        return float(np.std(self.data[noise_channels]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
 
     @Spectrum.fit_needed
     def plot_fit(self, ax: Axes, plot_all: bool=False, plot_initial_guesses: bool=False):
@@ -69,9 +85,8 @@ class SpectrumCO(Spectrum):
         """
         initial_guesses_array = None
         if plot_initial_guesses:
-            initial_guesses = self.get_initial_guesses()
             initial_guesses_array = np.array([
-                [peak["mean"], peak["amplitude"]] for peak in initial_guesses.values()
+                [peak["mean"], peak["amplitude"]] for peak in self.initial_guesses.values()
             ])
 
         base_params = {
@@ -118,26 +133,48 @@ class SpectrumCO(Spectrum):
         initial guesses : dict
             To every ray (key) is associated another dict in which the keys are the amplitude, stddev and mean.
         """
+        if self.INITIAL_GUESSES_BINNING > 1:
+            s = self.bin(self.INITIAL_GUESSES_BINNING)
+            # s.auto_plot()
+            data = s.data
+        else:
+            data = self.data
+
         peaks = find_peaks(
-            self.data,
+            data,
             prominence=self.PEAK_PROMINENCE,
             height=self.y_threshold,
-            distance=self.PEAK_MINIMUM_DISTANCE
-        )[0]
+            distance=self.PEAK_MINIMUM_DISTANCE / self.INITIAL_GUESSES_BINNING,
+            width=self.PEAK_WIDTH / self.INITIAL_GUESSES_BINNING
+        )
 
-        if list(peaks) != []:
+        if list(peaks[0]) != []:
+            # Triggers if the fit is done a second time
+            # This is used to enhance the fit's quality
+            if self.initial_guesses:
+                mean = np.argmax(np.abs(self.get_subtracted_fit()))
+                self.initial_guesses[len(self.initial_guesses)] = {
+                    "mean" : mean + 1,
+                    "amplitude" : self.data[mean],
+                    "stddev" : 3
+                }
+
             # + 1 accounts for the fact that scipy uses 0-based indexing and headers/ds9 use 1-based indexing
-            initial_guesses = {
-                i : {"mean" : peak + 1, "amplitude" : self.data[peak], "stddev" : 3} for i, peak in enumerate(peaks)
-            }
-            return initial_guesses
+            for i in range(len(peaks[0])):
+                self.initial_guesses[i] = {
+                    "mean" : peaks[0][i]*self.INITIAL_GUESSES_BINNING + 1,
+                    "amplitude" : peaks[1]["peak_heights"][i],
+                    "stddev" : 3
+                }
+            
+            return self.initial_guesses
         else:
             return {}
 
     @Spectrum.fit_needed
     def get_FWHM_speed(self, gaussian_function_index: int) -> np.ndarray:
         """
-        Gets the full width at half max of a function along with its uncertainty in km/s.
+        Gives the full width at half max of a function along with its uncertainty in km/s.
 
         Parameters
         ----------
@@ -156,22 +193,17 @@ class SpectrumCO(Spectrum):
     
     @property
     @Spectrum.fit_needed
-    def fit_valid(self) -> bool:
+    def is_well_fitted(self) -> bool:
         """
-        Checks if the fit is valid by verifying that there is no single gaussian function with a very large stddev.
+        Checks if the fit is well done by verifying that there is no large peak in the fit's residue.
 
         Returns
         -------
-        bool
-            True if the fit is valid, False otherwise.
+        good fit : bool
+            True if the Spectrum is well fitted, False otherwise.
         """
-        MAX_FWHM = 2    # Threshold for maximum accepted FWHM (km/s)
-        if self.fit_results is not None:
-            if self.fit_results.shape[0] == 1 and self.get_FWHM_speed(0)[0] > MAX_FWHM:
-                valid = False
-            else:
-                valid = True
-        else:
-            valid = True
-        return valid
-        
+        good_fit = np.max(np.abs(self.get_subtracted_fit())) \
+                 < self.get_residue_stddev(self.NOISE_CHANNELS) * self.MAX_RESIDUE_SIGMAS
+        print(np.max(np.abs(self.get_subtracted_fit())))
+        print(self.get_residue_stddev(self.NOISE_CHANNELS) * self.MAX_RESIDUE_SIGMAS)
+        return good_fit

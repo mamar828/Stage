@@ -113,7 +113,7 @@ class Cube(FitsFile):
             Binned Cube.
         """
         assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
-            f"{C.LIGHT_RED}All values in bins must be greater than or equal to 1 and must be integers.{C.END}"
+            f"{C.LIGHT_RED}All values in bins must be integers greater than or equal to 1.{C.END}"
         if ignore_nans:
             func = np.nanmean
         else:

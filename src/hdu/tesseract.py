@@ -237,5 +237,5 @@ class Tesseract(FitsFile):
         new_data = np.concatenate((self.data, other.data), axis)
         new_header = self.header.copy()
         h_axis = 2 - axis
-        new_header[f"NAXIS{h_axis}"] += other.header[f"NAXIS{h_axis}"]
+        new_header[f"NAXIS{h_axis}"] += other.header.copy()[f"NAXIS{h_axis}"]
         return Tesseract(new_data, new_header)

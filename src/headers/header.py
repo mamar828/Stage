@@ -41,13 +41,13 @@ class Header(fits.Header):
         h_axis = self["NAXIS"] - axis
         return h_axis
 
-    def bin(self, bins: tuple[int, int] | tuple[int, int, int]) -> Header:
+    def bin(self, bins: list[int] | tuple[int, int] | tuple[int, int, int]) -> Header:
         """
         Bins a Header.
 
         Parameters
         ----------
-        bins : tuple[int, int] | tuple[int, int, int]
+        bins : list[int] | tuple[int, int] | tuple[int, int, int]
             Number of pixels to be binned together along each axis (1-3). The size of the tuple varies depending on the
             fits file's number of dimensions. A value of 1 results in the axis not being binned. The axes are in the
             order z, y, x.

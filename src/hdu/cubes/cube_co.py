@@ -17,7 +17,7 @@ class CubeCO(Cube):
     Encapsulates the methods specific to CO data cubes.
     """
 
-    def fit(self, spectrum_parameters: dict=None) -> None:
+    def fit(self, spectrum_parameters: dict=None) -> tuple[Map, Tesseract]:
         """
         Fits the CubeCO with a variable number of peaks.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
@@ -29,12 +29,17 @@ class CubeCO(Cube):
         ----------
         spectrum_parameters: dict=None
             Parameters for initialization of the SpectrumCO objects. Supported parameters are "peak_prominence", 
-            "peak_minimum_height_sigmas", "peak_minimum_distance" and "noise_channels". If None, or if keys are not
-            specified, the parameters will take the default values given in the SpectrumCO constructor.
+            "peak_minimum_height_sigmas", "peak_minimum_distance", "peak_width", "noise_channels",
+            "initial_guesses_binning" and "max_residue_sigmas" (See the SpectrumCO constructor for a definition of each
+            parameter). If None, or if keys are not specified, the parameters will take the default values given in the
+            SpectrumCO constructor. 
 
         Returns
         -------
-
+        fit results : tuple[Map, Tesseract]
+            Results of fitting the entire Cube. The first element is a Map representing the chi-square of the fit at
+            each pixel. The second elemenent is a Tesseract containing the adjusted function's parameters at every
+            pixel.
         """
         self.spectrum_parameters = spectrum_parameters
         with ProcessPool() as pool:

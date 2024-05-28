@@ -8,20 +8,21 @@ from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.cubes.cube import Cube
 
 
-c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
-# c = Cube.load("data/external/loop_co/Loop4N2_Conv_Med_FinalJS.fits")[500:800,:,:]
-# c = Cube.load("data/external/loop_co/Loop4N4_Conv_Med_FinalJS.fits")[500:850,:,:]
-# c = Cube.load("data/external/loop_co/Loop4p_Conv_Med_FinalJS.fits")[500:850,:,:]
+# c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:].bin((1,2,2))
+c = Cube.load("data/Loop4_co/N2/Loop4N2_Conv_Med_FinalJS.fits")[500:800,:,:]
+print(c.header.get_frame(-3000, 0))
+# c = Cube.load("data/Loop4_co/N4/Loop4N4_Conv_Med_FinalJS.fits")[500:850,:,:]
+# c = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS.fits")[500:850,:,:]
 # s = SpectrumCO(c.data[:,17,20], c.header)
 # s.auto_plot()
 
 # for i in range(0*40+0, c.data.shape[1] * c.data.shape[2]):
 
-for i in range(512, c.data.shape[1] * c.data.shape[2]):
+for i in range(521, c.data.shape[1] * c.data.shape[2]):
     x = i % c.data.shape[2]
     y = i // c.data.shape[2]
     was_valid = True
-    s = SpectrumCO(c.data[:,y,x], c.header)#, peak_minimum_height_sigmas=5)
+    s = SpectrumCO(c.data[:,y,x], c.header, peak_prominence=0.5, peak_minimum_distance=7, peak_width=2)
     if not np.isnan(s.data).all():
         s.fit()
         # if not s.fit_valid:
