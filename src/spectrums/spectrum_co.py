@@ -204,6 +204,4 @@ class SpectrumCO(Spectrum):
         """
         good_fit = np.max(np.abs(self.get_subtracted_fit())) \
                  < self.get_residue_stddev(self.NOISE_CHANNELS) * self.MAX_RESIDUE_SIGMAS
-        print(np.max(np.abs(self.get_subtracted_fit())))
-        print(self.get_residue_stddev(self.NOISE_CHANNELS) * self.MAX_RESIDUE_SIGMAS)
         return good_fit

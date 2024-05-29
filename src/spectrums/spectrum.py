@@ -254,9 +254,9 @@ class Spectrum:
         data_copy = np.mean(reshaped_data, axis=1)
         return self.__class__(data_copy, self.header.bin([bin]))
 
-    def fit(self, parameter_bounds: dict) -> CompoundModel:
+    def fit(self, parameter_bounds: dict):
         """
-        Fits a Spectrum using the get_initial_guesses method and with parameter bounds. Also set the astropy model of
+        Fits a Spectrum using the get_initial_guesses method and with parameter bounds. Also sets the astropy model of
         the fitted gaussians to the variable self.fitted_function.
 
         Parameters
@@ -264,12 +264,8 @@ class Spectrum:
         parameter_bounds : dict
             Bounds of each gaussian (numbered keys) and corresponding dictionary of bounded parameters. For example,
             parameter_bounds = {0 : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}}.
-        
-        Returns
-        -------
-        fit : CompoundModel
-            Model of the fitted Spectrum.
         """
+        
         initial_guesses = self.get_initial_guesses()
         if initial_guesses:
             spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=self.x_values*u.um)
@@ -289,7 +285,6 @@ class Spectrum:
                 maxiter=int(1e4)
             )
             self._store_fit_results()
-            return self.fitted_function
     
     @staticmethod
     def sum_gaussians(gaussians: list) -> CompoundModel:
@@ -311,13 +306,12 @@ class Spectrum:
             for gaussian in gaussians[1:]:
                 total += gaussian
         return total
-
+    
     def _store_fit_results(self):
         """
         Stores the results of the fit in the fit_results variable in the forme of a DataFrame.
         """
-        values = self.fitted_function.parameters
-        uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"]))
+        values, uncertainties = self._get_cleaned_fitted_function_data()
 
         title = np.repeat(["amplitude", "mean", "stddev"], 2)
         subtitle = np.array(["value", "uncertainty"]*3)
@@ -326,11 +320,34 @@ class Spectrum:
         df.set_index(["title", "subtitle"], inplace=True)
 
         self.fit_results = pd.DataFrame(data=data, columns=pd.MultiIndex.from_tuples(zip(title, subtitle)))
+    
+    def _get_cleaned_fitted_function_data(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Gives the values and uncertainties of each parameter of self.fitted_function for every non zero gaussian.
+
+        Returns
+        -------
+        data : tuple[np.ndarray, np.ndarray]
+            Value and uncertainty of every relevant parameter of self.fitted_function.
+        """
+        n_submodels = self.fitted_function.n_submodels
+        values = self.fitted_function.parameters.reshape((n_submodels, 3))
+        uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"])).reshape((n_submodels, 3))
+        mask = np.ones_like(values, dtype=bool)
+        
+        for i, model in enumerate(values):
+            amplitude, mean, stddev = model
+            if amplitude == 0 or stddev == 0:
+                mask[i] = False
+
+        filtered_flat_values = values[mask].flatten()
+        filtered_flat_uncertainties = uncertainties[mask].flatten()
+        return filtered_flat_values, filtered_flat_uncertainties
 
     @fit_needed
     def get_residue_stddev(self, bounds: slice=None) -> float:
         """
-        Gets the standard deviation of the fit's residue.
+        Gives the standard deviation of the fit's residue.
 
         Parameters
         ----------
@@ -353,7 +370,7 @@ class Spectrum:
     @fit_needed
     def get_subtracted_fit(self) -> np.ndarray:
         """
-        Gets the subtracted fit's values.
+        Gives the subtracted fit's values.
 
         Returns
         -------
@@ -366,7 +383,7 @@ class Spectrum:
     @fit_needed
     def get_FWHM_channels(self, gaussian_function_index: int) -> np.ndarray:
         """
-        Gets the full width at half maximum of a gaussian function along with its uncertainty in channels.
+        Gives the full width at half maximum of a gaussian function along with its uncertainty in channels.
 
         Parameters
         ----------
@@ -386,7 +403,7 @@ class Spectrum:
     @fit_needed
     def get_snr(self, gaussian_function_index: int) -> float:
         """
-        Gets the signal to noise ratio of a peak. This is calculated as the amplitude of the peak divided by the
+        Gives the signal to noise ratio of a peak. This is calculated as the amplitude of the peak divided by the
         residue's standard deviation.
     
         Parameters
@@ -404,7 +421,7 @@ class Spectrum:
     @fit_needed    
     def get_fit_chi2(self) -> float:
         """
-        Gets the chi-square of the fit.
+        Gives the chi-square of the fit.
 
         Returns
         -------
