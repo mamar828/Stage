@@ -66,9 +66,15 @@ class CubeCO(Cube):
             data=Array2D(results_array[:,:,0,0,0]),
             header=self.header
         )
-        fit_results = Tesseract(
+
+        tesseract_header = self.header.copy()
+        tesseract_header = tesseract_header.remove_axis(0)
+        tesseract_header["CTYPE3"] = "gaussian function index"
+        tesseract_header["CTYPE4"] = "amplitude + unc., mean + unc., stddev + unc."
+
+        fit_results = Tesseract.from_ak_array(
             data=results_array[:,:,1],
-            header=self.header
+            header=tesseract_header
         )
 
         return chi2_array, fit_results

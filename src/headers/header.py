@@ -160,7 +160,7 @@ class Header(fits.Header):
         ----------
         slices : tuple[slice | int]
             Slices to crop each axis. The axes are given in the order z, y, x, which corresponds to axes 3, 2, 1
-            respectively.
+            respectively. An integer slice will not crop the axis.
         
         Returns
         -------
@@ -170,11 +170,11 @@ class Header(fits.Header):
         new_header = self.copy()
         for i, s in enumerate(slices):
             if isinstance(s, slice):
-                if s.start is not None:
-                    h_axis = self.h_axis(i)
-                    stop = s.stop if s.stop is not None else self[f"NAXIS{h_axis}"]
-                    new_header[f"CRPIX{h_axis}"] -= s.start
-                    new_header[f"NAXIS{h_axis}"] = stop - s.start
+                h_axis = self.h_axis(i)
+                start = s.start if s.start is not None else 0
+                stop = s.stop if s.stop is not None else self[f"NAXIS{h_axis}"]
+                new_header[f"CRPIX{h_axis}"] -= start
+                new_header[f"NAXIS{h_axis}"] = stop - start
 
         return new_header
     
@@ -203,7 +203,28 @@ class Header(fits.Header):
 
         return new_header
     
-    def get_frame(self, value: float, axis: int) -> int:
+    def merge(self, other: Header, axis: int) -> Header:
+        """
+        Merges two headers along an axis. The Header closest to the origin should be the one to call this method.
+
+        Parameters
+        ----------
+        other : Header
+            Second Header to merge the current Header with.
+        axis : int
+            Index of the axis on which to execute the merge.
+        
+        Returns
+        -------
+        header : Header
+            Merged Header.
+        """
+        new_header = self.copy()
+        h_axis = self.h_axis(axis)
+        new_header[f"NAXIS{h_axis}"] += other[f"NAXIS{h_axis}"]
+        return new_header
+
+    def get_frame(self, value: float, axis: int=0) -> int:
         """
         Gives the number of the frame closest to the specified value, along the given axis.
         
@@ -211,8 +232,9 @@ class Header(fits.Header):
         ----------
         value : float
             Value to determine the frame. This can be a value in the range of any axis.
-        axis : int
-            Axis along which to get the frame. The axes are given in numpy format : 0-2 for z-x.
+        axis : int, default=0
+            Axis along which to get the frame. The axes are given in numpy format : 0-2 for z-x. The default axis (0)
+            gives the frame along a cube's spectral axis.
 
         Returns
         -------
