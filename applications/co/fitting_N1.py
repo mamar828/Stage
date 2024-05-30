@@ -16,6 +16,7 @@ if __name__ == "__main__":
     # N1.save("data/Loop4_co/N1/Loop4N1_FinalJS_bin2.fits")
 
     """
+    # Fitting the cube
     spectrum_parameters = {
         "peak_prominence" : 0.3,
         "peak_minimum_distance" : 6,
@@ -28,6 +29,8 @@ if __name__ == "__main__":
     fit_results.save("data/Loop4_co/N1/tesseract.fits")
     """
 
+    """ 
+    # Splitting, slicing and merging the Tesseract(s)
     print(f"Targeted channel : {N1.header.get_frame(-4000, 0)}")
     fit_results = Tesseract.load("data/Loop4_co/N1/tesseract.fits")
 
@@ -47,3 +50,10 @@ if __name__ == "__main__":
     lower = lower_left.merge(lower_right, 3)
     total = lower.merge(upper, 2)
     total.save(f"data/Loop4_co/N1/object.fits")
+    """
+
+    # Compressing the Tesseract
+    total = Tesseract.load(f"data/Loop4_co/N1/object.fits")
+    total = total.compress()
+    total.save(f"data/Loop4_co/N1/object_compressed.fits")
+    

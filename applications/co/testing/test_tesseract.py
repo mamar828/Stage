@@ -49,7 +49,22 @@ if __name__ == "__main__":
     t = Tesseract.load("data/Loop4_co/N1/fit_tesseract.fits")
     ts = t.split(10, 1)
 
-    ts[0].merge(ts[1], axis=1).save("tess_2.fits")
+    ts[0].concatenate(ts[1], axis=1).save("tess_2.fits")
     # for i, tess in enumerate(ts):
     #     tess.save(f"tess_{i}.fits")
     
+
+    # input_array = Tesseract(np.array([
+    #     [[1,      np.nan, 3,      np.NAN, 5],
+    #      [np.nan, np.nan, 3,      4,      np.NAN],
+    #      [1,      2,      np.nan, 4,      np.NAN]],
+    #     [[1,      2,      np.NAN, 4,      5],
+    #      [1,      np.nan, 3,      4,      np.NAN],
+    #      [np.nan, np.nan, np.nan, 4,      np.NAN]],
+    #     [[np.nan, 2,      np.NAN, 4,      np.nan],
+    #      [1,      2,      np.nan, np.nan, 5],
+    #      [np.nan, 2,      np.nan, np.nan, np.NAN]]
+    # ]), None)
+
+    # output_array = input_array.compress()
+    # print(output_array.data)

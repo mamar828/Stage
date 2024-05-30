@@ -203,9 +203,9 @@ class Header(fits.Header):
 
         return new_header
     
-    def merge(self, other: Header, axis: int) -> Header:
+    def concatenate(self, other: Header, axis: int) -> Header:
         """
-        Merges two headers along an axis. The Header closest to the origin should be the one to call this method.
+        Concatenates two headers along an axis. The Header closest to the origin should be the one to call this method.
 
         Parameters
         ----------
@@ -217,7 +217,7 @@ class Header(fits.Header):
         Returns
         -------
         header : Header
-            Merged Header.
+            Concatenated Header.
         """
         new_header = self.copy()
         h_axis = self.h_axis(axis)

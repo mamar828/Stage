@@ -211,17 +211,18 @@ class Tesseract(FitsFile):
             Tesseracts that were splitted. The list is ordered so the Tesseract with the lowest slice is given first.
         """
         splitted_data = np.split(self.data, [indice], axis)
+
         slices = [slice(None, indice), slice(indice, None)]
         header_slices = [[0, 0, 0] for _ in slices]
         [header_slices[i].insert(axis, slice_) for i, slice_ in enumerate(slices)]
+        
         tess = [Tesseract(data, self.header.crop_axes(h_slice)) for data, h_slice in zip(splitted_data, header_slices)]
-
         return tess
 
-    def merge(self, other, axis: int) -> Tesseract:
+    def concatenate(self, other, axis: int) -> Tesseract:
         """
-        Merges two Tesseracts into a single Tesseract. The Tesseract closest to the origin must be the one to call this
-        method.
+        Concatenates two Tesseracts into a single Tesseract. The Tesseract closest to the origin must be the one to call
+        this method as the second Tesseract is added to the right (axis=3)/up (axis=2) depending on the chosen axis.
 
         Parameters
         ----------
@@ -236,5 +237,40 @@ class Tesseract(FitsFile):
             Merged Tesseract along the specified axis.
         """
         new_data = np.concatenate((self.data, other.data), axis)
-        new_header = self.header.merge(other.header, axis)
+        new_header = self.header.concatenate(other.header, axis)
         return Tesseract(new_data, new_header)
+
+    def compress(self) -> Tesseract:
+        """
+        Compresses the nan values of a Tesseract and removes unnecessary slices.
+
+        Returns
+        -------
+        compressed tesseract : Tesseract
+            Tesseract with the gaussian function indices shifted to the uppermost level and with all nan slices removed.
+        """
+        def collapse(row):
+            # Collapses the elements of a row to place the non nan elements at the first index and pad with the same
+            # number of nan values
+            elements = row[~np.isnan(row)]
+            padded = np.pad(
+                elements,
+                pad_width=(0, row.shape[0] - elements.shape[0]),
+                mode="constant",
+                constant_values=np.NAN
+            )
+            return padded
+        
+        # Collapse the non nan elements at the first indices
+        collapsed_array = np.apply_along_axis(collapse, axis=1, arr=self.data)
+        # collapsed_array is now an array with the same shape as before, but with every gaussian function shifted to the
+        # upermost position (first gaussian index, or later if there is more than one gaussian function at that pixel)
+
+        # Find the gaussian function indices where all parameters are None (all parameters : axis=0, y,x : axis=(2,3))
+        nan_indexes = np.all(np.isnan(collapsed_array), axis=(0,2,3))
+        # nan_indexes is now a 1D array giving which indice is always None
+
+        # Filter the rows to keep only the data where there is not always nan parameters for all the slice
+        filtered_rows = collapsed_array[:,~nan_indexes,:,:]
+        
+        return Tesseract(filtered_rows, self.header)
