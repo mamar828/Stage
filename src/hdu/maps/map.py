@@ -35,19 +35,19 @@ class Map(FitsFile):
     def __add__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
-            return Map(
-                Array2D(self.data + other.data),
-                Array2D(self.uncertainties + other.uncertainties),
+            return self.__class__(
+                self.data + other.data,
+                self.uncertainties + other.uncertainties,
                 self.header
             )
         elif isinstance(other, (int, float)):
-            return Map(
-                Array2D(self.data + other),
-                np.NAN,
+            return self.__class__(
+                self.data + other,
+                self.uncertainties,
                 self.header
             )
         else:
-            raise TypeError(
+            raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for +: 'Map' and '{type(other).__name__}'{C.END}")
     
     def __radd__(self, other):
@@ -56,41 +56,41 @@ class Map(FitsFile):
     def __sub__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
-            return Map(
-                Array2D(self.data - other.data),
-                Array2D(self.uncertainties + other.uncertainties),
+            return self.__class__(
+                self.data - other.data,
+                self.uncertainties + other.uncertainties,
                 self.header
             )
         elif isinstance(other, (int, float)):
-            return Map(
-                Array2D(self.data - other),
-                np.NAN,
+            return self.__class__(
+                self.data - other,
+                self.uncertainties,
                 self.header
             )
         else:
-            raise TypeError(
+            raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for -: 'Map' and '{type(other).__name__}'{C.END}")
     
     def __rsub__(self, other):
-        return self.__sub__(other)
+        return self.__sub__(other) * (-1)
 
     def __mul__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
-            return Map(
-                Array2D(self.data * other.data),
-                Array2D(((self.uncertainties / self.data) + (other.uncertainties / other.data)) 
-                * self.data * other.data),
+            return self.__class__(
+                self.data * other.data,
+                ((self.uncertainties / self.data) + (other.uncertainties / other.data)) 
+                * self.data * other.data,
                 self.header
             )
         elif isinstance(other, (int, float)):
-            return Map(
-                Array2D(self.data * other),
-                np.NAN,
+            return self.__class__(
+                self.data * other,
+                self.uncertainties * other,
                 self.header
             )
         else:
-            raise TypeError(
+            raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for *: 'Map' and '{type(other).__name__}'{C.END}")
 
     def __rmul__(self, other):
@@ -99,23 +99,35 @@ class Map(FitsFile):
     def __truediv__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
-            return Map(
-                Array2D(self.data / other.data),
-                Array2D(((self.uncertainties / self.data) + (other.uncertainties / other.data)) \
-                * self.data / other.data)
+            return self.__class__(
+                self.data / other.data,
+                ((self.uncertainties / self.data) + (other.uncertainties / other.data)) * self.data / other.data,
+                self.header
             )
         elif isinstance(other, (int, float)):
-            return Map(
-                Array2D(self.data / other),
-                np.NAN
+            return self.__class__(
+                self.data / other,
+                self.uncertainties / other,
+                self.header
             )
         else:
-            raise TypeError(
+            raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for /: 'Map' and '{type(other).__name__}'{C.END}")
     
     def __rtruediv__(self, other):
-        return self.__truediv__(other)
+        return self.__truediv__(other) ** (-1)
     
+    def __pow__(self, power):
+        if isinstance(power, (int, float)):
+            return self.__class__(
+                self.data ** power,
+                np.abs(self.uncertainties / self.data * power * self.data**power),
+                self.header
+            )
+        else:
+            raise NotImplementedError(
+                f"{C.LIGHT_RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.END}")
+
     def __getitem__(self, slices: tuple[slice]) -> Spectrum | Map:
         if True in [isinstance(slice_i, int) for slice_i in slices]:
             cropped_map = self.__class__(
@@ -125,7 +137,7 @@ class Map(FitsFile):
             )
             return Spectrum.from_map(cropped_map)
         else:
-            return Map(
+            return self.__class__(
                 self.data[slices],
                 self.uncertainties[slices] if isinstance(self.uncertainties, Array2D) else np.NAN,
                 header=self.header.crop_axes(slices)
@@ -252,7 +264,7 @@ class Map(FitsFile):
         """
         mask = region.get_mask(fits.PrimaryHDU(self.data))
         mask = np.where(mask == False, np.nan, 1)
-        return Map(
+        return self.__class__(
             self.data * mask,
             self.uncertainties * mask
         )

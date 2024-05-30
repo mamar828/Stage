@@ -337,7 +337,7 @@ class Spectrum:
         
         for i, model in enumerate(values):
             amplitude, mean, stddev = model
-            if amplitude == 0 or stddev == 0:
+            if amplitude < 1e-4 or stddev < 1e-4:
                 mask[i] = False
 
         filtered_flat_values = values[mask].flatten()

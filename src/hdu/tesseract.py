@@ -168,8 +168,6 @@ class Tesseract(FitsFile):
             A GroupedMaps object containing the amplitude, mean, and standard deviation maps extracted from the
             Tesseract.
         """
-        number_of_maps = np.shape(self.data)[2]
-
         names = ["amplitude", "mean", "stddev"]
         maps = namedtuple("maps", names)
         maps = maps([], [], [])
@@ -179,7 +177,7 @@ class Tesseract(FitsFile):
             new_header = self.header.flatten(axis=0)
 
         for i, name in zip(range(0, 6, 2), names):
-            for j in range(number_of_maps):
+            for j in range(np.shape(self.data)[1]):
                 getattr(maps, name).append(
                     Map(
                         data=Array2D(self.data[i,j,:,:]),

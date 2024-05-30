@@ -6,6 +6,7 @@ from src.hdu.cubes.cube_co import CubeCO
 from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.tesseract import Tesseract
 from src.hdu.maps.grouped_maps import GroupedMaps
+from src.hdu.maps.convenient_funcs import get_FWHM
 
 
 if __name__ == "__main__":
@@ -40,20 +41,25 @@ if __name__ == "__main__":
     lower_left, lower_right = lower.split(10, 3)
     tesseract_splits = tesseract_splits(lower_left, lower_right, upper)
 
-    # for split in splits:
-    #     getattr(tesseract_splits, split).save(f"data/Loop4_co/N1/tesseract_splits/{split}.fits")
+    for split in splits:
+        getattr(tesseract_splits, split).save(f"data/Loop4_co/N1/tesseract_splits/{split}.fits")
 
     upper = tesseract_splits.upper[200:]
     lower_left = tesseract_splits.lower_left[197:]
     lower_right = tesseract_splits.lower_right[190:]
 
-    lower = lower_left.merge(lower_right, 3)
-    total = lower.merge(upper, 2)
-    total.save(f"data/Loop4_co/N1/object.fits")
-    """
+    lower = lower_left.concatenate(lower_right, 3)
+    total = lower.concatenate(upper, 2)
 
     # Compressing the Tesseract
-    total = Tesseract.load(f"data/Loop4_co/N1/object.fits")
     total = total.compress()
     total.save(f"data/Loop4_co/N1/object_compressed.fits")
-    
+    """
+
+    # Harvesting data
+    total = Tesseract.load(f"data/Loop4_co/N1/object_compressed.fits")
+    gm = total.to_grouped_maps()
+    fwhm = get_FWHM(gm.stddev[1], N1)
+    fig, axs = plt.subplots(1)
+    fwhm.data.plot(axs)
+    plt.show()

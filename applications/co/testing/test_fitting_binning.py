@@ -15,7 +15,7 @@ c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:].bin((1,2,2))
 # c = Cube.load("data/Loop4_co/N4/Loop4N4_Conv_Med_FinalJS.fits")[500:850,:,:]
 # c = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS.fits")[500:850,:,:].bin((1,2,2))
 
-for i in range(22*20+7, c.data.shape[1] * c.data.shape[2]):
+for i in range(9*20+10, c.data.shape[1] * c.data.shape[2]):
 # for i in range(0, c.data.shape[1] * c.data.shape[2]):
     x = i % c.data.shape[2]
     y = i // c.data.shape[2]
