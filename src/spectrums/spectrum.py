@@ -37,58 +37,6 @@ class Spectrum:
     def __len__(self) -> int:
         return len(self.data)
     
-    @classmethod
-    def from_map(cls, map) -> Spectrum:
-        """
-        Creates a Spectrum from a Map.
-        
-        Parameters
-        ----------
-        map : Map
-            Map to load the Spectrum from. This must be a previously sliced Map with now one dimension, but with the
-            header of a Map (2 dimensions).
-        
-        Returns
-        -------
-        spectrum : Spectrum
-            One-dimensional Spectrum of the 1D Map.
-        """
-        header_naxes = [map.header[f"NAXIS{i}"] for i in range(map.header["NAXIS"], 0, -1)]
-        missing_axis = header_naxes.index((set(header_naxes) - set(map.data.shape)).pop())
-        spectrum = cls(
-            data=map.data,
-            header=map.header.flatten(axis=missing_axis)
-        )
-        return spectrum
-    
-    @classmethod
-    def from_cube(cls, cube) -> Spectrum:
-        """
-        Creates a Spectrum from a Cube.
-        
-        Parameters
-        ----------
-        cube : Cube
-            Cube to load the Spectrum from. This must be a previously sliced Cube with now one dimension, but with the
-            header of a Cube (3 dimensions).
-        
-        Returns
-        -------
-        spectrum : Spectrum
-            One-dimensional Spectrum of the 1D Cube.
-        """
-        new_header = cube.header
-        for i in range(2):
-            header_naxes = [new_header[f"NAXIS{i}"] for i in range(new_header["NAXIS"], 0, -1)]
-            missing_axis = header_naxes.index((set(header_naxes) - set(cube.data.shape)).pop())
-            new_header = new_header.flatten(axis=missing_axis)
-
-        spectrum = cls(
-            data=cube.data,
-            header=new_header
-        )
-        return spectrum
-
     def upgrade(self, cls: Spectrum) -> Spectrum:
         """
         Constructs an upper-level Spectrum object from a given spectrum.
@@ -158,8 +106,8 @@ class Spectrum:
         success : bool
             True if the fit succeeded, False otherwise.
         """
-        state = True if self.fitted_function is not None else False
-        return state
+        fit_state = True if self.fitted_function is not None else False
+        return fit_state
 
     def plot(self, ax: Axes, **kwargs):
         """

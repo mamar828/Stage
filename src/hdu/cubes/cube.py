@@ -4,6 +4,7 @@ from astropy.io import fits
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
+from src.hdu.arrays.array_2d import Array2D
 from src.hdu.arrays.array_3d import Array3D
 from src.hdu.maps.map import Map
 from src.spectrums.spectrum import Spectrum
@@ -35,11 +36,17 @@ class Cube(FitsFile):
         return same_array and same_header
 
     def __getitem__(self, slices: tuple[slice]) -> Spectrum | Map | Cube:
-        int_slices = [isinstance(slice_, int) for slice_ in slices].count(True)
-        if int_slices == 1:
-            return Map.from_cube(self.__class__(self.data[slices], self.header))
-        elif int_slices == 2:
-            return Spectrum.from_cube(self.__class__(self.data[slices], self.header))
+        int_slices = [isinstance(slice_, int) for slice_ in slices]
+        if int_slices.count(True) == 1:
+            map_header = self.header.flatten(axis=int_slices.index(True))
+            return Map(data=Array2D(self.data[slices]), header=map_header)
+        elif int_slices.count(True) == 2:
+            first_int_i = int_slices.index(True)
+            map_header = self.header.flatten(axis=first_int_i)
+            spectrum_header = map_header.flatten(axis=(int_slices.index(True, start=(first_int_i+1))))
+            return Spectrum(data=self.data[slices], header=spectrum_header)
+        elif int_slices.count(True) == 3:
+            return self.data[slices]
         else:
             return self.__class__(self.data[slices], self.header.crop_axes(slices))
     

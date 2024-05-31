@@ -154,7 +154,7 @@ class Header(fits.Header):
     
     def crop_axes(self, slices: tuple[slice | int]) -> Header:
         """
-        Crops the Header to account for a cropped Cube.
+        Crops the Header to account for a cropped FitsFile.
 
         Parameters
         ----------

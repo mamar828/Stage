@@ -118,7 +118,7 @@ class SpectrumCO(Spectrum):
         """
         parameter_bounds = {
             "amplitude" : (0, 100)*u.Jy,
-            "stddev" : (1e-5, 100)*u.um
+            "stddev" : (1e-5, 100)*u.um     # Prevent division by zero
         }
 
         return super().fit(parameter_bounds)
@@ -155,8 +155,9 @@ class SpectrumCO(Spectrum):
                 mean = np.argmax(np.abs(self.get_subtracted_fit()))
                 self.initial_guesses[len(self.initial_guesses)] = {
                     "mean" : mean + 1,
-                    "amplitude" : self.data[mean],
-                    "stddev" : 3
+                    "amplitude" : np.max(np.abs(self.get_subtracted_fit())),
+                    # "amplitude" : self.data[mean],
+                    "stddev" : 7.2      # value chosen from the mean of multiple successful fits
                 }
 
             # + 1 accounts for the fact that scipy uses 0-based indexing and headers/ds9 use 1-based indexing
@@ -164,7 +165,7 @@ class SpectrumCO(Spectrum):
                 self.initial_guesses[i] = {
                     "mean" : peaks[0][i]*self.INITIAL_GUESSES_BINNING + 1,
                     "amplitude" : peaks[1]["peak_heights"][i],
-                    "stddev" : 3
+                    "stddev" : 7.2      # value chosen from the mean of multiple successful fits
                 }
             
             return self.initial_guesses

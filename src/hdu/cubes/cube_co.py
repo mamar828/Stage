@@ -114,6 +114,15 @@ class CubeCO(Cube):
                         setattr(spectrum, param.upper(), value)
 
                 spectrum.fit()
+                # When a fit has already happened, the spectrum receives additional initial guesses based on the residue
+                # The loop allows to iteratively increase the fit's quality if seen necessary (based on the max residue)
+                while not spectrum.is_well_fitted and spectrum.fitted_function is not None:
+                    new_spectrum = spectrum.copy()
+                    new_spectrum.fit()
+                    if new_spectrum.get_fit_chi2() < spectrum.get_fit_chi2():
+                        spectrum = new_spectrum
+                    else:
+                        break
 
                 if spectrum.is_successfully_fitted:
                     results.append([

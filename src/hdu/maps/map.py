@@ -129,13 +129,12 @@ class Map(FitsFile):
                 f"{C.LIGHT_RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.END}")
 
     def __getitem__(self, slices: tuple[slice]) -> Spectrum | Map:
-        if True in [isinstance(slice_i, int) for slice_i in slices]:
-            cropped_map = self.__class__(
-                self.data[slices],
-                self.uncertainties[slices] if not isinstance(self.uncertainties, float) else self.uncertainties,
-                self.header
-            )
-            return Spectrum.from_map(cropped_map)
+        int_slices = [isinstance(slice_, int) for slice_ in slices]
+        if int_slices.count(True) == 1:
+            spectrum_header = self.header.flatten(axis=int_slices.index(True))
+            return Spectrum(data=self.data[slices], header=spectrum_header)
+        elif int_slices.count(True) == 2:
+            return self.data[slices]
         else:
             return self.__class__(
                 self.data[slices],
@@ -163,7 +162,7 @@ class Map(FitsFile):
         return self.data.shape
 
     @classmethod
-    def load(cls, filename) -> Map:
+    def load(cls, filename: str) -> Map:
         """
         Loads a Map from a file.
 
@@ -183,30 +182,6 @@ class Map(FitsFile):
         if len(hdu_list) == 2:
             uncertainties = Array2D(hdu_list[1].data)
         return cls(data, uncertainties, Header(hdu_list[0].header))
-    
-    @classmethod
-    def from_cube(cls, cube) -> Map:
-        """
-        Creates a Map from a Cube.
-        
-        Parameters
-        ----------
-        cube : Cube
-            Cube to load the Map from. This must be a previously sliced Cube with now two dimensions, but with the
-            header of a Cube (3 dimensions).
-        
-        Returns
-        -------
-        map : Map
-            Two-dimensional Map of the 2D Cube.
-        """
-        header_naxes = [cube.header[f"NAXIS{i}"] for i in range(cube.header["NAXIS"], 0, -1)]
-        missing_axis = header_naxes.index((set(header_naxes) - set(cube.data.shape)).pop())
-        map_ = cls(
-            data=Array2D(cube.data),
-            header=cube.header.flatten(axis=missing_axis)
-        )
-        return map_
     
     def get_hdu_list(self) -> fits.HDUList:
         """

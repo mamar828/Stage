@@ -53,7 +53,7 @@ class Tesseract(FitsFile):
         tesseract : Tesseract
             Initialized Tesseract.
         """
-        return cls(Tesseract.swapaxes(Tesseract.rectangularize(data)), header)
+        return cls(cls.swapaxes(cls.rectangularize(data)), header)
 
     @classmethod
     def load(cls, filename: str) -> Tesseract:
@@ -156,7 +156,7 @@ class Tesseract(FitsFile):
         filter_4d = np.tile(filter_3d, (6, 1, 1, 1))
         # Convert boolean filter to True/np.NAN
         filter_4d = np.where(filter_4d, filter_4d, np.NAN)
-        return Tesseract(self.data * filter_4d, self.header)
+        return self.__class__(self.data * filter_4d, self.header)
 
     def to_grouped_maps(self) -> GroupedMaps:
         """
@@ -199,7 +199,7 @@ class Tesseract(FitsFile):
         ----------
         indice : int
             Indice of where the Tesseract will be splitted. For example, indice=10 will give a Tesseract that goes from
-            0 to 9 and another from 10 to ... in a given axis.
+            0 to 9 and another from 10 to ... along a given axis.
         axis : int
             Axis along which to split the Tesseract. This should be 0 or 1 to split in the coordinate axes.
 
@@ -208,13 +208,13 @@ class Tesseract(FitsFile):
         splitted tesseracts : list[Tesseract, Tesseract]
             Tesseracts that were splitted. The list is ordered so the Tesseract with the lowest slice is given first.
         """
-        splitted_data = np.split(self.data, [indice], axis)
+        splitted = np.split(self.data, [indice], axis)
 
         slices = [slice(None, indice), slice(indice, None)]
         header_slices = [[0, 0, 0] for _ in slices]
         [header_slices[i].insert(axis, slice_) for i, slice_ in enumerate(slices)]
         
-        tess = [Tesseract(data, self.header.crop_axes(h_slice)) for data, h_slice in zip(splitted_data, header_slices)]
+        tess = [self.__class__(data, self.header.crop_axes(h_slice)) for data, h_slice in zip(splitted, header_slices)]
         return tess
 
     def concatenate(self, other, axis: int) -> Tesseract:
@@ -236,7 +236,7 @@ class Tesseract(FitsFile):
         """
         new_data = np.concatenate((self.data, other.data), axis)
         new_header = self.header.concatenate(other.header, axis)
-        return Tesseract(new_data, new_header)
+        return self.__class__(new_data, new_header)
 
     def compress(self) -> Tesseract:
         """
@@ -271,4 +271,4 @@ class Tesseract(FitsFile):
         # Filter the rows to keep only the data where there is not always nan parameters for all the slice
         filtered_rows = collapsed_array[:,~nan_indexes,:,:]
         
-        return Tesseract(filtered_rows, self.header)
+        return self.__class__(filtered_rows, self.header)

@@ -12,7 +12,7 @@ from src.hdu.maps.convenient_funcs import get_FWHM
 if __name__ == "__main__":
     N1 = CubeCO.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:].bin((1,2,2))
     N1.header["COMMENT"] = "Loop4N1_FinalJS was binned 2x2."
-    N1.header["COMMENT"] = "Loop4N1_FinalJS was sliced at channel 500, all values of mean must then be " \
+    N1.header["COMMENT"] = "Loop4N1_FinalJS was sliced at channel 500; all values of mean must then be " \
                          + "added to 500 to account for this shift."
     # N1.save("data/Loop4_co/N1/Loop4N1_FinalJS_bin2.fits")
 
@@ -22,7 +22,8 @@ if __name__ == "__main__":
         "peak_prominence" : 0.3,
         "peak_minimum_distance" : 6,
         "peak_width" : 2,
-        "initial_guesses_binning" : 2
+        "initial_guesses_binning" : 2,
+        "max_residue_sigmas" : 5
     }
 
     chi2, fit_results = N1.fit(spectrum_parameters)
@@ -53,13 +54,11 @@ if __name__ == "__main__":
 
     # Compressing the Tesseract
     total = total.compress()
-    total.save(f"data/Loop4_co/N1/object_compressed.fits")
+    total.save(f"data/Loop4_co/N1/object.fits")
     """
 
     # Harvesting data
-    total = Tesseract.load(f"data/Loop4_co/N1/object_compressed.fits")
+    total = Tesseract.load(f"data/Loop4_co/N1/object.fits")
     gm = total.to_grouped_maps()
-    fwhm = get_FWHM(gm.stddev[1], N1)
-    fig, axs = plt.subplots(1)
-    fwhm.data.plot(axs)
-    plt.show()
+    fwhms = [get_FWHM(stddev_map, N1) for stddev_map in gm.stddev]
+    GroupedMaps([("FWHM", fwhms)]).save(f"data/Loop4_co/N1/object_FWHM.fits")
