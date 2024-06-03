@@ -113,8 +113,8 @@ class Mask:
         """
         Creates a rectangular mask.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         center : tuple[float, float]
             Center of the circular mask.
         radius : float
@@ -136,8 +136,8 @@ class Mask:
         """
         Creates a polygon mask.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         vertices : list[tuple[float, float]]
             Vertices of the polygon. Each element is a vertex and is defined by its (x,y) coordinates.
 

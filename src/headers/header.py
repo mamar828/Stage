@@ -90,19 +90,19 @@ class Header(fits.Header):
         new_header = self.copy()
         for i in range(axis):
             # Swap axes to place the axis to remove at indice 0 (NAXIS3)
-            new_header = new_header.switch_axes(axis - i - 1, axis - i)
+            new_header = new_header.swap_axes(axis - i - 1, axis - i)
 
         # Erase the axis
         new_header = new_header.remove_axis(0)
 
         return new_header
 
-    def switch_axes(self, axis_1: int, axis_2: int) -> Header:
+    def swap_axes(self, axis_1: int, axis_2: int) -> Header:
         """
         Switches a Header's axes to fit a FitsFile object with swapped axes.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         axis_1: int
             Source axis.
         axis_2: int

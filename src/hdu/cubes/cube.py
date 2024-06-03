@@ -144,8 +144,8 @@ class Cube(FitsFile):
         """
         Inverts the elements' order along an axis.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         axis : int
             Axis whose order must be flipped. 0, 1, 2 correspond to z, y, x respectively.
 
@@ -155,3 +155,23 @@ class Cube(FitsFile):
             Cube with the newly axis-flipped Data_cube.
         """
         return self.__class__(np.flip(self.data, axis=axis), self.header.invert_axis(axis))
+
+    def swap_axes(self, axis_1: int, axis_2: int) -> Cube:
+        """
+        Swaps a Cube's axes.
+        
+        Parameters
+        ----------
+        axis_1: int
+            Source axis.
+        axis_2: int
+            Destination axis.
+        
+        Returns
+        -------
+        cube : Cube
+            Cube with the switched axes.
+        """
+        new_data = self.data.copy().swapaxes(axis_1, axis_2)
+        new_header = self.header.swap_axes(axis_1, axis_2)
+        return self.__class__(new_data, new_header)
