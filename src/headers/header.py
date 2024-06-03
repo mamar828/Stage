@@ -7,6 +7,9 @@ from eztcolors import Colors as C
 class Header(fits.Header):
     """ 
     Encapsulates methods specific to the astropy.io.fits.Header class.
+    Note : the axes are always given in their numpy array format, not in the fits header format. For example, axis=0
+    targets the first numpy array axis, and therefore the last header axis (3). Values of 0,1,2 target respectively
+    z, y and x.
     """
     
     def __str__(self) -> str:
@@ -31,7 +34,7 @@ class Header(fits.Header):
         Parameters
         ----------
         axis : int
-            Axis to convert to a header axis. This is specified in numpy format : 0-2 for z-y.
+            Axis to convert to a header axis.
 
         Returns
         -------
@@ -49,8 +52,8 @@ class Header(fits.Header):
         ----------
         bins : list[int] | tuple[int, int] | tuple[int, int, int]
             Number of pixels to be binned together along each axis (1-3). The size of the tuple varies depending on the
-            fits file's number of dimensions. A value of 1 results in the axis not being binned. The axes are in the
-            order z, y, x.
+            fits file's number of dimensions. A value of 1 results in the axis not being binned. Read the note in the
+            declaration of this function to properly indicate the axes.
 
         Returns
         -------
@@ -77,8 +80,7 @@ class Header(fits.Header):
         Parameters
         ----------
         axis : int
-            Axis to flatten. Axes are given in their numpy array format, not in the fits header format : axis=0 will
-            remove the last header axis.
+            Axis to flatten.
 
         Returns
         -------
@@ -102,11 +104,9 @@ class Header(fits.Header):
         Arguments
         ---------
         axis_1: int
-            Source axis, Axes are given in their numpy array format, not in the fits header format : axis=0 will 
-            remove the last header axis (NAXIS3).
+            Source axis.
         axis_2: int
-            Destination axis, Axes are given in their numpy array format, not in the fits header format : axis=0 will 
-            remove the last header axis (NAXIS3).
+            Destination axis.
         
         Returns
         -------
@@ -140,7 +140,7 @@ class Header(fits.Header):
         ----------
         axis : int
             Axis along which the info needs to be inverted.
-        
+
         Returns
         -------
         header : Header
@@ -149,7 +149,7 @@ class Header(fits.Header):
         new_header = self.copy()
         h_axis = self.h_axis(axis)
         new_header[f"CDELT{h_axis}"] *= -1
-        new_header[f"CRPIX{h_axis}"] = self.data.shape[axis] - self.header[f"CRPIX{h_axis}"] + 1
+        new_header[f"CRPIX{h_axis}"] = self[f"NAXIS{h_axis}"] - self[f"CRPIX{h_axis}"] + 1
         return new_header
     
     def crop_axes(self, slices: tuple[slice | int]) -> Header:
@@ -159,8 +159,7 @@ class Header(fits.Header):
         Parameters
         ----------
         slices : tuple[slice | int]
-            Slices to crop each axis. The axes are given in the order z, y, x, which corresponds to axes 3, 2, 1
-            respectively. An integer slice will not crop the axis.
+            Slices to crop each axis. An integer slice will not crop the axis.
         
         Returns
         -------
@@ -185,8 +184,7 @@ class Header(fits.Header):
         Parameters
         ----------
         axis : int
-            Axis to remove. Axes are given in their numpy array format, not in the fits header format : axis=0 will
-            remove the last header axis (NAXIS3).
+            Axis to remove.
 
         Returns
         -------
@@ -206,6 +204,8 @@ class Header(fits.Header):
     def concatenate(self, other: Header, axis: int) -> Header:
         """
         Concatenates two headers along an axis. The Header closest to the origin should be the one to call this method.
+        This method is used if a FitsFile whose header was previously cropped (with Header.crop_axes) needs to be
+        re-concatenated. The FitsFiles are considered directly next to each other.
 
         Parameters
         ----------

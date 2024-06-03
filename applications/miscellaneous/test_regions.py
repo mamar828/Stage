@@ -5,7 +5,7 @@ from astropy.io import fits
 from src.regions.mask import Mask
 
 
-mask = Mask(image_shape=(512, 512))
+mask = Mask(image_shape=(1000, 1000))
 
 # circles = [mask.circle((i,i), 50) for i in np.linspace(100, 900, 10)]
 
@@ -30,7 +30,7 @@ mask = Mask(image_shape=(512, 512))
 # plt.imshow(rect)
 # plt.show()
 
-pol = mask.polygon([(50,500), (950,500), (500,250)])
+# pol = mask.polygon([(50,500), (950,500), (500,250)])
 # plt.imshow(pol)
 # plt.show()
 
