@@ -31,7 +31,7 @@ if __name__ == "__main__":
     fit_results.save("data/Loop4_co/N2/tesseract.fits")
     """
 
-    """
+    # """
     # Splitting, slicing and merging the Tesseract(s)
     print(f"Targeted channel : {N2.header.get_frame(-3000, 0)}")
     fit_results = Tesseract.load("data/Loop4_co/N2/tesseract.fits")
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # Compressing the Tesseract
     total = total.compress()
     total.save(f"data/Loop4_co/N2/object.fits")
-    """
+    # """
 
     # Harvesting data
     total = Tesseract.load(f"data/Loop4_co/N2/object.fits")

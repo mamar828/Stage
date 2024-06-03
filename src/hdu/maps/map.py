@@ -8,9 +8,10 @@ from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
 from src.headers.header import Header
 from src.spectrums.spectrum import Spectrum
+from src.base_objects.mathematical_object import MathematicalObject
  
 
-class Map(FitsFile):
+class Map(FitsFile, MathematicalObject):
     """
     Encapsulates the necessary methods to compare and treat maps.
     """
@@ -50,9 +51,6 @@ class Map(FitsFile):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for +: 'Map' and '{type(other).__name__}'{C.END}")
     
-    def __radd__(self, other):
-        return self.__add__(other)
-
     def __sub__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
@@ -71,9 +69,6 @@ class Map(FitsFile):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for -: 'Map' and '{type(other).__name__}'{C.END}")
     
-    def __rsub__(self, other):
-        return self.__sub__(other) * (-1)
-
     def __mul__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
@@ -93,9 +88,6 @@ class Map(FitsFile):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for *: 'Map' and '{type(other).__name__}'{C.END}")
 
-    def __rmul__(self, other):
-        return self.__mul__(other)
-    
     def __truediv__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
@@ -113,9 +105,6 @@ class Map(FitsFile):
         else:
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for /: 'Map' and '{type(other).__name__}'{C.END}")
-    
-    def __rtruediv__(self, other):
-        return self.__truediv__(other) ** (-1)
     
     def __pow__(self, power):
         if isinstance(power, (int, float)):
