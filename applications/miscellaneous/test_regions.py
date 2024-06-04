@@ -41,18 +41,38 @@ mask = Mask(image_shape=(1000, 1000))
 # plt.show()
 
 
-m = Mask((512,512))
-test_map = fits.open("summer_2023/gaussian_fitting/maps/computed_data/NII_mean.fits")[0]
-mask = m.open_as_image_coord("summer_2023/gaussian_fitting/regions/region_1.reg", test_map.header)
+# m = Mask((512,512))
+# test_map = fits.open("summer_2023/gaussian_fitting/maps/computed_data/NII_mean.fits")[0]
+# mask = m.open_as_image_coord("summer_2023/gaussian_fitting/regions/region_1.reg", test_map.header)
 # plt.colorbar(plt.imshow(test_map.data))
 # plt.clim(13,17)
 # plt.show()
 # plt.colorbar(plt.imshow(mask))
 # plt.show()
-masked_map = mask * test_map.data
+# masked_map = mask * test_map.data
 # plt.colorbar(plt.imshow(masked_map))
 # plt.clim(13,17)
 # plt.show()
-plt.colorbar(plt.imshow(mask ^ pol))
+# plt.colorbar(plt.imshow(mask ^ pol))
 # plt.clim(13,17)
+# plt.show()
+
+
+# WCS regions
+
+SHAPE_X, SHAPE_Y = 512, 512
+FITS_FILENAME = "summer_2023/gaussian_fitting/maps/computed_data/NII_mean.fits"
+REG_FILENAME = "summer_2023/gaussian_fitting/regions/region_1.reg"
+
+m = Mask((SHAPE_Y,SHAPE_X))
+
+test_fits = fits.open(FITS_FILENAME)[0]
+mask = m.open_as_image_coord(REG_FILENAME, test_fits.header)
+plt.imshow(mask)
+plt.title("mask")
+plt.show()
+masked_fits = mask * test_fits.data
+plt.colorbar(plt.imshow(masked_fits))
+plt.title("masked_fits")
+# plt.clim()            # adjust as needed
 plt.show()

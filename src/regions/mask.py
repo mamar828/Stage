@@ -22,33 +22,17 @@ class Mask:
         """
         self.image_shape = image_shape
     
-    def _get_numpy_mask(self, region: pyregion.core.ShapeList) -> np.ndarray:
+    def open_as_image_coord(self, filename: str, header: Header) -> np.ndarray:
         """
-        Gives the numpy mask of the current Mask object.
-        
-        Parameters
-        ----------
-        region : pyregion.core.ShapeList
-            Region with which the numpy mask will be made.
-
-        Returns
-        -------
-        mask : np.ndarray
-            Exported mask.
-        """
-        mask = region.get_mask(shape=self.image_shape)
-        return mask
-    
-    def open_as_image_coord(self, filename: str, header: Header):
-        """
-        Opens a FITS file as an image coordinate mask.
+        Opens a .reg file as an image coordinate mask.
 
         Parameters
         ----------
         filename : str
-            Name of the FITS file.
+            Name of the .reg file.
         header : Header
-            Header of the FITS file.
+            Header of the FITS file with which the region was created. This is used for converting from WCS to image
+            coordinates. Make sure that the Mask was initialized with the same shape as the FITS file.
 
         Returns
         -------
@@ -149,3 +133,20 @@ class Mask:
         region_id = f"image;polygon{sum(vertices, ())}"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
+    
+    def _get_numpy_mask(self, region: pyregion.core.ShapeList) -> np.ndarray:
+        """
+        Gives the numpy mask of the provided region.
+        
+        Parameters
+        ----------
+        region : pyregion.core.ShapeList
+            Region with which the numpy mask will be made.
+
+        Returns
+        -------
+        mask : np.ndarray
+            Exported mask.
+        """
+        mask = region.get_mask(shape=self.image_shape)
+        return mask
