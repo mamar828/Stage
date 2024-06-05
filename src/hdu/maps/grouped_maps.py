@@ -73,7 +73,7 @@ class GroupedMaps(FitsFile):
         gm = cls(maps)
         return gm
 
-    def save(self, filename: str, overwrite=False):
+    def save(self, filename: str, overwrite: bool=False):
         """
         Saves a GroupedMaps to a file. Saving a GroupedMaps object is discouraged as the format is more restrictive than
         Tesseracts. This may however be useful for a more descriptive header and when no further change will be made to

@@ -45,9 +45,9 @@ if __name__ == "__main__":
     for split in splits:
         getattr(tesseract_splits, split).save(f"data/Loop4_co/N1/tesseract_splits/{split}.fits")
 
-    upper = tesseract_splits.upper[200:]
-    lower_left = tesseract_splits.lower_left[197:]
-    lower_right = tesseract_splits.lower_right[190:]
+    upper = tesseract_splits.upper.filter(slice(200, None))
+    lower_left = tesseract_splits.lower_left.filter(slice(197, None))
+    lower_right = tesseract_splits.lower_right.filter(slice(190, None))
 
     lower = lower_left.concatenate(lower_right, 3)
     total = lower.concatenate(upper, 2)

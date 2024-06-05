@@ -86,7 +86,7 @@ class Cube(FitsFile):
         )
         return cube
 
-    def save(self, filename: str, overwrite=False):
+    def save(self, filename: str, overwrite: bool=False):
         """
         Saves a Cube to a file.
 

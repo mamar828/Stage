@@ -187,7 +187,7 @@ class Map(FitsFile, MathematicalObject):
             hdu_list.append(self.uncertainties.get_ImageHDU(self.header))
         return hdu_list
 
-    def save(self, filename: str, overwrite=False):
+    def save(self, filename: str, overwrite: bool=False):
         """
         Saves a Map to a file.
 

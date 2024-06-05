@@ -8,7 +8,7 @@ class FitsFile:
     """
 
     @staticmethod
-    def save(filename: str, hdu_list: fits.HDUList, overwrite=False):
+    def save(filename: str, hdu_list: fits.HDUList, overwrite: bool=False):
         """
         Saves to a file.
 

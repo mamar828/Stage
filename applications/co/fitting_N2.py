@@ -36,7 +36,7 @@ if __name__ == "__main__":
     print(f"Targeted channel : {N2.header.get_frame(-3000, 0)}")
     fit_results = Tesseract.load("data/Loop4_co/N2/tesseract.fits")
 
-    total = fit_results[179:240]
+    total = fit_results.filter(slice(179, 240))
 
     # Compressing the Tesseract
     total = total.compress()

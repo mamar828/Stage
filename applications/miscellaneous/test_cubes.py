@@ -13,4 +13,4 @@ c = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS.fits")
 # plt.show()
 
 s = c.swap_axes(0,1).swap_axes(0,2)
-s.save("swapped.fits")
+s.save("Loop4p_swapped.fits")

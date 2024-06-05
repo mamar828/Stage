@@ -119,7 +119,7 @@ class Tesseract(FitsFile):
         swapped_array = array.swapaxes(0, 2).swapaxes(1, 3).swapaxes(0, 1)
         return swapped_array
     
-    def save(self, filename: str, overwrite=False):
+    def save(self, filename: str, overwrite: bool=False):
         """
         Saves a Tesseract to a file.
 
@@ -133,10 +133,11 @@ class Tesseract(FitsFile):
         hdu_list = fits.HDUList([fits.PrimaryHDU(self.data, self.header)])
         super().save(filename, hdu_list, overwrite)
 
-    def __getitem__(self, slice: slice) -> Tesseract:
+    def filter(self, slice: slice) -> Tesseract:
         """
-        Returns a new Tesseract object with the specified slice, which corresponds to the Tesseract's values along the 
-        third element of the first axis (axis=0).
+        Filters the Tesseract to get only the elements whose third value along the first axis is between the specified
+        slice. In the case of the Tesseract outputted by the src.hdu.cubes.cube_co.CubeCO.fit method, The returned
+        Tesseract will contain only the gaussians whose mean value was contained in the given slice.
 
         Parameters
         ----------
