@@ -35,7 +35,7 @@ class Cube(FitsFile):
         same_header = self.header == other.header
         return same_array and same_header
 
-    def __getitem__(self, slices: tuple[slice]) -> Spectrum | Map | Cube:
+    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | Map | Cube:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
             map_header = self.header.flatten(axis=int_slices.index(True))
@@ -43,7 +43,7 @@ class Cube(FitsFile):
         elif int_slices.count(True) == 2:
             first_int_i = int_slices.index(True)
             map_header = self.header.flatten(axis=first_int_i)
-            spectrum_header = map_header.flatten(axis=(int_slices.index(True, start=(first_int_i+1))))
+            spectrum_header = map_header.flatten(axis=(int_slices.index(True, first_int_i+1)))
             return Spectrum(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 3:
             return self.data[slices]

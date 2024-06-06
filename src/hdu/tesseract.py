@@ -3,6 +3,8 @@ import numpy as np
 import awkward as ak
 from collections import namedtuple
 from astropy.io import fits
+import astropy.units as u
+from matplotlib.axes import Axes
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
@@ -10,6 +12,9 @@ from src.headers.header import Header
 from src.hdu.maps.grouped_maps import GroupedMaps
 from src.hdu.maps.map import Map
 from src.hdu.arrays.array_2d import Array2D
+from src.hdu.cubes.cube import Cube
+from src.spectrums.spectrum import Spectrum
+from src.coordinates.ds9_coords import DS9Coords
 
 
 class Tesseract(FitsFile):
@@ -55,11 +60,6 @@ class Tesseract(FitsFile):
             Initialized Tesseract.
         """
         return cls(cls.swapaxes(cls.rectangularize(data)), header)
-
-    def __getitem__(self, slice: slice): ...
-
-
-
 
     def __setitem__(self, slice_: tuple[slice | int], value):
         """
@@ -156,6 +156,39 @@ class Tesseract(FitsFile):
         """
         hdu_list = fits.HDUList([fits.PrimaryHDU(self.data, self.header)])
         super().save(filename, hdu_list, overwrite)
+
+    def plot_spectrum(self, ax: Axes, cube: Cube, coords: tuple[int, int] | DS9Coords) -> Spectrum:
+        """
+        Gives the spectrum and its fit at the given coordinates.
+
+        Parameters
+        ----------
+        ax : Axes
+            Axis on which to plot the Spectrum.
+        cube : Cube
+            Cube from which to get the spectrum data. This must be the cube with which the Tesseract was constructed.
+        coords : tuple[int, int] | DS9Coords
+            Coordinates at which the Spectrum needs to be given.
+
+        Returns
+        -------
+        spectrum : Spectrum
+            Spectrum object representing the cube's data and Tesseract's fit data at the given coordinates.
+        """
+        spectrum = cube[:, *coords]
+        def fit(x):
+            gaussian = namedtuple("gaussian", ["amplitude", "mean", "stddev"])
+            y = 0
+            for i in range(self.data.shape[1]):
+                g = gaussian(
+                    amplitude=self.data[0,i,coords[0],coords[1]],
+                    mean=self.data[2,i,coords[0],coords[1]],
+                    stddev=self.data[4,i,coords[0],coords[1]]
+                )
+                y += g.amplitude * np.exp(-(x / u.um - g.mean)**2 / (2 * g.stddev**2))
+            return y
+                
+        spectrum.plot(ax, fit=fit)
 
     def filter(self, slice: slice) -> Tesseract:
         """

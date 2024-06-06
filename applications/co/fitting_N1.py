@@ -7,6 +7,7 @@ from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.tesseract import Tesseract
 from src.hdu.maps.grouped_maps import GroupedMaps
 from src.hdu.maps.convenient_funcs import get_FWHM
+from src.coordinates.ds9_coords import DS9Coords
 
 
 if __name__ == "__main__":

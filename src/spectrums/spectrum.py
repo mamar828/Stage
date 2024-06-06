@@ -127,7 +127,7 @@ class Spectrum:
             if value is not None:
                 if key == "fit":
                     # Fitted entire function
-                    ax.plot(self.x_values*u.Jy, value(self.x_values*u.um), "r-", label=key)
+                    ax.plot(self.x_values, value(self.x_values*u.um)/u.Jy, "r-", label=key)
                 elif key == "initial_guesses":
                     # Simple points plotting
                     ax.plot(value[:,0], value[:,1], "bv", label=key, markersize="4", alpha=0.5)
@@ -271,7 +271,8 @@ class Spectrum:
     
     def _get_cleaned_fitted_function_data(self) -> tuple[np.ndarray, np.ndarray]:
         """
-        Gives the values and uncertainties of each parameter of self.fitted_function for every non zero gaussian.
+        Gives the values and uncertainties of each parameter of self.fitted_function for every non zero gaussian. This
+        is used to clean the gaussians outputted by the fit which may sometimes be null.
 
         Returns
         -------

@@ -117,7 +117,7 @@ class Map(FitsFile, MathematicalObject):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.END}")
 
-    def __getitem__(self, slices: tuple[slice]) -> Spectrum | Map:
+    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | Map:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
             spectrum_header = self.header.flatten(axis=int_slices.index(True))
