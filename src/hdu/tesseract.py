@@ -3,6 +3,7 @@ import numpy as np
 import awkward as ak
 from collections import namedtuple
 from astropy.io import fits
+from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
 from src.headers.header import Header
@@ -55,6 +56,29 @@ class Tesseract(FitsFile):
         """
         return cls(cls.swapaxes(cls.rectangularize(data)), header)
 
+    def __getitem__(self, slice: slice): ...
+
+
+
+
+    def __setitem__(self, slice_: tuple[slice | int], value):
+        """
+        Removes a single or many elements of the Tesseract. The slice must be tridimensional and represents axes 1-3 :
+        all the elements along the first axis (axis=0) at the specified slice will be removed. The value attributed to
+        the sliced Tesseract does not matter.
+
+        Parameters
+        ----------
+        slice_ : tuple[slice | int]
+            Slice elements giving the elements to remove. The first element is the gaussian function index and the
+            following two are the y and x coordinates.
+        value : Any
+            This parameter is necessary for the __setitem__ method, but does not affect the outcome : the Tesseract will
+            always be filled with np.NANs. By convention, using None is recommended.
+        """
+        assert len(slice_) == 3, f"{C.LIGHT_RED}slice_ must have 3 elements; current length is {len(slice_)}.{C.END}"
+        self.data.__setitem__((slice(None,None),*slice_), np.NAN)
+
     @classmethod
     def load(cls, filename: str) -> Tesseract:
         """
@@ -76,7 +100,7 @@ class Tesseract(FitsFile):
             Header(fits_object.header)
         )
         return tesseract
-
+    
     @staticmethod
     def rectangularize(array: ak.Array) -> np.ndarray:
         """

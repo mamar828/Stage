@@ -27,7 +27,7 @@ from src.hdu.tesseract import Tesseract
 from src.hdu.maps.grouped_maps import GroupedMaps
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # cube = CubeCO.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
     # print(500 + cube.header.get_frame(-4000, axis=0))
     # cube.header["COMMENT"] = "Loop4N1_FinalJS was previously sliced at channel 500, all values of mean must then be " \
@@ -46,10 +46,10 @@ if __name__ == "__main__":
     # object_ray.mean[0].data.plot(axs)
     # plt.show()
 
-    t = Tesseract.load("data/Loop4_co/N1/fit_tesseract.fits")
-    ts = t.split(10, 1)
+    # t = Tesseract.load("data/Loop4_co/N1/fit_tesseract.fits")
+    # ts = t.split(10, 1)
 
-    ts[0].concatenate(ts[1], axis=1).save("tess_2.fits")
+    # ts[0].concatenate(ts[1], axis=1).save("tess_2.fits")
     # for i, tess in enumerate(ts):
     #     tess.save(f"tess_{i}.fits")
     
@@ -68,3 +68,8 @@ if __name__ == "__main__":
 
     # output_array = input_array.compress()
     # print(output_array.data)
+
+
+tess = Tesseract.load("data/Loop4_co/N1/object.fits")
+tess[1,11,12:14] = None
+tess.save("test_crop.fits")
