@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib as mpl
+import graphinglib as gl
 import matplotlib.pyplot as plt
 import os
 import shutil
@@ -9,7 +9,38 @@ arr = np.loadtxt("data/graph_gaussians/LOOP4_cube_gauss_run_0.dat")
 arr = arr.reshape((arr.shape[0] // 3, 3, 5))
 # arr is now of shape : (number_of pixels, number_of_gaussians, number_of_parameters)
 
-fig, ax = plt.subplots(1, figsize=(10,7))
+test = np.arange(9).reshape((3,3))
+
+gaussians = [
+    gl.Heatmap.from_points(
+        points=arr[:,i,3:5],
+        values=arr[:,i,2],
+        x_axis_range=(116, 124),
+        y_axis_range=(0, 12),
+        number_of_points=(100, 100)
+    )
+    for i in range(1)
+]
+
+fig = gl.Figure(
+    x_label="$\mu$ [km s$^{-1}$]",
+    y_label="$\sigma$ [km s$^{-1}$]",
+    size=(10, 7)
+)
+
+fig.add_elements(*gaussians)
+fig.show()
+
+
+
+
+
+
+
+
+
+raise
+fig, ax = pplt.subplots(1, figsize=(10,7))
 plt.rcParams["font.size"] = 14
 plt.rcParams["font.sans-serif"] = "Times New Roman"
 

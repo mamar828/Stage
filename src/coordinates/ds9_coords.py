@@ -2,8 +2,19 @@ class DS9Coords:
     """
     Encapsulates the methods specific to SAOImage ds9 coordinates and their conversion.
     To properly use this class, an object may be created, then unpacked to be given to methods that require normal ints.
-    Example : spectrum = Cube[:,*DS9Coords(5,10)]
+    This allows for any function to use this class as the unpacked values are ints.
+
+    Examples
+    --------
+    spectrum = Cube[:,*DS9Coords(5,10)]
     will correctly slice the Cube at the specified coordinates, which returns a Spectrum.
+
+    The following lines show how useful this class is for precisely slicing a FITS object. To get the value at the 
+    (x, y, z) = (8, 17, 225), the following code is equivalent :
+    using DS9Coords :   print(Cube[*DS9Coords(8, 17, 225)])
+    without DS9Coords : print(Cube[224, 16, 7])
+    In the former case, the coordinates can intuitively be entered and in the latter, an awkward double conversion is
+    required.
     """
 
     def __init__(self, *coordinates: tuple[int]):
