@@ -134,6 +134,28 @@ class Mask:
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
     
+    def ring(self, center: tuple[float, float], inner_radius: float, outer_radius: float) -> np.ndarray:
+        """
+        Creates a ring mask.
+
+        Parameters
+        ----------
+        center : tuple[float, float]
+            Center of the circular mask.
+        inner_radius : float
+            Inner radius of the ring.
+        outer_radius : float
+            Outer radius of the ring.
+
+        Returns
+        -------
+        mask : np.ndarray
+            Generated mask.
+        """
+        inner_circle = self.circle(center, inner_radius)
+        outer_circle = self.circle(center, outer_radius)
+        return outer_circle ^ inner_circle
+    
     def _get_numpy_mask(self, region: pyregion.core.ShapeList) -> np.ndarray:
         """
         Gives the numpy mask of the provided region.
