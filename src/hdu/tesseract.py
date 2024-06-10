@@ -177,16 +177,25 @@ class Tesseract(FitsFile):
             The middle elements are every individual gaussian fitted. If a single Gaussian was fitted, the y_data of the
             middle and last Curves will be identical.
         """
-        spec = cube[:, *coords]
-        spec_plot = spec.plot
+        spectrum = cube[:, *coords]
+        spectrum_plot = spectrum.plot
 
         # Isolate amplitudes, means and stddevs at the given coords
-        fct_params = self.data[::2,:,coords[0],coords[1]].transpose()
-        spec_single = [Curve(spec.x_values, Gaussian1D(fct[0], fct[1], fct[2])(spec.x_values)) for fct in fct_params]
-        [setattr(curve, "label",f"Gaussian {i}") for i, curve in enumerate(spec_single)]
-        spec_total = sum(spec_single)
-        spec_total.label = "Sum"
-        return spec_plot, *spec_single, spec_total
+        gaussian_params = self.data[::2,:,coords[0],coords[1]].transpose()
+        spectrum_individual_gaussians = []
+        for i, gauss_fct in enumerate(gaussian_params):
+            if not np.all(np.isnan(gauss_fct)):
+                spectrum_individual_gaussians.append(
+                    Curve(
+                        spectrum.x_values,
+                        Gaussian1D(gauss_fct[0], gauss_fct[1], gauss_fct[2])(spectrum.x_values),
+                        label=f"Gaussian {i}"
+                    )
+                )
+
+        spectrum_total = sum(spectrum_individual_gaussians)
+        spectrum_total.label = "Sum"
+        return spectrum_plot, *spectrum_individual_gaussians, spectrum_total
 
     def filter(self, slice: slice) -> Tesseract:
         """
