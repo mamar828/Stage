@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import graphinglib as gl
 from collections import namedtuple
 
 from src.hdu.cubes.cube_co import CubeCO

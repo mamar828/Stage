@@ -1,6 +1,5 @@
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+import graphinglib as gl
 from astropy.io import fits
 import os
 import time
@@ -35,7 +34,6 @@ for i in range(11*20+12, c.data.shape[1] * c.data.shape[2]):
         s.fit()
 
         print(s.fit_results)
-        fig, axs = plt.subplots(2)
         # s.plot_fit(ax=axs[0], plot_initial_guesses=True, plot_all=True)
         # s.plot_residue(ax=axs[1])
         # fig.suptitle(f"$i={i}$     $(x,y)=$({x+1},{y+1})")
@@ -61,8 +59,6 @@ for i in range(11*20+12, c.data.shape[1] * c.data.shape[2]):
             print(s.fit_results)
 
             # fig, axs = plt.subplots(2)
-            rect = fig.patch
-            rect.set_facecolor("blue") 
             # s.plot_fit(ax=axs[0], plot_initial_guesses=True, plot_all=True)
             # s.plot_residue(ax=axs[1])
             # fig.suptitle(f"$i={i}$     $(x,y)=$({x+1},{y+1})")
@@ -78,16 +74,19 @@ for i in range(11*20+12, c.data.shape[1] * c.data.shape[2]):
             # a = True
         if a:
             input()
-        print(s.get_fit_chi2())
-        s.plot_fit(ax=axs[0], plot_initial_guesses=True, plot_all=True)
-        s.plot_residue(ax=axs[1])
-        fig.suptitle(f"$i={i}$     $(x,y)=$({x+1},{y+1})")
-        axs[0].plot([0, len(s.data)], [s.y_threshold, s.y_threshold], "m-")
-        fig.text(x=0.02, y=0.03, s="FWHM (km/s) :")
-        if s.fitted_function:
-            for j in s.fit_results.index:
-                fig.text(x=0.2+j*0.17, y=0.03, s=s.get_FWHM_speed(j).round(3))
-        # manager = plt.get_current_fig_manager()
-        # manager.full_screen_toggle()
-        fig.tight_layout()
-        plt.show()
+        fig1 = gl.Figure()
+        fig1.add_elements(s.plot)
+        fig2 = gl.Figure()
+        if s.individual_functions_plot:
+            fig1.add_elements(s.initial_guesses_plot, *s.individual_functions_plot)
+            fig1.add_elements(s.total_functions_plot)
+            fig2.add_elements(s.residue_plot)
+        else:
+            fig2.add_elements(gl.Text(0.5, 0.5, "None"))
+        multi_fig = gl.MultiFigure(2, 1, title=f"$i={i}$     $(x,y)=$({x+1},{y+1})",)
+        fig1.add_elements(gl.Curve([0, len(s.data)], [s.y_threshold, s.y_threshold],
+                                   label="y threshold", color="black", line_width=1))
+        multi_fig.add_figure(fig1, 0, 0, 1, 1)
+        multi_fig.add_figure(fig2, 1, 0, 1, 1)
+        multi_fig.set_rc_params({"font.size": 9})
+        multi_fig.show()

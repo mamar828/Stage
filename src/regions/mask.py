@@ -56,7 +56,7 @@ class Mask:
         Returns
         -------
         mask : np.ndarray
-            Generated mask.
+            Generated circular mask.
         """
         region_id = f"image;circle({center[0]},{center[1]},{radius})"
         region = pyregion.parse(region_id)
@@ -87,7 +87,7 @@ class Mask:
         Returns
         -------
         mask : np.ndarray
-            Generated mask.
+            Generated elliptical mask.
         """
         region_id = f"image;ellipse({center[0]},{center[1]},{semi_major_axis},{semi_minor_axis},{angle})"
         region = pyregion.parse(region_id)
@@ -110,7 +110,7 @@ class Mask:
         Returns
         -------
         mask : np.ndarray
-            Generated mask.
+            Generated rectangular mask.
         """
         region_id = f"image;box({center[0]},{center[1]},{length},{height},{angle})"
         region = pyregion.parse(region_id)
@@ -128,7 +128,7 @@ class Mask:
         Returns
         -------
         mask : np.ndarray
-            Generated mask.
+            Generated polygonal mask.
         """
         region_id = f"image;polygon{sum(vertices, ())}"
         region = pyregion.parse(region_id)
@@ -136,12 +136,12 @@ class Mask:
     
     def ring(self, center: tuple[float, float], inner_radius: float, outer_radius: float) -> np.ndarray:
         """
-        Creates a ring mask.
+        Creates a ring mask. The outputted ring has the width of (outer_radius - inner_radius).
 
         Parameters
         ----------
         center : tuple[float, float]
-            Center of the circular mask.
+            Center of the ring.
         inner_radius : float
             Inner radius of the ring.
         outer_radius : float
@@ -150,12 +150,12 @@ class Mask:
         Returns
         -------
         mask : np.ndarray
-            Generated mask.
+            Generated ring mask.
         """
         inner_circle = self.circle(center, inner_radius)
         outer_circle = self.circle(center, outer_radius)
         return outer_circle ^ inner_circle
-    
+
     def _get_numpy_mask(self, region: pyregion.core.ShapeList) -> np.ndarray:
         """
         Gives the numpy mask of the provided region.

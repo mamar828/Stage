@@ -1,13 +1,12 @@
 from __future__ import annotations
-import matplotlib.pyplot as plt
 import numpy as np
+from graphinglib import Curve, Scatter, Figure, MultiFigure
 import pandas as pd
 from copy import deepcopy
 from astropy import units as u
 from astropy.modeling import models, fitting, CompoundModel
 from specutils.spectra import Spectrum1D
 from specutils.fitting import fit_lines
-from matplotlib.axes import Axes
 
 from src.headers.header import Header
 
@@ -109,76 +108,130 @@ class Spectrum:
         fit_state = True if self.fitted_function is not None else False
         return fit_state
 
-    def plot(self, ax: Axes, **kwargs):
+    @property
+    def plot(self) -> Curve:
         """
-        Plots the spectrum on an axis.
+        Gives the plot of the spectrum with a Curve.
 
-        Parameters
-        ----------
-        ax : Axes
-            Axis on which to plot the Spectrum.
-        kwargs : dict
-            This argument may take any distribution to be plotted and is used to plot all the gaussian fits on the same
-            plot. The name used for each keyword argument will be present in the plot's legend. The keyword "fit" plots
-            the values in red and the keyword "initial_guesses" plots the values as a point scatter.
+        Returns
+        -------
+        spectrum : Curve
+            Curve representing the spectrum's values at every channel.
         """
-        ax.plot(self.x_values, self.data, "k-", label="spectrum", linewidth=1, alpha=1)
-        for key, value in kwargs.items():
-            if value is not None:
-                if key == "fit":
-                    # Fitted entire function
-                    ax.plot(self.x_values, value(self.x_values*u.um)/u.Jy, "r-", label=key)
-                elif key == "initial_guesses":
-                    # Simple points plotting
-                    ax.plot(value[:,0], value[:,1], "bv", label=key, markersize="4", alpha=0.5)
-                else:
-                    # Fitted individual gaussians
-                    ax.plot(self.x_values, value(self.x_values), "y-", label=key, linewidth="1")
-        
-        ax.legend(loc="upper left", fontsize="7")
+        curve = Curve(
+            x_data=self.x_values,
+            y_data=self.data,
+            label="Spectrum"
+        )
+        return curve
 
-    def plot_residue(self, ax: Axes):
+    @property
+    @fit_needed
+    def individual_functions_plot(self) -> tuple[Curve]:
         """
-        Plots the fit's residue.
+        Gives the plot of every fitted functions with a single or many Curves. These Curves may be unpacked and given to
+        the Figure.add_elements method.
 
-        Parameters
-        ----------
-        ax : Axes
-            Axis on which to plot the fit's residue
+        Returns
+        -------
+        fitted function : tuple[Curve]
+            Curves representing every function fitted to the spectrum's values at every channel.
         """
-        if self.fitted_function:
-            ax.plot(self.get_subtracted_fit())
+        curves = [
+            Curve(
+                x_data=self.x_values,
+                y_data=models.Gaussian1D(
+                    amplitude=self.fit_results.amplitude.value[i],
+                    mean=self.fit_results["mean"].value[i],
+                    stddev=self.fit_results.stddev.value[i]
+                )(self.x_values),
+                label=f"Gaussian {i}"
+            ) for i in self.fit_results.index
+        ]
+        return tuple(curves)
 
-    def auto_plot(self, text: str=None, fullscreen: bool=False):
+    @property
+    @fit_needed
+    def total_functions_plot(self) -> Curve:
+        """
+        Gives the total plot the global fitted function with a single Curve
+
+        Returns
+        -------
+        global function : Curve
+            Curve representing the sum of every gaussian fitted.
+        """
+        total = sum(self.individual_functions_plot)
+        total.label = "Sum"
+        return total
+
+    @property
+    @fit_needed
+    def initial_guesses_plot(self) -> Scatter:
+        """
+        Gives the spectrum's initial guesses with a Scatter.
+
+        Returns
+        -------
+        initial guesses : Scatter
+            Scatter giving the spectrum's initial guesses for every detected peak.
+        """
+        initial_guesses_array = np.array([
+            [peak["mean"], peak["amplitude"]] for peak in self.initial_guesses.values()
+        ])
+        scatter = Scatter(
+            x_data=initial_guesses_array[:,0],
+            y_data=initial_guesses_array[:,1],
+            label="Initial guesses",
+            marker_size=4,
+            marker_style="v"
+        )
+        return scatter
+
+    @property
+    @fit_needed
+    def residue_plot(self) -> Curve:
+        """
+        Gives the plot of the fit's residue with a Curve.
+
+        Returns
+        -------
+        residue : Curve
+            Curve representing the fit's residue at every channel.
+        """
+        curve = Curve(
+            x_data=self.x_values,
+            y_data=self.get_subtracted_fit(),
+            label="Residue"
+        )
+        return curve
+
+    def auto_plot(self):
         """
         Plots automatically a Spectrum in a preprogrammed way. The shown Figure will present on one axis the spectrum
         and on the other the residue if a fit was made.
-
-        Parameters
-        ----------
-        text : str, default=None
-            Text to be displayed as the title of the plot. This is used for debugging purposes.
-        fullscreen : bool, default=False
-            Specifies if the graph must be opened in fullscreen.  
         """
+        plot_elements = [self.plot]
         if self.fitted_function is None:
-            fig, ax = plt.subplots(1)
-            self.plot(ax)
+            multi_figure = MultiFigure(1, 1, size=(10, 7))
         else:
-            fig, axs = plt.subplots(2)
-            self.plot(axs[0], fit=self.fitted_function)
-            self.plot_residue(axs[1])
+            multi_figure = MultiFigure(2, 1, size=(10, 7))
+            [plot_elements.append(element) for element in self.individual_functions_plot]
+            plot_elements.append(self.initial_guesses_plot)
+            figure_2 = Figure(
+                x_label="Channels",
+                y_label="Residue"
+            )
+            figure_2.add_elements(self.residue_plot)
+            multi_figure.add_figure(figure_2, 1, 0, 1, 1)
         
-        fig.supxlabel("Channels")
-        fig.supylabel("Intensity")
-
-        if text:
-            fig.suptitle(text)
-
-        if fullscreen:
-            manager = plt.get_current_fig_manager()
-            manager.full_screen_toggle()
-        plt.show()
+        figure_1 = Figure(
+            x_label="Channels",
+            y_label="Intensity"
+        )
+        figure_1.add_elements(*plot_elements)
+        multi_figure.add_figure(figure_1, 0, 0, 1, 1)
+        multi_figure.show()
 
     def bin(self, bin: int) -> Spectrum:
         """
@@ -227,33 +280,12 @@ class Spectrum:
             ]
             self.fitted_function = fit_lines(
                 spectrum,
-                self.sum_gaussians(gaussians),
+                sum(gaussians, models.Gaussian1D(amplitude=0, mean=0, stddev=0)),       # Null element is needed for sum
                 fitter=fitting.LMLSQFitter(calc_uncertainties=True),
                 get_fit_info=True,
                 maxiter=int(1e4)
             )
             self._store_fit_results()
-    
-    @staticmethod
-    def sum_gaussians(gaussians: list) -> CompoundModel:
-        """
-        Sums a list of models.Gaussian1D objects.
-
-        Parameters
-        ----------
-        gaussians : list
-            List of Gaussian1D objects to sum together.
-
-        Returns
-        -------
-        function : CompoundModel
-            Model representing the sum of all gaussians.
-        """
-        total = gaussians[0]
-        if len(gaussians) >= 1:
-            for gaussian in gaussians[1:]:
-                total += gaussian
-        return total
     
     def _store_fit_results(self):
         """

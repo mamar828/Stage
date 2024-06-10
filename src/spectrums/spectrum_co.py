@@ -69,44 +69,6 @@ class SpectrumCO(Spectrum):
                                self.NOISE_CHANNELS.stop // self.INITIAL_GUESSES_BINNING)
         return float(np.std(self.data[noise_channels]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
 
-    @Spectrum.fit_needed
-    def plot_fit(self, ax: Axes, plot_all: bool=False, plot_initial_guesses: bool=False):
-        """
-        Sends the fitted functions to the plot() method to be plotted on an axis.
-
-        Parameters
-        ----------
-        ax : Axes
-            Axis on which to plot the Spectrum.
-        plot_all : bool, default=False
-            Specifies if all gaussian functions contributing to the main fit must be plotted individually.
-        plot_initial_guesses : bool, default=False
-            Specifies if the initial guesses should be plotted.
-        """
-        initial_guesses_array = None
-        if plot_initial_guesses:
-            initial_guesses_array = np.array([
-                [peak["mean"], peak["amplitude"]] for peak in self.initial_guesses.values()
-            ])
-
-        base_params = {
-            "ax" : ax,
-            "fit" : self.fitted_function,
-            "initial_guesses" : initial_guesses_array if self.fitted_function else None
-        }
-
-        if plot_all and self.fitted_function:
-            gaussians = {
-                str(i) : models.Gaussian1D(
-                    amplitude=self.fit_results.amplitude.value[i], 
-                    mean=self.fit_results["mean"].value[i], 
-                    stddev=self.fit_results.stddev.value[i]
-                ) for i in self.fit_results.index
-            }
-            self.plot(**base_params, **gaussians)
-        else:
-            self.plot(**base_params)
-
     def fit(self) -> models:
         """
         Fits the Spectrum using specutils. This method presupposes the existence of a double peak.
@@ -135,7 +97,6 @@ class SpectrumCO(Spectrum):
         """
         if self.INITIAL_GUESSES_BINNING > 1:
             s = self.bin(self.INITIAL_GUESSES_BINNING)
-            # s.auto_plot()
             data = s.data
         else:
             data = self.data
@@ -156,7 +117,6 @@ class SpectrumCO(Spectrum):
                 self.initial_guesses[len(self.initial_guesses)] = {
                     "mean" : mean + 1,
                     "amplitude" : np.max(np.abs(self.get_subtracted_fit())),
-                    # "amplitude" : self.data[mean],
                     "stddev" : 7.2      # value chosen from the mean of multiple successful fits
                 }
 
