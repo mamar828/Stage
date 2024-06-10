@@ -1,10 +1,12 @@
 from __future__ import annotations
 import numpy as np
+from graphinglib import Curve
 import awkward as ak
 from collections import namedtuple
 from astropy.io import fits
+from astropy.modeling.models import Gaussian1D
 import astropy.units as u
-from matplotlib.axes import Axes
+from typing import Any
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
@@ -61,7 +63,7 @@ class Tesseract(FitsFile):
         """
         return cls(cls.swapaxes(cls.rectangularize(data)), header)
 
-    def __setitem__(self, slice_: tuple[slice | int], value):
+    def __setitem__(self, slice_: tuple[slice | int], value: Any):
         """
         Removes a single or many elements of the Tesseract. The slice must be tridimensional and represents axes 1-3 :
         all the elements along the first axis (axis=0) at the specified slice will be removed. The value attributed to
@@ -157,38 +159,34 @@ class Tesseract(FitsFile):
         hdu_list = fits.HDUList([fits.PrimaryHDU(self.data, self.header)])
         super().save(filename, hdu_list, overwrite)
 
-    def plot_spectrum(self, ax: Axes, cube: Cube, coords: tuple[int, int] | DS9Coords) -> Spectrum:
+    def get_spectrum_plot(self, cube: Cube, coords: tuple[int, int]) -> tuple[Curve]:
         """
-        Gives the spectrum and its fit at the given coordinates.
+        Gives the spectrum and its fit at the given coordinates with two Curves.
 
         Parameters
         ----------
-        ax : Axes
-            Axis on which to plot the Spectrum.
         cube : Cube
             Cube from which to get the spectrum data. This must be the cube with which the Tesseract was constructed.
-        coords : tuple[int, int] | DS9Coords
+        coords : tuple[int, int]
             Coordinates at which the Spectrum needs to be given.
 
         Returns
         -------
-        spectrum : Spectrum
-            Spectrum object representing the cube's data and Tesseract's fit data at the given coordinates.
+        spectrum : tuple[Curve]
+            The first element is the Spectrum's data at every channel and the last element is the Spectrum's total fit.
+            The middle elements are every individual gaussian fitted. If a single Gaussian was fitted, the y_data of the
+            middle and last Curves will be identical.
         """
-        spectrum = cube[:, *coords]
-        def fit(x):
-            gaussian = namedtuple("gaussian", ["amplitude", "mean", "stddev"])
-            y = 0
-            for i in range(self.data.shape[1]):
-                g = gaussian(
-                    amplitude=self.data[0,i,coords[0],coords[1]],
-                    mean=self.data[2,i,coords[0],coords[1]],
-                    stddev=self.data[4,i,coords[0],coords[1]]
-                )
-                y += g.amplitude * np.exp(-(x / u.um - g.mean)**2 / (2 * g.stddev**2))
-            return y
-                
-        spectrum.plot(ax, fit=fit)
+        spec = cube[:, *coords]
+        spec_plot = spec.plot
+
+        # Isolate amplitudes, means and stddevs at the given coords
+        fct_params = self.data[::2,:,coords[0],coords[1]].transpose()
+        spec_single = [Curve(spec.x_values, Gaussian1D(fct[0], fct[1], fct[2])(spec.x_values)) for fct in fct_params]
+        [setattr(curve, "label",f"Gaussian {i}") for i, curve in enumerate(spec_single)]
+        spec_total = sum(spec_single)
+        spec_total.label = "Sum"
+        return spec_plot, *spec_single, spec_total
 
     def filter(self, slice: slice) -> Tesseract:
         """
