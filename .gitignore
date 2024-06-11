@@ -171,3 +171,4 @@ notes.txt
 tests.*
 *.pkl
 figures
+*.dat

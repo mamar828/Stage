@@ -1,4 +1,5 @@
 import numpy as np
+import graphinglib as gl
 from collections import namedtuple
 
 from src.hdu.cubes.cube_co import CubeCO
@@ -6,6 +7,7 @@ from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.tesseract import Tesseract
 from src.hdu.maps.grouped_maps import GroupedMaps
 from src.hdu.maps.convenient_funcs import get_FWHM
+from src.coordinates.ds9_coords import DS9Coords
 
 
 if __name__ == "__main__":
@@ -30,7 +32,7 @@ if __name__ == "__main__":
     fit_results.save("data/Loop4_co/N4/tesseract.fits")
     """
 
-    # """
+    """
     # Splitting, slicing and merging the Tesseract(s)
     print(f"Targeted channel : {N4.header.get_frame(1000, 0)}")
     fit_results = Tesseract.load("data/Loop4_co/N4/tesseract.fits")
@@ -40,10 +42,14 @@ if __name__ == "__main__":
     # Compressing the Tesseract
     total = total.compress()
     total.save(f"data/Loop4_co/N4/object.fits")
-    # """
+    """
 
     # Harvesting data
     total = Tesseract.load(f"data/Loop4_co/N4/object.fits")
+    fig = gl.Figure(size=(10,7))
+    fig.add_elements(*total.get_spectrum_plot(N4, DS9Coords(37, 29)))
+    fig.show()
+
     gm = total.to_grouped_maps()
     fwhms = [get_FWHM(stddev_map, N4) for stddev_map in gm.stddev]
     GroupedMaps([("FWHM", fwhms)]).save(f"data/Loop4_co/N4/object_FWHM.fits")

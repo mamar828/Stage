@@ -233,8 +233,7 @@ class Header(fits.Header):
         value : float
             Value to determine the frame. This can be a value in the range of any axis.
         axis : int, default=0
-            Axis along which to get the frame. The axes are given in numpy format : 0-2 for z-x. The default axis (0)
-            gives the frame along a cube's spectral axis.
+            Axis along which to get the frame. The default axis (0) gives the frame along a cube's spectral axis.
 
         Returns
         -------
@@ -245,3 +244,24 @@ class Header(fits.Header):
         frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
         rounded_frame = round(frame_number)
         return rounded_frame
+
+    def get_value(self, frame: int, axis: int=0) -> float:
+        """
+        Gives the value associated with the specified frame, along the given axis.
+        
+        Parameters
+        ----------
+        frame : int
+            Frame to determine the value. This should be a frame in the range of any axis.
+        axis : int, default=0
+            Axis along which to get the value at the specified frame. The default axis (0) gives the value along a
+            cube's spectral axis.
+
+        Returns
+        -------
+        value : float
+            Value at the given frame.
+        """
+        h_axis = self.h_axis(axis)
+        value = (frame - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
+        return value
