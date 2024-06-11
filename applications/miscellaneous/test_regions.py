@@ -78,6 +78,15 @@ mask = Mask(image_shape=(1000, 1000))
 # plt.show()
 
 
-ring = mask.ring((350, 350), 100, 250)
-plt.imshow(ring)
+# ring = mask.ring((350, 350), 100, 250)
+# plt.imshow(ring)
+# plt.show()
+
+# rect = mask.rectangle((750, 350), 300, 150, 40)
+# plt.imshow(rect)
+# plt.show()
+
+polyg = mask.polygon([(100, 100), (150, 200), (300, 500), (400, 400), (500, 500), (500, 800), (400, 850), (500, 950),
+                      (800, 600), (700, 200), (719, 153), (300, 0)])
+plt.imshow(polyg, origin="lower")
 plt.show()

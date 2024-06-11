@@ -3,7 +3,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import os
 import shutil
-from pathos.pools import ProcessPool
 
 from src.hdu.cubes.cube import Cube
 

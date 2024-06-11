@@ -50,6 +50,6 @@ if __name__ == "__main__":
     fig.add_elements(*total.get_spectrum_plot(N4, DS9Coords(37, 29)))
     fig.show()
 
-    gm = total.to_grouped_maps()
-    fwhms = [get_FWHM(stddev_map, N4) for stddev_map in gm.stddev]
-    GroupedMaps([("FWHM", fwhms)]).save(f"data/Loop4_co/N4/object_FWHM.fits")
+    # gm = total.to_grouped_maps()
+    # fwhms = [get_FWHM(stddev_map, N4) for stddev_map in gm.stddev]
+    # GroupedMaps([("FWHM", fwhms)]).save(f"data/Loop4_co/N4/object_FWHM.fits")
