@@ -183,7 +183,7 @@ class Spectrum:
             x_data=initial_guesses_array[:,0],
             y_data=initial_guesses_array[:,1],
             label="Initial guesses",
-            marker_size=4,
+            marker_size=10,
             marker_style="v"
         )
         return scatter
