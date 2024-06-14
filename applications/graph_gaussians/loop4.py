@@ -24,7 +24,7 @@ convert_func = np.vectorize(header.get_value)
 for i in range(array.shape[1]):
     sc = ax.scatter(
         x=convert_func(array[:,i,3]) / 1000,      # Convert channel -> m/s -> km/s
-        y=array[:,i,4],
+        y=array[:,i,4]*np.abs(header["CDELT3"] / 1000),
         s=0.05,
         c=column_density_array[:,i],
         cmap=mpl.cm.inferno,
@@ -46,7 +46,7 @@ ax.set_xlabel("$\mu$ [km s$^{-1}$]", fontsize=plt.rcParams["font.size"])
 ax.set_ylabel("$\sigma$ [km s$^{-1}$]", fontsize=plt.rcParams["font.size"])
 
 ax.set_xlim(4, 11)
-ax.set_ylim(0, 12)
+ax.set_ylim(0, 9)
 
 plt.tick_params(axis="both", direction="in", labelsize=plt.rcParams["font.size"])
 shutil.copyfile("figures/graph_gaussians/loop4.png", "figures/graph_gaussians/loop4_old.png")
