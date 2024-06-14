@@ -1,5 +1,16 @@
 class Coord:
+    """
+    This class defines a Coord object used for working with coordinates and their different representations.
+    """
     def __init__(self, degrees: float):
+        """
+        Initializes a Coord object.
+
+        Parameters
+        ----------
+        degrees : float
+            Value in degrees associated with the Coord object.
+        """
         self.degrees = degrees
 
     def __str__(self) -> str:
@@ -8,13 +19,38 @@ class Coord:
 
 
 class RA(Coord):
+    """
+    This class implements a Coord for right ascension.
+    """
     @classmethod
     def from_sexagesimal(cls, value: str):
+        """
+        Creates RA object from a sexagesimal string.
+
+        Parameters
+        ----------
+        value : str
+            Sexagesimal string in the format "hours:minutes:seconds".
+
+        Returns
+        -------
+        right ascension : RA
+            New RA object representing the given sexagesimal value.
+        """
         hours, minutes, seconds = [float(val) for val in value.split(":")]
         degrees = (hours*3600 + minutes*60 + seconds) / (24*3600) * 360
         return cls(degrees)
-    
-    def to_sexagesimal(self) -> str:
+
+    @property
+    def sexagesimal(self) -> str:
+        """
+        Returns the sexagesimal representation of the RA object.
+
+        Returns
+        -------
+        sexagesimal value : str
+            Sexagesimal representation of the RA object in the format "hours:minutes:seconds".
+        """
         total_seconds = self.degrees / 360 * (24*3600)
         hours = int(total_seconds // 3600)
         minutes = int((total_seconds % 3600) / 3600 * 60)
@@ -24,26 +60,39 @@ class RA(Coord):
 
 
 class DEC(Coord):
+    """
+    This class implements a Coord for declination.
+    """
     @classmethod
     def from_sexagesimal(cls, value: str):
+        """
+        Creates a  DEC object from a sexagesimal string.
+
+        Parameters
+        ----------
+        value : str
+            Sexagesimal string in the format "degrees:minutes:seconds".
+
+        Returns
+        -------
+        declination : DEC
+            New DEC object representing the given sexagesimal value.
+        """
         whole_degrees, minutes, seconds = [float(val) for val in value.split(":")]
         degrees = whole_degrees + minutes / 60 + seconds / 3600
         return cls(degrees)
-    
-    def to_sexagesimal(self) -> str:
+
+    @property
+    def sexagesimal(self) -> str:
+        """
+        Returns the sexagesimal representation of the DEC object.
+
+        Returns
+        -------
+        sexagesimal value : str
+            Sexagesimal representation of the DEC object in the format "degrees:minutes:seconds".
+        """
         whole_degrees = int(self.degrees)
         minutes = int((self.degrees % 1) * 60)
         seconds = ((self.degrees % 1) * 60 - minutes) * 60
         return f"{whole_degrees}:{minutes:02d}:{seconds:02.3f}"
-
-
-
-
-# ra = RA.from_sexagesimal("8:28:20.2402")
-# print(ra.to_sexagesimal())
-dec = DEC.from_sexagesimal("60:14:27.499")
-print(dec)
-print(dec.to_sexagesimal())
-
-# 8:28:20.2402 -> 127.0843340
-# 60:14:27.499 -> 60.2409721
