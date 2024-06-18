@@ -25,7 +25,7 @@ class SpectrumCO(Spectrum):
             peak_width: int=3,
             noise_channels: slice=slice(0,100),
             initial_guesses_binning: int=1,
-            max_residue_sigmas: int=6
+            max_residue_sigmas: int=5
         ):
         """
         Initializes a SpectrumCO object with a certain header, whose spectral information will be taken.
@@ -69,21 +69,29 @@ class SpectrumCO(Spectrum):
                                self.NOISE_CHANNELS.stop // self.INITIAL_GUESSES_BINNING)
         return float(np.std(self.data[noise_channels]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
 
-    def fit(self) -> models:
+    def fit(self, parameter_bounds: dict={}) -> models:
         """
         Fits the Spectrum using specutils. This method presupposes the existence of a double peak.
+
+        Parameters
+        ----------
+        parameter_bounds : dict
+            Bounds of each gaussian (numbered keys) and corresponding dictionary of bounded parameters. For example,
+            parameter_bounds = {0 : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}}. A default
+            dictionary will always be given for some parameters, if unspecified.
 
         Returns
         -------
         fitted function : astropy.modeling.core.CompoundModel
             Model of the fitted distribution using two gaussian functions.
         """
-        parameter_bounds = {
+        default_parameter_bounds = {
             "amplitude" : (0, 100)*u.Jy,
-            "stddev" : (1e-5, 100)*u.um     # Prevent division by zero
+            "stddev" : (1e-5, 100)*u.um,     # Prevent division by zero
+            "mean" : (0, len(self))*u.um    
         }
 
-        return super().fit(parameter_bounds)
+        return super().fit(default_parameter_bounds | parameter_bounds)
 
     def get_initial_guesses(self) -> dict:
         """

@@ -6,8 +6,9 @@ from eztcolors import Colors as C
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
 from src.hdu.arrays.array_3d import Array3D
-from src.hdu.maps.map import Map
+from src.hdu.maps.map import Map, MapCO
 from src.spectrums.spectrum import Spectrum
+from src.spectrums.spectrum_co import SpectrumCO
 from src.headers.header import Header
 
 
@@ -15,6 +16,7 @@ class Cube(FitsFile):
     """
     Encapsulates the methods specific to data cubes.
     """
+    spectrum_type, map_type = Spectrum, Map
 
     def __init__(self, data: Array3D, header: Header=None):
         """
@@ -35,16 +37,16 @@ class Cube(FitsFile):
         same_header = self.header == other.header
         return same_array and same_header
 
-    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | Map | Cube:
+    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map | MapCO | Cube:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
             map_header = self.header.flatten(axis=int_slices.index(True))
-            return Map(data=Array2D(self.data[slices]), header=map_header)
+            return self.map_type(data=Array2D(self.data[slices]), header=map_header)
         elif int_slices.count(True) == 2:
             first_int_i = int_slices.index(True)
             map_header = self.header.flatten(axis=first_int_i)
             spectrum_header = map_header.flatten(axis=(int_slices.index(True, first_int_i+1)))
-            return Spectrum(data=self.data[slices], header=spectrum_header)
+            return self.spectrum_type(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 3:
             return self.data[slices]
         else:

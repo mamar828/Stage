@@ -7,7 +7,7 @@ from eztcolors import Colors as C
 from src.hdu.cubes.cube import Cube
 from src.hdu.cubes.worker import _worker_split
 from src.spectrums.spectrum_co import SpectrumCO
-from src.hdu.maps.map import Map
+from src.hdu.maps.map import Map, MapCO
 from src.hdu.arrays.array_2d import Array2D
 from src.hdu.tesseract import Tesseract
 
@@ -16,6 +16,7 @@ class CubeCO(Cube):
     """
     Encapsulates the methods specific to CO data cubes.
     """
+    spectrum_type, map_type = SpectrumCO, MapCO
 
     def fit(self, spectrum_parameters: dict=None) -> tuple[Map, Tesseract]:
         """
@@ -102,18 +103,17 @@ class CubeCO(Cube):
         # A list of invalid values is created for further use
         # Warning ! To ease slicing with ak.Arrays, the number of dimensions should be constant
         nans = [[[np.NAN]], [[np.NAN]]]
-        for spectrum in map_:
+        for i, spectrum in enumerate(map_):
             if np.all(np.isnan(spectrum.data)):
                 # Empty spectrum
                 results.append(nans)
 
             else:
-                spectrum = spectrum.upgrade(SpectrumCO)
                 if self.spectrum_parameters is not None:
-                    for param, value in self.spectrum_parameters.items():
-                        setattr(spectrum, param.upper(), value)
+                    spectrum.setattrs(self.spectrum_parameters)
 
                 spectrum.fit()
+                
                 # When a fit has already happened, the spectrum receives additional initial guesses based on the residue
                 # The loop allows to iteratively increase the fit's quality if seen necessary (based on the max residue)
                 while not spectrum.is_well_fitted and spectrum.fitted_function is not None:

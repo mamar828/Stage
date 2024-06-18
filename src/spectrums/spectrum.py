@@ -36,29 +36,16 @@ class Spectrum:
     def __len__(self) -> int:
         return len(self.data)
     
-    def upgrade(self, cls: Spectrum) -> Spectrum:
-        """
-        Constructs an upper-level Spectrum object from a given spectrum.
-        
-        Parameters
-        ----------
-        cls : Spectrum-inherited class
-            Class of a Spectrum that inherits from this base Spectrum class.
-
-        Returns
-        -------
-        spectrum : cls
-            Converted spectrum
-        """
-        spectrum = cls(
-            data=self.data.copy(),
-            header=self.header.copy()
-        )
-        return spectrum
-
     def copy(self) -> Spectrum:
         return deepcopy(self)
     
+    def isnan(self) -> bool:
+        return np.all(np.isnan(self.data))
+
+    def setattrs(self, attributes: dict):
+        for key, value in attributes.items():
+            setattr(self, key, value)
+
     @staticmethod
     def fit_needed(func):
         # Decorator to handle exceptions when a fit has not been made 

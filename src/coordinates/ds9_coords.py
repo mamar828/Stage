@@ -26,10 +26,10 @@ class DS9Coords:
         coordinates : tuple[int]
             Coordinates to initialize the object with. These are given in the same order as in DS9.
         """
-        self.coords = list(coordinates)
+        self.data = list(coordinates)
     
     def __len__(self):
-        return len(self.coords)
+        return len(self.data)
 
     def __getitem__(self, key: int) -> int:
         """
@@ -41,7 +41,7 @@ class DS9Coords:
         index = len(self) - 1 - key
         if index >= 0:
             # Reduce axis to account for indexing differences
-            coord = self.coords[index] - 1
+            coord = self.data[index] - 1
             return coord
         else:
             # Allows the use of the unpacking operator

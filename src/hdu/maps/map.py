@@ -8,13 +8,15 @@ from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
 from src.headers.header import Header
 from src.spectrums.spectrum import Spectrum
+from src.spectrums.spectrum_co import SpectrumCO
 from src.base_objects.mathematical_object import MathematicalObject
- 
+
 
 class Map(FitsFile, MathematicalObject):
     """
     Encapsulates the necessary methods to compare and treat maps.
     """
+    spectrum_type = Spectrum
 
     def __init__(self, data: Array2D, uncertainties: Array2D=np.NAN, header: Header=None):
         """
@@ -117,11 +119,11 @@ class Map(FitsFile, MathematicalObject):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.END}")
 
-    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | Map:
+    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
             spectrum_header = self.header.flatten(axis=int_slices.index(True))
-            return Spectrum(data=self.data[slices], header=spectrum_header)
+            return self.spectrum_type(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 2:
             return self.data[slices]
         else:
@@ -232,3 +234,11 @@ class Map(FitsFile, MathematicalObject):
             self.data * mask,
             self.uncertainties * mask
         )
+
+
+
+class MapCO(Map):
+    """
+    This class allows to output SpectrumCO when slicing a Map previously constructed with a CubeCO.
+    """
+    spectrum_type = SpectrumCO
