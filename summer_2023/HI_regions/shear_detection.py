@@ -62,11 +62,11 @@ class HI_cube(Data_cube):
 
         elif self.info["z"] == "l":
             # Convert bounds to array indices
-            for l in range(z_bounds[0].to_pixel(self.header), z_bounds[1].to_pixel(self.header)+1):
+            for z in range(z_bounds[0], z_bounds[1]+1):
                 # Filter no detected shear
-                current_info = self.slice_type(self, l, z_bounds).check_shear(**kwargs)
+                current_info = self.slice_type(self, z, z_bounds).check_shear(**kwargs)
                 if current_info is not None:
-                    collected_info[b] = current_info
+                    collected_info[z] = current_info
 
         else:
             raise TypeError("HI_cube should be a rotated cube with either longitude or latitude as z axis.")

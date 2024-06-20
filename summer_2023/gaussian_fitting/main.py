@@ -665,30 +665,30 @@ def get_ACF_plot(calc: bool=False):
     """
     step_range = np.round(np.arange(0.1,1.6,0.1), 1)
     if calc:
-        turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+        turbulence_map = Map_u(fits.open("summer_2023/gaussian_fitting/maps/computed_data/turbulence.fits"))
         step = None
         print("Current bin:", step)
-        np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.
+        np.save(f"summer_2023/gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.
                 get_autocorrelation_function_array(step))
         for step in step_range:
             print("Current bin:", step)
-            np.save(f"gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.
+            np.save(f"summer_2023/gaussian_fitting/arrays_u/turbulence_map/ACF/bin={step}.npy", turbulence_map.
                     get_autocorrelation_function_array(step))
     else:
         step = None
-        data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
+        data_array = np.load(f"summer_2023/gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
         plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
         plt.title(step)
         plt.show()
         for step in step_range:
-            data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
+            data_array = np.load(f"summer_2023/gaussian_fitting/arrays/turbulence_map/ACF/bin={step}.npy", allow_pickle=True)
             plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
             plt.title(step)
             plt.show()
 
 
-# if __name__ == "__main__":
-    # get_ACF_plot(calc=True)
+if __name__ == "__main__":
+    get_ACF_plot(calc=False)
 
 
 def get_structure_function_plot(calc: bool=False):
@@ -698,24 +698,24 @@ def get_structure_function_plot(calc: bool=False):
     """
     step_range = np.round(np.arange(0.1,1.6,0.1), 1)
     if calc:
-        turbulence_map = Map_u(fits.open("gaussian_fitting/maps/computed_data/turbulence.fits"))
+        turbulence_map = Map_u(fits.open("summer_2023/gaussian_fitting/maps/computed_data/turbulence.fits"))
         step = None
         print("Current bin:", step)
-        np.save(f"gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={step}.npy", 
+        np.save(f"summer_2023/gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={step}.npy", 
                 turbulence_map.get_structure_function_array(step))
         for step in step_range:
             print("Current bin:", step)
-            np.save(f"gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={step}.npy", 
+            np.save(f"summer_2023/gaussian_fitting/arrays_u/turbulence_map/structure_function/bin={step}.npy", 
                     turbulence_map.get_structure_function_array(step))
     else:
         step = None
-        data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
+        data_array = np.load(f"summer_2023/gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
                              allow_pickle=True)
         plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
         plt.title(step)
         plt.show()
         for step in step_range:
-            data_array = np.load(f"gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
+            data_array = np.load(f"summer_2023/gaussian_fitting/arrays/turbulence_map/structure_function/bin={step}.npy", 
                                  allow_pickle=True)
             plt.plot(data_array[:,0], data_array[:,1], "mo", markersize=1)
             plt.title(step)
@@ -723,7 +723,7 @@ def get_structure_function_plot(calc: bool=False):
 
 
 # if __name__ == "__main__":
-#     get_structure_function_plot(calc=True)
+#     get_structure_function_plot(calc=False)
 
 
 def get_fit_function(array, s_factor):
