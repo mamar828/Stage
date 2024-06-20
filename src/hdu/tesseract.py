@@ -63,23 +63,15 @@ class Tesseract(FitsFile):
         """
         return cls(cls.swapaxes(cls.rectangularize(data)), header)
 
-    def __setitem__(self, slice_: tuple[slice | int], value: Any):
-        """
-        Removes a single or many elements of the Tesseract. The slice must be tridimensional and represents axes 1-3 :
-        all the elements along the first axis (axis=0) at the specified slice will be removed. The value attributed to
-        the sliced Tesseract does not matter.
-
-        Parameters
-        ----------
-        slice_ : tuple[slice | int]
-            Slice elements giving the elements to remove. The first element is the gaussian function index and the
-            following two are the y and x coordinates.
-        value : Any
-            This parameter is necessary for the __setitem__ method, but does not affect the outcome : the Tesseract will
-            always be filled with np.NANs. By convention, using None is recommended.
-        """
+    def __setitem__(self, slice_: tuple[slice | int], value: float | np.ndarray):
         assert len(slice_) == 3, f"{C.LIGHT_RED}slice_ must have 3 elements; current length is {len(slice_)}.{C.END}"
-        self.data.__setitem__((slice(None,None),*slice_), np.NAN)
+        assert (isinstance(value, float) and np.isnan(value)) or value.shape == (6,), \
+            f"{C.LIGHT_RED}value must be np.NAN or a six elements array.{C.END}"
+        if isinstance(value, float):
+            self.data.__setitem__((slice(None,None),*slice_), np.full(6, value))
+        else:
+            self.data.__setitem__((slice(None,None),*slice_), value)
+        # self.data[(slice(None,None),*slice_)] = value
 
     @classmethod
     def load(cls, filename: str) -> Tesseract:
@@ -266,7 +258,7 @@ class Tesseract(FitsFile):
             Indice of where the Tesseract will be splitted. For example, indice=10 will give a Tesseract that goes from
             0 to 9 and another from 10 to ... along a given axis.
         axis : int
-            Axis along which to split the Tesseract. This should be 0 or 1 to split in the coordinate axes.
+            Axis along which to split the Tesseract. This should be 2 or 3 to split in the coordinate axes.
 
         Returns
         -------
@@ -292,7 +284,7 @@ class Tesseract(FitsFile):
         other : Tesseract
             Tesseract to be merged.
         axis : int
-            Axis along which to merge the Tesseract. This should be 0 or 1 to merge in the coordinate axes.
+            Axis along which to merge the Tesseract. This should be 2 or 3 to merge in the coordinate axes.
 
         Returns
         -------
