@@ -25,10 +25,10 @@ from src.coordinates.equatorial_coords import RA, DEC
 # N4.save("data/Loop4_co/N4/Loop4N4_Conv_Med_FinalJS_wcs.fits")
 
 
-p = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS.fits")
+# p = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS.fits")
 
-p.header["CRPIX1"] = 36
-p.header["CRPIX2"] = 41
-p.header["CRVAL1"] = RA.from_sexagesimal("8:05:32").degrees
-p.header["CRVAL2"] = DEC.from_sexagesimal("60:32:30").degrees
-p.save("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS_wcs.fits")
+# p.header["CRPIX1"] = 36
+# p.header["CRPIX2"] = 41
+# p.header["CRVAL1"] = RA.from_sexagesimal("8:05:32").degrees
+# p.header["CRVAL2"] = DEC.from_sexagesimal("60:32:30").degrees
+# p.save("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS_wcs.fits")
