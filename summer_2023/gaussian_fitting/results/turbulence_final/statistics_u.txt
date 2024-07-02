@@ -2,6 +2,7 @@ TURBULENCE STATISTICS (km/s)
 Global region:
 median: 13 ± 1
 mean: 13 ± 1
+nbpixels: 2065
 standard_deviation: 2.5836427650759672
 skewness: -0.25921289909883866
 kurtosis: 0.4332922441567235
@@ -9,6 +10,7 @@ kurtosis: 0.4332922441567235
 Diffuse region:
 median: 12.5 ± 0.7
 mean: 13 ± 1
+nbpixels: 314
 standard_deviation: 2.494039223304431
 skewness: 0.2836376290899187
 kurtosis: 0.2941248940049599
@@ -16,6 +18,7 @@ kurtosis: 0.2941248940049599
 Central region:
 median: 15.6 ± 0.6
 mean: 15.7 ± 0.8
+nbpixels: 198
 standard_deviation: 1.4987486413445499
 skewness: 0.5995791617976345
 kurtosis: 0.4617216578050578
@@ -23,6 +26,7 @@ kurtosis: 0.4617216578050578
 Filament region:
 median: 13.6 ± 0.6
 mean: 13.8 ± 0.7
+nbpixels: 107
 standard_deviation: 1.5819468401953438
 skewness: 0.2802883853625026
 kurtosis: -0.5013822533491914

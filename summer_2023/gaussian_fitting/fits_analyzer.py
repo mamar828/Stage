@@ -1038,6 +1038,7 @@ class Map(Fits_file):
         stats =  {
             "median": np.nanmedian(new_map.data),
             "mean": np.nanmean(new_map.data),
+            "nbpixels": np.count_nonzero(~np.isnan(new_map.data)),
             "standard_deviation": np.nanstd(new_map.data),
             "skewness": scipy.stats.skew(new_map.data, axis=None, nan_policy="omit"),
             "kurtosis": scipy.stats.kurtosis(new_map.data, axis=None, nan_policy="omit")

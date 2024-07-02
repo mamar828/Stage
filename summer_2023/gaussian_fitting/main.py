@@ -1,6 +1,9 @@
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.visualization.wcsaxes import WCSAxes
+from astropy.visualization.mpl_normalize import ImageNormalize
+from astropy.visualization import LogStretch
+from astropy.visualization import LinearStretch
 
 from fits_analyzer import *
 
@@ -522,9 +525,9 @@ def get_region_stats(Map, filename: str=None, write=False):
     # The fact that the first element is None allows the stats to be calculated on the entire region
     regions = [
         None,
-        pyregion.open("gaussian_fitting/regions/region_1.reg"),
-        pyregion.open("gaussian_fitting/regions/region_2.reg"),
-        pyregion.open("gaussian_fitting/regions/region_3.reg")
+        pyregion.open("summer_2023/gaussian_fitting/regions/region_1.reg"),
+        pyregion.open("summer_2023/gaussian_fitting/regions/region_2.reg"),
+        pyregion.open("summer_2023/gaussian_fitting/regions/region_3.reg")
     ]
     region_names = [
         "Global region", 
@@ -545,11 +548,12 @@ def get_region_stats(Map, filename: str=None, write=False):
             file.close()
 
 
-# get_region_stats(Map_u(fits.open(f"gaussian_fitting/maps/computed_data_selective/turbulence.fits")), write=True,
-#                  filename="gaussian_fitting/results/turbulence_final/statistics_u.txt")
+get_region_stats(Map_u(fits.open(f"summer_2023/gaussian_fitting/maps/computed_data_selective/turbulence.fits")),
+                write=True,
+                filename="summer_2023/gaussian_fitting/results/turbulence_final/statistics_u.txt")
 
 
-def get_turbulence_figure_with_regions():
+def get_turbulence_figure_with_regions_OLD():
     """
     In this example, the turbulence jpeg image with the regions is obtained.
     """
@@ -591,6 +595,93 @@ def get_turbulence_figure_with_regions():
     plot_with_cbar.ax.set_ylabel("turbulence (km/s)")
     # plt.savefig("fig.png", dpi=300, bbox_inches="tight")
     plt.show()
+
+
+def get_turbulence_figure_with_regions():
+    def Colormapoverlay(
+            fits_name,
+            minn,
+            maxx,
+            norma,
+            out_name,
+            color="viridis",
+            inter = None,
+            grid = "white",
+            xlabel=u"Ascension Droite",
+            ylabel=u"Déclinaison",
+            colorlab=u"erg/cm²/s"
+        ):
+        #Récupérer le data utile à la création de la carte de couleur.
+        background = Map(
+            fits.open("summer_2023/gaussian_fitting/maps/external_maps/6563_flux_crop_nan_qgh_background.fits",
+            mode="denywrite")[0]
+        )
+        fits_data = Map(fits.open(fits_name, mode = "denywrite")[0]).reproject_on(Map(background)).data
+        background_data = background.data
+        #Récupérer dans le header le WCS du FITS associé au data.
+        fits_wcs = WCS(fits.open(fits_name, mode = "denywrite")[0].header)
+        #Créer normalisation image (option:linear,sqrt,power,log,asinh).
+        norm=ImageNormalize(fits_data, stretch=norma, vmin=minn, vmax=maxx)
+
+        #Création de la carte de couleur en fixant les NaN et positionnant le WCS. Sauvegarde de l'image à la fin.
+        fig = plt.figure(figsize=(12,10))
+        ax = fig.add_subplot(111, projection=fits_wcs)
+        masked_array = np.ma.array(background_data, mask=np.isnan(background_data))
+        cmap = plt.cm.jet
+        cmap.set_bad(color="k", alpha=1)
+        ax.imshow(masked_array, cmap=cmap)
+        im1=ax.imshow(background_data,
+            norm=ImageNormalize(background_data, stretch=LogStretch(1000), vmin=float(4.9E-17), vmax=float(5E-14)),
+            cmap="gray")
+        im2=ax.imshow(fits_data, origin="lower", cmap=color, interpolation=inter, norm=norm)
+            #plt.xlim(limx)
+            #plt.ylim(limy)
+            #plt.grid(color = grid)
+            #plt.title(title)
+
+        regions = [
+            pyregion.open("summer_2023/gaussian_fitting/regions/region_1.reg").as_imagecoord(header=background.header),
+            pyregion.open("summer_2023/gaussian_fitting/regions/region_2.reg").as_imagecoord(header=background.header),
+            pyregion.open("summer_2023/gaussian_fitting/regions/region_3.reg").as_imagecoord(header=background.header)
+        ]
+
+        # The following function allows for the modification of the regions' color
+        def fixed_color(shape, saved_attrs):
+            attr_list, attr_dict = saved_attrs
+            attr_dict["color"] = "red"
+            kwargs = pyregion.mpl_helper.properties_func_default(shape, (attr_list, attr_dict))
+            return kwargs
+        
+        patch_and_artist_list = [region.get_mpl_patches_texts(fixed_color) for region in regions]
+        # The regions are placed on the map
+        for region in patch_and_artist_list:
+            for patch in region[0]:
+                ax.add_patch(patch)
+            for artist in region[1]:
+                ax.add_artist(artist)
+
+        plt.xlabel(xlabel, fontsize=25)
+        plt.ylabel(ylabel, fontsize=25)
+        cbh = fig.colorbar(im2, fraction=0.046, pad=0.01)
+            #cbh=plt.colorbar(fraction=0.046, pad=0.01,extend="max", extendrect=True, spacing="proportional")
+        cbh.ax.set_ylabel(colorlab, fontsize=25)
+        cbh.ax.tick_params(labelsize=15)
+        cbh.ax.yaxis.set_offset_position("left")
+        cbh.update_ticks()
+        plt.subplots_adjust(top=0.95, bottom=0.10, left=0.15, right=0.85, hspace=0.00, wspace=0.50)
+        plt.savefig(out_name, format="pdf", dpi=300)
+        # plt.show()
+
+    Colormapoverlay(
+        fits_name="summer_2023/gaussian_fitting/maps/computed_data_selective/turbulence.fits",
+        minn=2.5,
+        maxx=22.5,
+        norma=LinearStretch(1, 0),
+        out_name="summer_2023/gaussian_fitting/results/turbulence_final/turbulence.pdf",
+        xlabel=u"Right Ascension",
+        ylabel=u"Declination",
+        colorlab=u"Turbulence [km/s]"
+    )
 
 
 # get_turbulence_figure_with_regions()
@@ -687,8 +778,8 @@ def get_ACF_plot(calc: bool=False):
             plt.show()
 
 
-if __name__ == "__main__":
-    get_ACF_plot(calc=False)
+# if __name__ == "__main__":
+#     get_ACF_plot(calc=False)
 
 
 def get_structure_function_plot(calc: bool=False):
