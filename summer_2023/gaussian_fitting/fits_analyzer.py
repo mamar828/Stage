@@ -1053,6 +1053,7 @@ class Map(Fits_file):
             title: str=None,
             x_label: str=None,
             y_label: str=None,
+            bin_width: float=None,
             filename: str=None
         ):
         """
@@ -1066,13 +1067,19 @@ class Map(Fits_file):
         title: str, default=None. If present, title of the figure
         x_label: str, default=None. If present, label of the x axis.
         y_label: str, default=None. If present, label of the y axis.
+        bin_width: float, default=None. If present, specifies the width of the bins. If absent, the numpy
+        histogram_bin_edges function with the fd option will be used instead.
         filename: str, optional. Sets the filename of the saved figure. If present, the figure will not be plotted but
         only saved.
         """
+        if not bin_width:
+            bins = np.histogram_bin_edges(map_data_without_nan, bins="fd")
+        else:
+            bins = np.arange(np.nanmin(self.data), np.nanmax(self.data) + bin_width, bin_width)
         if region is None:
             # The NANs are removed from the data from which the statistics are computed
             map_data_without_nan = np.ma.masked_invalid(self.data).compressed()
-            plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
+            plt.hist(map_data_without_nan, bins=bins, color="black")
         else:
             # A mask of zeros and ones is created with the region
             try:
@@ -1083,7 +1090,7 @@ class Map(Fits_file):
             # The map's data is only kept where a mask applies
             new_map = self.copy() * mask
             map_data_without_nan = np.ma.masked_invalid(new_map.data).compressed()
-            plt.hist(map_data_without_nan, bins=np.histogram_bin_edges(map_data_without_nan, bins="fd"))
+            plt.hist(map_data_without_nan, bins=bins, color="black")
         plt.title(title)
         plt.xlabel(x_label)
         plt.ylabel(y_label)
@@ -1091,6 +1098,7 @@ class Map(Fits_file):
             plt.savefig(filename, dpi=300, bbox_inches="tight")
         else:
             plt.show()
+        plt.close()
 
     def get_cropped_NaNs_array(self) -> np.ndarray:
         # Determine where the data is located

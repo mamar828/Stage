@@ -517,7 +517,7 @@ settings_SII_NII = {
 # get_courtes_temperature(settings_SII_NII)
 
 
-def get_region_stats(Map, filename: str=None, write=False):
+def get_region_stats(map, filename: str=None, write=False):
     """
     In this example, the statistics of a map are printed and stored in a .txt file if the write bool is set to True.
     """
@@ -536,7 +536,7 @@ def get_region_stats(Map, filename: str=None, write=False):
         "Filament region"
     ]
     for region, region_name in zip(regions, region_names):
-        stats = Map.get_region_statistics(region)
+        stats = map.get_region_statistics(region)
         print(stats)
         # The write bool must be set to True if the statistics need to be put in a file
         if write:
@@ -548,9 +548,9 @@ def get_region_stats(Map, filename: str=None, write=False):
             file.close()
 
 
-get_region_stats(Map_u(fits.open(f"summer_2023/gaussian_fitting/maps/computed_data_selective/turbulence.fits")),
-                write=True,
-                filename="summer_2023/gaussian_fitting/results/turbulence_final/statistics_u.txt")
+# get_region_stats(Map_u(fits.open(f"summer_2023/gaussian_fitting/maps/computed_data_selective/turbulence.fits")),
+#                 write=True,
+#                 filename="summer_2023/gaussian_fitting/results/turbulence_final/statistics_u.txt")
 
 
 def get_turbulence_figure_with_regions_OLD():
@@ -687,7 +687,106 @@ def get_turbulence_figure_with_regions():
 # get_turbulence_figure_with_regions()
 
 
-def get_histograms():
+def get_maxime_figure_with_regions():
+    def Colormapoverlay(
+            fits_name,
+            minn,
+            maxx,
+            norma,
+            out_name,
+            color="viridis",
+            inter = None,
+            grid = "white",
+            xlabel=u"Ascension Droite",
+            ylabel=u"Déclinaison",
+            colorlab=u"erg/cm²/s"
+        ):
+        #Récupérer le data utile à la création de la carte de couleur.
+        background = Map(
+            fits.open("summer_2023/gaussian_fitting/maps/external_maps/6563_flux_crop_nan_qgh_background.fits",
+            mode="denywrite")[0]
+        )
+        fits_data = Map(fits.open(fits_name, mode = "denywrite")[0]).reproject_on(Map(background)).data
+        background_data = background.data
+        #Récupérer dans le header le WCS du FITS associé au data.
+        fits_wcs = WCS(fits.open(fits_name, mode = "denywrite")[0].header)
+        #Créer normalisation image (option:linear,sqrt,power,log,asinh).
+        norm=ImageNormalize(fits_data, stretch=norma, vmin=minn, vmax=maxx)
+
+        #Création de la carte de couleur en fixant les NaN et positionnant le WCS. Sauvegarde de l'image à la fin.
+        fig = plt.figure(figsize=(12,10))
+        ax = fig.add_subplot(111, projection=fits_wcs)
+        masked_array = np.ma.array(background_data, mask=np.isnan(background_data))
+        cmap = plt.cm.jet
+        cmap.set_bad(color="k", alpha=1)
+        ax.imshow(masked_array, cmap=cmap)
+        im1=ax.imshow(background_data,
+            norm=ImageNormalize(background_data, stretch=LogStretch(1000), vmin=float(4.9E-17), vmax=float(5E-14)),
+            cmap="gray")
+        im2=ax.imshow(fits_data, origin="lower", cmap=color, interpolation=inter, norm=norm)
+            #plt.xlim(limx)
+            #plt.ylim(limy)
+            #plt.grid(color = grid)
+            #plt.title(title)
+
+        regions = [
+            pyregion.open("summer_2023/gaussian_fitting/regions/SH2-158_sub_regions.reg").as_imagecoord(
+                                                                                            header=background.header)
+        ]
+
+        colors = []
+        with open("summer_2023/gaussian_fitting/regions/SH2-158_sub_regions.reg", "r") as f:
+            splits = [line.split("color=") for line in f.readlines()[3:]]
+            for split in splits:
+                if len(split) == 2:
+                    colors.append(split[1][:-1])    # Remove trailing \n
+                else:
+                    # Set default color
+                    colors.append("red")
+
+        # The following function allows for the modification of the regions' color
+        def fixed_color(shape, saved_attrs):
+            attr_list, attr_dict = saved_attrs
+            attr_dict["color"] = colors[regions[0].index(shape)]
+            kwargs = pyregion.mpl_helper.properties_func_default(shape, (attr_list, attr_dict))
+            return kwargs
+
+        patch_and_artist_list = [region.get_mpl_patches_texts(fixed_color) for region in regions]
+        # The regions are placed on the map
+        for region in patch_and_artist_list:
+            for patch in region[0]:
+                ax.add_patch(patch)
+            for artist in region[1]:
+                ax.add_artist(artist)
+
+        plt.xlabel(xlabel, fontsize=25)
+        plt.ylabel(ylabel, fontsize=25)
+        cbh = fig.colorbar(im2, fraction=0.046, pad=0.01)
+            #cbh=plt.colorbar(fraction=0.046, pad=0.01,extend="max", extendrect=True, spacing="proportional")
+        cbh.ax.set_ylabel(colorlab, fontsize=25)
+        cbh.ax.tick_params(labelsize=15)
+        cbh.ax.yaxis.set_offset_position("left")
+        cbh.update_ticks()
+        plt.subplots_adjust(top=0.95, bottom=0.10, left=0.15, right=0.85, hspace=0.00, wspace=0.50)
+        plt.savefig(out_name, format="pdf", dpi=300)
+        # plt.show()
+
+    Colormapoverlay(
+        fits_name="summer_2023/gaussian_fitting/maps/external_maps/dens_sii_min_plusmin_8300_pouss_seuil.fits",
+        minn=100,
+        maxx=1500,
+        norma=LinearStretch(1, 0),
+        out_name="maxime.pdf",
+        xlabel=u"Right Ascension",
+        ylabel=u"Declination",
+        colorlab=r"Density [cm$^{-3}$]"
+    )
+
+
+# get_maxime_figure_with_regions()
+
+
+def get_turbulence_histograms():
     """
     In this example, the different histograms of the turbulence map are obtained.
     """
@@ -710,10 +809,56 @@ def get_histograms():
     # turbulence_map.plot_region_histogram(pyregion.ShapeList(regions[1] + regions[3]), "Turbulence of the 
     # diffuse region and of...")
     for region, name in zip(regions, histogram_names):
-        turbulence_map.plot_region_histogram(region, name, x_label="turbulence (km/s)", y_label="number of pixels")
+        turbulence_map.plot_region_histogram(region, name, x_label="Turbulence [km/s]", y_label="Number of pixels")
 
 
-# get_histograms()
+# get_turbulence_histograms("gaussian_fitting/maps/computed_data_selective/turbulence.fits")
+
+
+def get_normalized_histograms(map: Map, uncertainties, x_label: str, foldername: str):
+    """
+    In this example, histograms of the three regions are obtained.
+    """
+    regions = [
+        None,
+        pyregion.open("summer_2023/gaussian_fitting/regions/region_1.reg"),
+        pyregion.open("summer_2023/gaussian_fitting/regions/region_2.reg"),
+        pyregion.open("summer_2023/gaussian_fitting/regions/region_3.reg")
+    ]
+    histogram_names = [
+        "Main",
+        "Diffuse region",
+        "Central region",
+        "Filament region"
+    ]
+    for region, name in zip(regions, histogram_names):
+        ((map 
+          - Map(fits.PrimaryHDU(np.full_like(map.data, map.get_region_statistics(region)["median"]), map.header)))
+         / map.get_region_statistics(region)["standard_deviation"]).plot_region_histogram(
+            region,
+            x_label=x_label,
+            y_label="Number of pixels",
+            bin_width=(uncertainties.get_region_statistics(region)["median"]/map.get_region_statistics(region)[
+                                                                                                "standard_deviation"]),
+            filename=f"{foldername}/{name}.pdf"
+        )
+
+
+# get_normalized_histograms(
+#     map=Map(fits.open("summer_2023/gaussian_fitting/maps/external_maps/"
+#                      +"dens_it_sii_sans_fcorr_nii_plus_plusmin_pouss_seuil_errt_1000.fits")),
+#     uncertainties=Map(fits.open("summer_2023/gaussian_fitting/maps/external_maps/"
+#                                +"dens_it_sii_sans_fcorr_nii_plus_pluserr_pouss_seuil_errt_1000.fits")),
+#     x_label="Normalized density [-]",
+#     foldername="summer_2023/gaussian_fitting/figures/density"
+# )
+
+# get_normalized_histograms(
+#     map=Map(fits.open("summer_2023/gaussian_fitting/maps/computed_data_selective/turbulence.fits")[0]),
+#     uncertainties=Map(fits.open("summer_2023/gaussian_fitting/maps/computed_data_selective/turbulence.fits")[1]),
+#     x_label="Normalized turbulence [-]",
+#     foldername="summer_2023/gaussian_fitting/figures/turbulence"
+# )
 
 
 def get_OIII_FWHM_from_Leo():

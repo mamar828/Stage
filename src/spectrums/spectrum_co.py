@@ -27,7 +27,7 @@ class SpectrumCO(Spectrum):
             initial_guesses_binning: int=1,
             max_residue_sigmas: int=5,
             initial_guesses_maximum_gaussian_stddev: float=7
-        ):
+    ):
         """
         Initializes a SpectrumCO object with a certain header, whose spectral information will be taken.
 
