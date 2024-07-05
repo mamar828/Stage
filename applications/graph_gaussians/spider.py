@@ -7,8 +7,8 @@ import shutil
 from src.hdu.cubes.cube import Cube
 
 
-array = np.loadtxt("data/graph_gaussians/DF_gauss_run_0.dat")
-# array = np.loadtxt("data/graph_gaussians/DF_north_gauss_run_0.dat")
+# array = np.loadtxt("data/graph_gaussians/DF_gauss_run_0.dat")
+array = np.loadtxt("data/graph_gaussians/DF_gauss_nord.dat")
 column_density_array = np.log10(1.822e18 * array[:,2] * array[:,4] / 1e19)
 
 fig, ax = plt.subplots(1, figsize=(10,7))
@@ -50,5 +50,5 @@ ax.set_ylim(0, 13)
 
 plt.tick_params(axis="both", direction="in", labelsize=plt.rcParams["font.size"])
 # shutil.copyfile("figures/graph_gaussians/spider_2.png", "figures/graph_gaussians/spider_old.png")
-plt.savefig("figures/graph_gaussians/spider_05.png", bbox_inches="tight", dpi=600)
+plt.savefig("figures/graph_gaussians/spider_test.pdf", bbox_inches="tight", dpi=300)
 # plt.show()
