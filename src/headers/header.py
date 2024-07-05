@@ -7,9 +7,9 @@ from eztcolors import Colors as C
 class Header(fits.Header):
     """ 
     Encapsulates methods specific to the astropy.io.fits.Header class.
-    Note : the axes are always given in their numpy array format, not in the fits header format. For example, axis=0
-    targets the first numpy array axis, and therefore the last header axis (3). Values of 0,1,2 target respectively
-    z, y and x.
+    Note : for all methods, the axes are always given in their numpy array format, not in the fits header format. For
+    example, axis=0 targets the first numpy array axis, and therefore the last header axis (e.g. 3 for a cube). Values
+    of 0, 1 and 2 target respectively z, y and x.
     """
     
     def __str__(self) -> str:
@@ -27,7 +27,7 @@ class Header(fits.Header):
 
         return keys_equal and values_equal
     
-    def h_axis(self, axis: int) -> int:
+    def _h_axis(self, axis: int) -> int:
         """
         Converts a numpy axis to a header axis.
 
@@ -65,7 +65,7 @@ class Header(fits.Header):
         
         header_copy = self.copy()
         for ax, bin_ in enumerate(bins):
-            h_ax = self.h_axis(ax)
+            h_ax = self._h_axis(ax)
             if f"CDELT{h_ax}" in list(self.keys()):
                 header_copy[f"CDELT{h_ax}"] *= bin_
             if f"CRPIX{h_ax}" in list(self.keys()):
@@ -114,7 +114,7 @@ class Header(fits.Header):
             Header with the switched axes.
         """
         # Make header readable keywords
-        h_axis_1, h_axis_2 = self.h_axis(axis_1), self.h_axis(axis_2)
+        h_axis_1, h_axis_2 = self._h_axis(axis_1), self._h_axis(axis_2)
         new_header = self.copy()
 
         for key in deepcopy(list(self.keys())):
@@ -147,7 +147,7 @@ class Header(fits.Header):
             Header with the inverted axis.
         """
         new_header = self.copy()
-        h_axis = self.h_axis(axis)
+        h_axis = self._h_axis(axis)
         new_header[f"CDELT{h_axis}"] *= -1
         new_header[f"CRPIX{h_axis}"] = self[f"NAXIS{h_axis}"] - self[f"CRPIX{h_axis}"] + 1
         return new_header
@@ -169,7 +169,7 @@ class Header(fits.Header):
         new_header = self.copy()
         for i, s in enumerate(slices):
             if isinstance(s, slice):
-                h_axis = self.h_axis(i)
+                h_axis = self._h_axis(i)
                 start = s.start if s.start is not None else 0
                 stop = s.stop if s.stop is not None else self[f"NAXIS{h_axis}"]
                 new_header[f"CRPIX{h_axis}"] -= start
@@ -192,7 +192,7 @@ class Header(fits.Header):
             Header with the removed axis.
         """
         new_header = self.copy()
-        h_axis = str(self.h_axis(axis))
+        h_axis = str(self._h_axis(axis))
         for key in deepcopy(list(new_header.keys())):
             if key[-1] == h_axis:
                 new_header.pop(key)
@@ -220,48 +220,49 @@ class Header(fits.Header):
             Concatenated Header.
         """
         new_header = self.copy()
-        h_axis = self.h_axis(axis)
+        h_axis = self._h_axis(axis)
         new_header[f"NAXIS{h_axis}"] += other[f"NAXIS{h_axis}"]
         return new_header
 
-    def get_frame(self, value: float, axis: int=0) -> int:
+    def get_coordinate(self, value: float, axis: int=0) -> int:
         """
-        Gives the number of the frame closest to the specified value, along the given axis.
+        Gives the coordinate closest to the specified value, along the given axis.
         
         Parameters
         ----------
         value : float
-            Value to determine the frame. This can be a value in the range of any axis.
+            Value to determine the coordinate. This can be a value in the range of any axis.
         axis : int, default=0
-            Axis along which to get the frame. The default axis (0) gives the frame along a cube's spectral axis.
+            Axis along which to get the coordinate. The default axis (0) gives the coordinate along a cube's spectral
+            axis.
 
         Returns
         -------
-        frame : int
-            Number of the frame closest to the specified value.
+        coordinate : int
+            Coordinate closest to the specified value.
         """
-        h_axis = self.h_axis(axis)
+        h_axis = self._h_axis(axis)
         frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
         rounded_frame = round(frame_number)
         return rounded_frame
 
-    def get_value(self, frame: int, axis: int=0) -> float:
+    def get_value(self, coordinate: int, axis: int=0) -> float:
         """
-        Gives the value associated with the specified frame, along the given axis.
+        Gives the value associated with the specified coordinate, along the given axis.
         
         Parameters
         ----------
-        frame : int
-            Frame to determine the value. This should be a frame in the range of any axis.
+        coordinate : int
+            Coordinate to determine the value. This should be a coordinate in the range of any axis.
         axis : int, default=0
-            Axis along which to get the value at the specified frame. The default axis (0) gives the value along a
+            Axis along which to get the value at the specified coordinate. The default axis (0) gives the value along a
             cube's spectral axis.
 
         Returns
         -------
         value : float
-            Value at the given frame.
+            Value at the given coordinate.
         """
-        h_axis = self.h_axis(axis)
-        value = (frame - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
+        h_axis = self._h_axis(axis)
+        value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
         return value

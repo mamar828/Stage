@@ -10,7 +10,7 @@ from src.hdu.cubes.cube import Cube
 
 # c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:].bin((1,2,2))
 c = Cube.load("data/Loop4_co/N2/Loop4N2_Conv_Med_FinalJS.fits")[500:800,:,:]
-print(c.header.get_frame(-3000, 0))
+print(c.header.get_coordinate(-3000, 0))
 # c = Cube.load("data/Loop4_co/N4/Loop4N4_Conv_Med_FinalJS.fits")[500:850,:,:]
 # c = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS.fits")[500:850,:,:]
 # s = SpectrumCO(c.data[:,17,20], c.header)
