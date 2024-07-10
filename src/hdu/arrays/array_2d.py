@@ -1,10 +1,6 @@
 from graphinglib import Heatmap
 import numpy as np
 import scipy
-from uncertainties import ufloat
-import pyregion
-from typing_extensions import Self
-from astropy.io import fits
 
 from src.hdu.arrays.array import Array
 
@@ -32,28 +28,6 @@ class Array2D(Array):
         )
         return heatmap
 
-    def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
-        raise NotImplementedError
-        """
-        Gets a masked array.
-
-        Parameters
-        ----------
-        region : pyregion.core.ShapeList
-            Region to keep in the array. If None, the whole array is returned.
-        
-        Returns
-        -------
-        map : Map
-            Masked Array2D.
-        """
-        if region:
-            mask = region.get_mask(fits.PrimaryHDU(self.data))
-            mask = np.where(mask == False, np.NAN, 1)
-        else:
-            mask = np.ones_like(self.data)
-        return self * mask
-
     def get_statistics(self) -> dict:
         """
         Get the statistics of the array. Supported statistic measures are: median, mean, nbpixels stddev, skewness and
@@ -73,5 +47,3 @@ class Array2D(Array):
             "kurtosis": scipy.stats.kurtosis(self, axis=None, nan_policy="omit")
         }
         return stats
-
-
