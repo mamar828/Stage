@@ -1,5 +1,3 @@
-#include <numeric>
-#include "utils.h"
 #include "stats.h"
 
 using namespace std;
@@ -9,12 +7,14 @@ using namespace std;
  */
 double mean(const vector<dist_and_regrouped_vals >& regrouped_vals)
 {
-    int size;
-    double total;
+    int size = 0;
+    double total = 0;
     for (const auto& individual_dist_and_val : regrouped_vals)
     {
         size += individual_dist_and_val.vals.size();
-        total += reduce(begin(individual_dist_and_val.vals), end(individual_dist_and_val.vals));
+        for (double val : individual_dist_and_val.vals)
+        if (!isnan(val)) total += val;
+        else size--;
     }
     return total / size;
 }
@@ -25,7 +25,17 @@ double mean(const vector<dist_and_regrouped_vals >& regrouped_vals)
 double mean(const vector<double>& regrouped_vals)
 {
     int size = regrouped_vals.size();
-    double total = reduce(begin(regrouped_vals), end(regrouped_vals));;
+    double total = 0;
+    for (double val : regrouped_vals)
+    {
+        if (!isnan(val)) total += val;
+        else 
+        {
+            size--;
+            // cout << "IT WAS ME" << endl;
+            // throw;
+        }
+    }
     return total / size;
 }
 
@@ -33,14 +43,18 @@ double mean(const vector<double>& regrouped_vals)
 /**
  * \brief Compute the mean of a 2d vector.
  */
-double mean(const vector<vector<double> >& vals)
+double mean(const vector<vector<double>>& vals)
 {
-    int size;
-    double total;
+    int size = 0;
+    double total = 0;
     for (const auto& val_vector : vals)
     {
         size += val_vector.size();
-        total += reduce(begin(val_vector), end(val_vector));
+        for (double val : val_vector)
+        {
+            if (!isnan(val)) total += val;
+            else size--;
+        }
     }
     return total / size;
 }
@@ -61,44 +75,47 @@ vector<double> pow2(const vector<double>& input_vals)
 /**
  * \brief Compute the variance of a 2d vector.
  * \note For the sake of performance, this function may only be used with real values and not complex ones.
- * \note The sample variance is the one computed (the denominator is the population size N minus one (N-1).
+ * \note The population variance is the one computed (the denominator is the population size N).
  */
-double variance(const vector<vector<double> >& vals)
+double variance(const vector<vector<double>>& vals)
 {
     double mean_val = mean(vals);
-    double numerator;
-    int denominator;
+    double numerator = 0;
+    int denominator = 0;
     for (const auto& val_vector : vals)
     {
         for (const double& val : val_vector)
         {
-            if (val != nan_val)
+            if (!isnan(val))
             {
                 numerator += (val - mean_val) * (val - mean_val);
                 denominator++;
             }
         }
     }
-    return numerator / (denominator - 1);
+    return numerator / (denominator);
 }
 
 /**
  * \brief Compute the variance of a vector of dist_and_regrouped_vals structs.
  * \note For the sake of performance, this function may only be used with real values and not complex ones.
- * \note The sample variance is the one computed (the denominator is the population size N minus one (N-1).
+ * \note The population variance is the one computed (the denominator is the population size N).
  */
 double variance(const vector<dist_and_regrouped_vals >& regrouped_vals)
 {
     double mean_val = mean(regrouped_vals);
-    double numerator;
-    int denominator;
+    double numerator = 0;
+    int denominator = 0;
     for (const auto& individual_dist_and_val : regrouped_vals)
     {
         for (const double& val : individual_dist_and_val.vals)
         {
-            numerator += (val - mean_val) * (val - mean_val);
-            denominator++;
+            if (!isnan(val))
+            {
+                numerator += (val - mean_val) * (val - mean_val);
+                denominator++;
+            }
         }
     }
-    return numerator / (denominator - 1);
+    return numerator / (denominator);
 }

@@ -3,7 +3,7 @@
 
 using namespace std;
 
-void print(const vector<vector<double> >& input_vector)
+void print(const vector<vector<double>>& input_vector)
 {
     for (const auto& row : input_vector) {
         for (const auto& element : row) {
@@ -13,7 +13,7 @@ void print(const vector<vector<double> >& input_vector)
     }
 }
 
-void fill_vector(vector<vector<double> >& input_vector, const vector<double>& values)
+void fill_vector(vector<vector<double>>& input_vector, const vector<double>& values)
 {
     for (size_t j = 0; j < input_vector.size(); j++)
     {
