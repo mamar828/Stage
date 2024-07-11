@@ -17,8 +17,8 @@ from astropy import units as u
 from reproject import reproject_interp
 from matplotlib.animation import FuncAnimation
 
-from cube_spectrum import *
-from celestial_coords import *
+from summer_2023.gaussian_fitting.cube_spectrum import *
+from summer_2023.gaussian_fitting.celestial_coords import *
 
 
 if not sys.warnoptions:
