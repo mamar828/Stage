@@ -12,13 +12,19 @@ using namespace std;
  */
 vector<vector<double>> autocorrelation_function_1d(const vector<vector<double>>& input_array)
 {
+    cout << "Looping started" << endl;
     vector<array<double, 2>> single_dists_and_vals_1d = multiply_elements(input_array);
+    cout << "Looping finished" << endl;
+
+    
     std::unordered_map<double, std::vector<double>> regrouped_vals;
+    cout << "Regroupment started" << endl;
     while (single_dists_and_vals_1d.size() > 0)
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
         single_dists_and_vals_1d.pop_back();
     }
+    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());
@@ -44,6 +50,7 @@ vector<vector<double>> autocorrelation_function_1d(const vector<vector<double>>&
  */
 vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>& input_array)
 {
+    cout << "Looping started" << endl;
     vector<array<double, 3>> single_dists_and_vals_2d;
     single_dists_and_vals_2d.reserve(input_array.size() * input_array[0].size());
     std::unordered_map<std::array<double, 2>, std::vector<double>, DoubleArrayHash> regrouped_vals;
@@ -67,12 +74,15 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
             }
         }
     }
+    cout << "Looping finished" << endl;
 
+    cout << "Regroupment started" << endl;
     while (!single_dists_and_vals_2d.empty())
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_2d.back());
         single_dists_and_vals_2d.pop_back();
     }
+    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());
@@ -93,13 +103,19 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
  */
 vector<vector<double>> structure_function(const vector<vector<double>>& input_array)
 {
+    cout << "Looping started" << endl;
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
+    cout << "Looping finished" << endl;
+
+    
     std::unordered_map<double, std::vector<double>> regrouped_vals;
+    cout << "Regroupment started" << endl;
     while (single_dists_and_vals_1d.size() > 0)
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
         single_dists_and_vals_1d.pop_back();
     }
+    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());
@@ -123,13 +139,19 @@ vector<vector<double>> structure_function(const vector<vector<double>>& input_ar
 
 vector<vector<double>> increments(const vector<vector<double>>& input_array)
 {
+    cout << "Looping started" << endl;
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
+    cout << "Looping finished" << endl;
+
+    
     std::unordered_map<double, std::vector<double>> regrouped_vals;
+    cout << "Regroupment started" << endl;
     while (single_dists_and_vals_1d.size() > 0)
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
         single_dists_and_vals_1d.pop_back();
     }
+    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());

@@ -1,0 +1,37 @@
+09:00:57
+autocorrelation_function :    13.22957s
+autocorrelation_function_2d : 14.57440s
+structure_function :          15.05430s
+increment :                   15.58136s
+
+
+09:03:09
+autocorrelation_function :    16.35530s
+autocorrelation_function_2d : 16.67648s
+structure_function :          13.96237s
+increment :                   15.02989s
+
+Optimizing stats.cpp
+10:22:10
+autocorrelation_function :    14.37936s
+autocorrelation_function_2d : 14.86512s
+structure_function :          13.67659s
+increment :                   15.50422s
+
+
+10:25:20
+autocorrelation_function :    13.83656s
+autocorrelation_function_2d : 14.73491s
+structure_function :          14.96382s
+increment :                   15.52520s
+                 Total time : 59.06067s
+
+
+10:27:20
+autocorrelation_function :    13.48949s
+autocorrelation_function_2d : 14.54151s
+structure_function :          13.63355s
+increment :                   14.89332s
+                 Total time : 56.55798s
+
+
