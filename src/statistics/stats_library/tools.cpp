@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "tools.h"
 
 using namespace std;
@@ -8,15 +10,7 @@ using namespace std;
 void regroup_distance(std::unordered_map<double, std::vector<double>>& regrouped_vals,
                       const array<double, 2>& dist_and_val)
 {
-    auto it = regrouped_vals.find(dist_and_val[0]);
-    if (it != regrouped_vals.end())
-    {
-        it->second.push_back(dist_and_val[1]);
-    }
-    else
-    {
-        regrouped_vals[dist_and_val[0]] = {dist_and_val[1]};
-    }
+    regrouped_vals[dist_and_val[0]].push_back(dist_and_val[1]);
 }
 
 /**
@@ -26,15 +20,7 @@ void regroup_distance(std::unordered_map<std::array<double, 2>, std::vector<doub
                       const array<double, 3>& dist_and_val)
 {
     array<double, 2> dist = {dist_and_val[0], dist_and_val[1]};
-    auto it = regrouped_vals.find(dist);
-    if (it != regrouped_vals.end())
-    {
-        it->second.push_back(dist_and_val[2]);
-    }
-    else
-    {
-        regrouped_vals[dist] = {dist_and_val[2]};
-    }
+    regrouped_vals[dist].push_back(dist_and_val[2]);
 }
 
 /**
@@ -47,19 +33,21 @@ void regroup_distance(std::unordered_map<std::array<double, 2>, std::vector<doub
 template <typename T>
 vector<array<double, 2>> apply_vector_map(const vector<vector<double>>& input_array, const T& function)
 {
+    const size_t height = input_array.size();
+    const size_t width = input_array[0].size();
     vector<array<double, 2>> single_dists_and_vals;
-    for (int y = 0; y < input_array.size(); y++)
+    // The maximum number of elements is given by (size - 1) + (size - 2) + (size - 3) + ... + 1
+    // The formula below accounts for this maximum number
+    long int size = height * width;
+    single_dists_and_vals.reserve((size - 1) * size / 2);
+    for (size_t y = 0; y < height; y++)
     {
-        for (int x = 0; x < input_array[0].size(); x++)
+        for (size_t x = 0; x < width; x++)
         {
-            // The pixel at (x,y) is the one currently being processed
             if (isnan(input_array[y][x])) continue;
-            // j=y ensures that only rows above the current pixel are processed
-            for (int j = y; j < input_array.size(); j++)
+            for (size_t j = y; j < height; j++)
             {
-                // The logic below starts the search at x+1 if j = y and at 0 if j > y
-                int i = (j == y) ? x + 1 : 0;
-                for (; i < input_array[0].size(); i++)
+                for (size_t i = (j == y) ? x + 1 : 0; i < width; i++)
                 {
                     if (isnan(input_array[j][i])) continue;
                     double dist = sqrt((i-x)*(i-x) + (j-y)*(j-y));

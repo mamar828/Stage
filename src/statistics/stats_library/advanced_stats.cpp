@@ -15,7 +15,6 @@ vector<vector<double>> autocorrelation_function_1d(const vector<vector<double>>&
     cout << "Looping started" << endl;
     vector<array<double, 2>> single_dists_and_vals_1d = multiply_elements(input_array);
     cout << "Looping finished" << endl;
-
     
     std::unordered_map<double, std::vector<double>> regrouped_vals;
     cout << "Regroupment started" << endl;
@@ -51,23 +50,26 @@ vector<vector<double>> autocorrelation_function_1d(const vector<vector<double>>&
 vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>& input_array)
 {
     cout << "Looping started" << endl;
-    vector<array<double, 3>> single_dists_and_vals_2d;
-    single_dists_and_vals_2d.reserve(input_array.size() * input_array[0].size());
-    std::unordered_map<std::array<double, 2>, std::vector<double>, DoubleArrayHash> regrouped_vals;
 
-    for (int y = 0; y < input_array.size(); y++)
+    const size_t height = input_array.size();
+    const size_t width = input_array[0].size();
+    vector<array<double, 3>> single_dists_and_vals_2d;
+    // The maximum number of elements is given by (size - 1) + (size - 2) + (size - 3) + ... + 1
+    // The formula below accounts for this maximum number
+    long int size = height * width;
+    single_dists_and_vals_2d.reserve((size - 1) * size / 2);
+    for (size_t y = 0; y < height; y++)
     {
-        for (int x = 0; x < input_array[0].size(); x++)
+        for (size_t x = 0; x < width; x++)
         {
             if (isnan(input_array[y][x])) continue;
-            for (int j = y; j < input_array.size(); j++)
+            for (size_t j = y; j < height; j++)
             {
-                int i = (j == y) ? x + 1 : 0;
-                for (; i < input_array[0].size(); i++)
+                for (size_t i = (j == y) ? x + 1 : 0; i < width; i++)
                 {
                     if (isnan(input_array[j][i])) continue;
-                    double dist_x = i - x;
-                    double dist_y = j - y;
+                    double dist_x = int(i - x);
+                    double dist_y = int(j - y);
                     double val = input_array[y][x] * input_array[j][i];
                     single_dists_and_vals_2d.push_back({dist_x, dist_y, val});
                 }
@@ -76,6 +78,7 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
     }
     cout << "Looping finished" << endl;
 
+    std::unordered_map<std::array<double, 2>, std::vector<double>, DoubleArrayHash> regrouped_vals;
     cout << "Regroupment started" << endl;
     while (!single_dists_and_vals_2d.empty())
     {

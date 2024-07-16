@@ -34,4 +34,52 @@ structure_function :          13.63355s
 increment :                   14.89332s
                  Total time : 56.55798s
 
+Regroup distances with dict !
+10:47:49
+autocorrelation_function :    13.20797s
+autocorrelation_function_2d : 14.37937s
+structure_function :          19.33093s
+increment :                   16.57950s
+                 Total time : 63.49791s
+
+
+10:49:41
+autocorrelation_function :    13.83662s
+autocorrelation_function_2d : 14.87758s
+structure_function :          14.84701s
+increment :                   15.44900s
+                 Total time : 59.01031s
+
+Removing the regroup distances with dict
+10:51:41
+autocorrelation_function :    13.64792s
+autocorrelation_function_2d : 16.11122s
+structure_function :          20.31403s
+increment :                   17.72673s
+                 Total time : 67.80010s
+
+Looping changes, reserve, size_t
+11:19:38
+autocorrelation_function :    10.73038s
+autocorrelation_function_2d : 11.55673s
+structure_function :          11.58959s
+increment :                   12.13788s
+                 Total time : 46.01468s
+
+
+11:26:39
+autocorrelation_function :    10.78549s
+autocorrelation_function_2d : 11.90463s
+structure_function :          11.88921s
+increment :                   13.87415s
+                 Total time : 48.45359s
+
+Actual reserve
+13:09:49
+autocorrelation_function :    11.25826s
+autocorrelation_function_2d : 12.24132s
+structure_function :          11.52762s
+increment :                   12.38937s
+                 Total time : 47.41669s
+
 

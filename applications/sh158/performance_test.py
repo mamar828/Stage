@@ -7,7 +7,6 @@ from src.statistics.advanced_stats import structure_function, autocorrelation_fu
                                           increments
 from src.hdu.maps.map import Map
 
-# test = Map.load("summer_2023/gaussian_fitting/maps/computed_data_selective/turbulence.fits")
 test = Map.load("summer_2023/gaussian_fitting/maps/external_maps/"
                       +"dens_it_sii_sans_fcorr_nii_plus_plusmin_pouss_seuil_errt_1000.fits")
 

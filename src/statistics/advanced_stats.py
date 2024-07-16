@@ -72,3 +72,8 @@ def increments(data: np.ndarray) -> dict:
     for increment in increments:
         increments_dict[increment[0]] = np.array(increment[1:])
     return increments_dict
+
+
+# from src.statistics.stats_library.advanced_stats import test_cpp
+
+# test_cpp(np.array([[1,2], [3,4]]))
