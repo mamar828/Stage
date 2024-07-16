@@ -5,7 +5,6 @@ using namespace std;
 /**
  * \brief Regroups a distance modulus to its struct.
  */
-// void regroup_distance_1d(const array<double, 2>& dist_and_val)
 void regroup_distance(std::unordered_map<double, std::vector<double>>& regrouped_vals,
                       const array<double, 2>& dist_and_val)
 {
@@ -23,7 +22,6 @@ void regroup_distance(std::unordered_map<double, std::vector<double>>& regrouped
 /**
  * \brief Regroups a distance vector to its struct.
  */
-// void regroup_distance_2d(const array<double, 3>& dist_and_val)
 void regroup_distance(std::unordered_map<std::array<double, 2>, std::vector<double>, DoubleArrayHash>& regrouped_vals,
                       const array<double, 3>& dist_and_val)
 {

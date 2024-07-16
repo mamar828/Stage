@@ -3,23 +3,6 @@
 using namespace std;
 
 /**
- * \brief Computes the mean of a vector of dist_and_regrouped_vals structs.
- */
-double mean(const vector<dist_and_regrouped_vals>& regrouped_vals)
-{
-    int size = 0;
-    double total = 0;
-    for (const auto& individual_dist_and_val : regrouped_vals)
-    {
-        size += individual_dist_and_val.vals.size();
-        for (double val : individual_dist_and_val.vals)
-        if (!isnan(val)) total += val;
-        else size--;
-    }
-    return total / size;
-}
-
-/**
  * \brief Computes the mean of a dist_and_regrouped_vals struct.
  */
 double mean(const vector<double>& vals)
@@ -93,30 +76,6 @@ double variance(const vector<vector<double>>& vals)
     for (const auto& val_vector : vals)
     {
         for (const double& val : val_vector)
-        {
-            if (!isnan(val))
-            {
-                numerator += (val - mean_val) * (val - mean_val);
-                denominator++;
-            }
-        }
-    }
-    return numerator / (denominator);
-}
-
-/**
- * \brief Computes the variance of a vector of dist_and_regrouped_vals structs.
- * \note For the sake of performance, this function may only be used with real values and not complex ones.
- * \note The population variance is the one computed (the denominator is the population size N).
- */
-double variance(const vector<dist_and_regrouped_vals>& vals)
-{
-    double mean_val = mean(vals);
-    double numerator = 0;
-    int denominator = 0;
-    for (const auto& individual_dist_and_val : vals)
-    {
-        for (const double& val : individual_dist_and_val.vals)
         {
             if (!isnan(val))
             {
