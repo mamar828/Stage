@@ -1,12 +1,10 @@
 import numpy as np
 
-from src.statistics.stats_library.advanced_stats import autocorrelation_function_cpp, structure_function_cpp, \
-                                                        increments_cpp
-
+from src.statistics.stats_library.advanced_stats import acr_func_1d_cpp, acr_func_2d_cpp, str_func_cpp, increments_cpp
 
 def autocorrelation_function(data: np.ndarray) -> np.ndarray:
     """
-    Computes the autocorrelation function of a 2D array.
+    Computes the one-dimensional autocorrelation function of a 2D array.
 
     Parameters
     ----------
@@ -16,9 +14,27 @@ def autocorrelation_function(data: np.ndarray) -> np.ndarray:
     Returns
     -------
     autocorrelation_function : np.ndarray
-        Two-dimensional array with every pair of element representing the lag and its corresponding autocorrelation.
+        Two-dimensional array with every group of three elements representing the lag and its corresponding
+        autocorrelation function and uncertainty.
     """
-    return np.array(autocorrelation_function_cpp(data))
+    return np.array(acr_func_1d_cpp(data))
+
+def autocorrelation_function_2d(data: np.ndarray) -> np.ndarray:
+    """
+    Computes the two-dimensional autocorrelation function of a 2D array.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data from which to compute the 2D autocorrelation function.
+
+    Returns
+    -------
+    autocorrelation_function : np.ndarray
+        Two-dimensional array with every group of three elements representing the x lag, the y lag and its corresponding
+        autocorrelation function.
+    """
+    return np.array(acr_func_2d_cpp(data))
 
 def structure_function(data: np.ndarray) -> np.ndarray:
     """
@@ -32,9 +48,10 @@ def structure_function(data: np.ndarray) -> np.ndarray:
     Returns
     -------
     structure_function : np.ndarray
-        Two-dimensional array with every pair of element representing the lag and its corresponding structure function.
+        Two-dimensional array with every group of three elements representing the lag and its corresponding structure
+        function and uncertainty.
     """
-    return np.array(structure_function_cpp(data))
+    return np.array(str_func_cpp(data))
 
 def increments(data: np.ndarray) -> dict:
     """

@@ -80,8 +80,7 @@ class Map(FitsFile, MathematicalObject):
             self.assert_shapes(other)
             return self.__class__(
                 self.data * other.data,
-                ((self.uncertainties / self.data) + (other.uncertainties / other.data)) 
-                * self.data * other.data,
+                ((self.uncertainties / self.data) + (other.uncertainties / other.data)) * self.data * other.data,
                 self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):

@@ -12,9 +12,11 @@ using namespace std;
 PYBIND11_MODULE(advanced_stats, m) {
     m.doc() = string("Module that regroups the necessary statistic and analysis tools to compute autocorrelation and ")
             + string("structure functions.");
-    m.def("autocorrelation_function_cpp", &autocorrelation_function, 
+    m.def("acr_func_1d_cpp", &autocorrelation_function_1d, 
           "Compute the one-dimensional autocorrelation function of a two-dimensional array.");
-    m.def("structure_function_cpp", &structure_function, 
+    m.def("acr_func_2d_cpp", &autocorrelation_function_2d, 
+          "Compute the two-dimensional autocorrelation function of a two-dimensional array.");
+    m.def("str_func_cpp", &structure_function, 
           "Compute the one-dimensional structure function of a two-dimensional array.");
     m.def("increments_cpp", &increments, 
           "Compute the one-dimensional increment function of a two-dimensional array.");

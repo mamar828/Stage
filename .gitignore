@@ -163,14 +163,14 @@ cython_debug/
 
 # FILES TO IGNORE
 
-*.fits
 MAITRISE_LEO_SHARPLESS_2_158
-*.DS_Store
-.vscode
 notes.txt
 tests.*
-*.pkl
 figures
 figures_old
-*.dat
 data/Loop4_co/felix
+*.fits
+*.pkl
+*.dat
+*.gz
+.*
