@@ -82,4 +82,100 @@ structure_function :          11.52762s
 increment :                   12.38937s
                  Total time : 47.41669s
 
+OMP
+15:44:03
+autocorrelation_function :    33.49576s
+autocorrelation_function_2d : 14.21164s
+structure_function :          26.72408s
+increment :                   27.43713s
+                 Total time : 101.86869s
+
+
+15:48:27
+autocorrelation_function :    4.05357s
+autocorrelation_function_2d : 12.93341s
+structure_function :          4.47608s
+increment :                   4.91305s
+                 Total time : 26.37614s
+
+
+17:30:06
+autocorrelation_function :    7.53299s
+autocorrelation_function_2d : 9.41647s
+structure_function :          7.65214s
+increment :                   8.56130s
+                 Total time : 33.16296s
+
+
+17:31:02
+autocorrelation_function :    7.34277s
+autocorrelation_function_2d : 8.93826s
+structure_function :          7.64402s
+increment :                   8.65428s
+                 Total time : 32.57938s
+
+OMP + reserve
+17:37:42
+autocorrelation_function :    7.25569s
+autocorrelation_function_2d : 11.00439s
+structure_function :          9.47515s
+increment :                   9.02970s
+                 Total time : 36.76503s
+
+
+17:39:10
+autocorrelation_function :    7.48296s
+autocorrelation_function_2d : 9.61205s
+structure_function :          7.79956s
+increment :                   8.61720s
+                 Total time : 33.51249s
+
+
+17:40:17
+autocorrelation_function :    8.87645s
+autocorrelation_function_2d : 12.50176s
+structure_function :          8.74248s
+increment :                   8.53993s
+                 Total time : 38.66078s
+
+
+17:41:55
+autocorrelation_function :    7.71497s
+autocorrelation_function_2d : 9.76856s
+structure_function :          8.10024s
+increment :                   9.74858s
+                 Total time : 35.33248s
+
+for collapse(3)
+17:43:55
+autocorrelation_function :    7.54486s
+autocorrelation_function_2d : 10.44891s
+structure_function :          7.60744s
+increment :                   8.58634s
+                 Total time : 34.18763s
+
+
+17:44:42
+autocorrelation_function :    7.88357s
+autocorrelation_function_2d : 15.74668s
+structure_function :          10.93627s
+increment :                   9.26342s
+                 Total time : 43.83010s
+
+
+17:51:22
+autocorrelation_function :    7.37258s
+autocorrelation_function_2d : 10.76105s
+structure_function :          7.65521s
+increment :                   8.83251s
+                 Total time : 34.62143s
+
+
+17:52:41
+autocorrelation_function :    7.43207s
+autocorrelation_function_2d : 11.10216s
+structure_function :          8.27710s
+increment :                   8.85588s
+                 Total time : 35.66733s
+
 

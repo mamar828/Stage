@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <omp.h>
 
 #include "advanced_stats.h"
 #include "tools.h"
@@ -54,27 +55,32 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
     const size_t height = input_array.size();
     const size_t width = input_array[0].size();
     vector<array<double, 3>> single_dists_and_vals_2d;
-    // The maximum number of elements is given by (size - 1) + (size - 2) + (size - 3) + ... + 1
-    // The formula below accounts for this maximum number
-    long int size = height * width;
-    single_dists_and_vals_2d.reserve((size - 1) * size / 2);
-    for (size_t y = 0; y < height; y++)
+
+    #pragma omp parallel
     {
-        for (size_t x = 0; x < width; x++)
+        vector<array<double, 3>> thread_single_dists_and_vals;
+
+        #pragma omp for collapse(2) schedule(dynamic)
+        for (size_t y = 0; y < height; y++)
         {
-            if (isnan(input_array[y][x])) continue;
-            for (size_t j = y; j < height; j++)
+            for (size_t x = 0; x < width; x++)
             {
-                for (size_t i = (j == y) ? x + 1 : 0; i < width; i++)
+                if (isnan(input_array[y][x])) continue;
+                for (size_t j = y; j < height; j++)
                 {
-                    if (isnan(input_array[j][i])) continue;
-                    double dist_x = int(i - x);
-                    double dist_y = int(j - y);
-                    double val = input_array[y][x] * input_array[j][i];
-                    single_dists_and_vals_2d.push_back({dist_x, dist_y, val});
+                    for (size_t i = (j == y) ? x + 1 : 0; i < width; i++)
+                    {
+                        if (isnan(input_array[j][i])) continue;
+                        double dist_x = int(i - x);
+                        double dist_y = int(j - y);
+                        double val = input_array[y][x] * input_array[j][i];
+                        thread_single_dists_and_vals.push_back({dist_x, dist_y, val});
+                    }
                 }
             }
         }
+        #pragma omp critical
+        combine_vectors(single_dists_and_vals_2d, thread_single_dists_and_vals);
     }
     cout << "Looping finished" << endl;
 
