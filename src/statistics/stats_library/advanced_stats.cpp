@@ -51,14 +51,18 @@ vector<vector<double>> autocorrelation_function_1d(const vector<vector<double>>&
 vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>& input_array)
 {
     cout << "Looping started" << endl;
-
     const size_t height = input_array.size();
     const size_t width = input_array[0].size();
     vector<array<double, 3>> single_dists_and_vals_2d;
 
+    // Reserve an approximate size to avoid multiple allocations
+    size_t max_possible_size = (height * width * (height * width - 1)) / 2;
+    single_dists_and_vals_2d.reserve(max_possible_size);
+    
     #pragma omp parallel
     {
         vector<array<double, 3>> thread_single_dists_and_vals;
+        thread_single_dists_and_vals.reserve(max_possible_size / omp_get_num_threads());
 
         #pragma omp for collapse(2) schedule(dynamic)
         for (size_t y = 0; y < height; y++)
@@ -79,9 +83,11 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
                 }
             }
         }
-        #pragma omp critical
         combine_vectors(single_dists_and_vals_2d, thread_single_dists_and_vals);
     }
+
+    single_dists_and_vals_2d.shrink_to_fit();
+
     cout << "Looping finished" << endl;
 
     std::unordered_map<std::array<double, 2>, std::vector<double>, DoubleArrayHash> regrouped_vals;
