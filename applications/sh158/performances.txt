@@ -178,4 +178,92 @@ structure_function :          8.27710s
 increment :                   8.85588s
                  Total time : 35.66733s
 
+Reserve for single_dists_and_vals
+11:10:44
+autocorrelation_function :    8.36461s
+autocorrelation_function_2d : 12.66098s
+structure_function :          9.16496s
+increment :                   10.10145s
+                 Total time : 40.29210s
+
+
+11:11:34
+autocorrelation_function :    8.70902s
+autocorrelation_function_2d : 11.48409s
+structure_function :          8.01451s
+increment :                   9.31166s
+                 Total time : 37.51937s
+
+
+11:12:24
+autocorrelation_function :    8.36588s
+autocorrelation_function_2d : 12.59249s
+structure_function :          8.87789s
+increment :                   11.18565s
+                 Total time : 41.02214s
+
+No reserve
+11:16:49
+autocorrelation_function :    9.54262s
+autocorrelation_function_2d : 12.80931s
+structure_function :          9.81036s
+increment :                   10.83196s
+                 Total time : 42.99436s
+
+
+11:17:44
+autocorrelation_function :    8.50019s
+autocorrelation_function_2d : 15.38817s
+structure_function :          10.14780s
+increment :                   10.24669s
+                 Total time : 44.28303s
+
+
+11:18:38
+autocorrelation_function :    10.78516s
+autocorrelation_function_2d : 15.11200s
+structure_function :          9.27705s
+increment :                   9.77031s
+                 Total time : 44.94475s
+
+Back with reserve
+11:19:49
+autocorrelation_function :    11.11446s
+autocorrelation_function_2d : 14.38084s
+structure_function :          8.98512s
+increment :                   12.07888s
+                 Total time : 46.55946s
+
+
+11:22:44
+autocorrelation_function :    8.63340s
+autocorrelation_function_2d : 14.38993s
+structure_function :          9.44004s
+increment :                   10.83480s
+                 Total time : 43.29840s
+
+apply_vector_map memory improved
+11:32:58
+autocorrelation_function :    2.51156s
+autocorrelation_function_2d : 11.52202s
+structure_function :          2.46279s
+increment :                   2.46979s
+                 Total time : 18.96626s
+
+With actual omp critical
+11:49:22
+autocorrelation_function :    8.18813s
+autocorrelation_function_2d : 12.29695s
+structure_function :          8.17498s
+increment :                   10.24796s
+                 Total time : 38.90810s
+
+
+12:02:47
+autocorrelation_function :    8.51304s
+autocorrelation_function_2d : 12.53174s
+structure_function :          8.68570s
+increment :                   9.77212s
+                 Total time : 39.50276s
+
 

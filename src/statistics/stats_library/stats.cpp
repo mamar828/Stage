@@ -41,6 +41,59 @@ double mean(const vector<vector<double>>& vals)
 }
 
 /**
+ * \brief Computes the sum of a vector.
+ */
+double sum(const std::vector<double>& vals)
+{
+    double total = accumulate(
+        vals.begin(), vals.end(), 0.0,
+        [](double acc, double val)
+        {return acc + val;}
+    );
+    return total;
+}
+
+/**
+ * \brief Computes the sum of a 2d vector.
+ */
+double sum(const std::vector<std::vector<double>>& vals)
+{
+    double total = accumulate(
+        vals.begin(), vals.end(), 0.0,
+        [](double acc, const vector<double>& val_vector)
+        {
+            double inner_result = accumulate(
+                val_vector.begin(), val_vector.end(), 0.0, 
+                [](double inner_acc, double val)
+                {return isnan(val) ? inner_acc : inner_acc + val;}
+            );
+            return acc + inner_result;
+        }
+    );
+    return total;
+}
+
+/**
+ * \brief Computes the sum of the squares of a 2d vector.
+ */
+double sum_of_squares(const vector<vector<double>>& vals)
+{
+    double total = accumulate(
+        vals.begin(), vals.end(), 0.0,
+        [](double acc, const vector<double>& val_vector)
+        {
+            double inner_result = accumulate(
+                val_vector.begin(), val_vector.end(), 0.0, 
+                [](double inner_acc, double val)
+                {return isnan(val) ? inner_acc : inner_acc + val * val;}
+            );
+            return acc + inner_result;
+        }
+    );
+    return total;
+}
+
+/**
  * \brief Calculate the square of a vector.
  */
 vector<double> pow2(const vector<double>& vals)
@@ -85,8 +138,8 @@ double variance(const vector<vector<double>>& vals)
 {
     double mean_val = mean(vals);
     pair<double, int> result = accumulate(
-        vals.begin(), vals.end(), make_pair(0.0, 0), [mean_val]
-        (pair<double, int> acc, const vector<double>& val_vector)
+        vals.begin(), vals.end(), make_pair(0.0, 0), 
+        [mean_val](pair<double, int> acc, const vector<double>& val_vector)
         {
             pair<double, int> inner_result = accumulate(
                 val_vector.begin(), val_vector.end(), make_pair(acc.first, acc.second), [mean_val]
@@ -104,8 +157,28 @@ double variance(const vector<vector<double>>& vals)
 /**
  * \brief Computes the standard deviation of a vector.
  */
-double standard_deviation(const vector<double>& values)
+double standard_deviation(const vector<double>& vals)
 {
-    double variance_val = variance(values);
+    double variance_val = variance(vals);
     return sqrt(variance_val);
+}
+
+/**
+ * \brief Count the number of non nan elements in a 2d vector.
+ */
+int count_non_nan(const std::vector<std::vector<double>>& vals)
+{
+    int size = accumulate(
+        vals.begin(), vals.end(), 0,
+        [](int acc, const vector<double>& val_vector)
+        {
+            int inner_result = accumulate(
+                val_vector.begin(), val_vector.end(), 0, 
+                [](int inner_acc, double val)
+                {return isnan(val) ? inner_acc : inner_acc + 1;}
+            );
+            return acc + inner_result;
+        }
+    );
+    return size;
 }

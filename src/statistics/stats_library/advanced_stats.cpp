@@ -13,18 +13,14 @@ using namespace std;
  */
 vector<vector<double>> autocorrelation_function_1d(const vector<vector<double>>& input_array)
 {
-    cout << "Looping started" << endl;
     vector<array<double, 2>> single_dists_and_vals_1d = multiply_elements(input_array);
-    cout << "Looping finished" << endl;
     
-    std::unordered_map<double, std::vector<double>> regrouped_vals;
-    cout << "Regroupment started" << endl;
+    unordered_map<double, vector<double>> regrouped_vals;
     while (single_dists_and_vals_1d.size() > 0)
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
         single_dists_and_vals_1d.pop_back();
     }
-    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());
@@ -48,20 +44,30 @@ vector<vector<double>> autocorrelation_function_1d(const vector<vector<double>>&
 /**
  * \brief Computes the two-dimensional autocorrelation function of a 2d vector.
  */
-vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>& input_array)
+vector<vector<double>> autocorrelation_function_2d(vector<vector<double>>& input_array)
 {
-    cout << "Looping started" << endl;
     const size_t height = input_array.size();
     const size_t width = input_array[0].size();
     vector<array<double, 3>> single_dists_and_vals_2d;
+    // vector<array<double, 4>> single_dists_and_vals_2d;
 
     // Reserve an approximate size to avoid multiple allocations
     size_t max_possible_size = (height * width * (height * width - 1)) / 2;
     single_dists_and_vals_2d.reserve(max_possible_size);
-    
+    double mean_value = mean(input_array);
+
     #pragma omp parallel
     {
+        #pragma omp for collapse(1) schedule(dynamic)
+        for (size_t y = 0; y < height; y++)
+        {
+            for (size_t x = 0; x < width; x++)
+            {
+                input_array[y][x] -= mean_value;
+            }
+        }
         vector<array<double, 3>> thread_single_dists_and_vals;
+        // vector<array<double, 4>> thread_single_dists_and_vals;
         thread_single_dists_and_vals.reserve(max_possible_size / omp_get_num_threads());
 
         #pragma omp for collapse(2) schedule(dynamic)
@@ -72,13 +78,15 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
                 if (isnan(input_array[y][x])) continue;
                 for (size_t j = y; j < height; j++)
                 {
-                    for (size_t i = (j == y) ? x + 1 : 0; i < width; i++)
+                    for (size_t i = (j == y) ? x /*+ 1*/ : 0; i < width; i++) // lag=0 is considered here
                     {
                         if (isnan(input_array[j][i])) continue;
                         double dist_x = int(i - x);
                         double dist_y = int(j - y);
-                        double val = input_array[y][x] * input_array[j][i];
-                        thread_single_dists_and_vals.push_back({dist_x, dist_y, val});
+                        double numerator = input_array[y][x] * input_array[j][i];
+                        thread_single_dists_and_vals.push_back({dist_x, dist_y, numerator});
+                        // double denominator = input_array[y][x] * input_array[y][x];
+                        // thread_single_dists_and_vals.push_back({dist_x, dist_y, numerator, denominator});
                     }
                 }
             }
@@ -88,26 +96,30 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
 
     single_dists_and_vals_2d.shrink_to_fit();
 
-    cout << "Looping finished" << endl;
-
-    std::unordered_map<std::array<double, 2>, std::vector<double>, DoubleArrayHash> regrouped_vals;
-    cout << "Regroupment started" << endl;
+    // unordered_map<array<double, 2>, array<vector<double>, 2>, DoubleArrayHash> regrouped_vals;
+    unordered_map<array<double, 2>, vector<double>, DoubleArrayHash> regrouped_vals;
     while (!single_dists_and_vals_2d.empty())
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_2d.back());
         single_dists_and_vals_2d.pop_back();
     }
-    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());
-    double variance_val = variance(input_array);
+
+    double denominator = sum_of_squares(input_array);
+    double N_t_sqrt = pow(count_non_nan(input_array), 0.5);
 
     for (const auto& [dist, vals] : regrouped_vals)
     {
-        double mean_val = mean(vals);
-        double acr = mean_val / variance_val;
-        output_array.push_back({dist[0], dist[1], acr});
+        double normalization_factor = N_t_sqrt / pow(vals.size(), 1.5);
+        double C_i = normalization_factor * sum(vals) / denominator;
+        output_array.push_back({dist[0], dist[1], C_i});
+        // double acf = mean(vals[0]) / mean(vals[1]);
+        // double mean_val = mean(vals);
+        // double acr = mean_val / variance_val;
+        // output_array.push_back({dist[0], dist[1], acr});
+        // output_array.push_back({dist[0], dist[1], mean(vals[0])});
     }
 
     return output_array;
@@ -118,19 +130,15 @@ vector<vector<double>> autocorrelation_function_2d(const vector<vector<double>>&
  */
 vector<vector<double>> structure_function(const vector<vector<double>>& input_array)
 {
-    cout << "Looping started" << endl;
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
-    cout << "Looping finished" << endl;
 
     
-    std::unordered_map<double, std::vector<double>> regrouped_vals;
-    cout << "Regroupment started" << endl;
+    unordered_map<double, vector<double>> regrouped_vals;
     while (single_dists_and_vals_1d.size() > 0)
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
         single_dists_and_vals_1d.pop_back();
     }
-    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());
@@ -154,19 +162,15 @@ vector<vector<double>> structure_function(const vector<vector<double>>& input_ar
 
 vector<vector<double>> increments(const vector<vector<double>>& input_array)
 {
-    cout << "Looping started" << endl;
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
-    cout << "Looping finished" << endl;
 
     
-    std::unordered_map<double, std::vector<double>> regrouped_vals;
-    cout << "Regroupment started" << endl;
+    unordered_map<double, vector<double>> regrouped_vals;
     while (single_dists_and_vals_1d.size() > 0)
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
         single_dists_and_vals_1d.pop_back();
     }
-    cout << "Regroupment finished" << endl;
 
     vector<vector<double>> output_array;
     output_array.reserve(regrouped_vals.size());

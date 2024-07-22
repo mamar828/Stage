@@ -25,6 +25,20 @@ void regroup_distance(unordered_map<array<double, 2>, vector<double>, DoubleArra
     regrouped_vals[dist].push_back(dist_and_val[2]);
 }
 
+// /**
+//  * \brief Regroups a distance vector to its struct.
+//  */
+// void regroup_distance(unordered_map<array<double, 2>, array<vector<double>, 2>, DoubleArrayHash>& regrouped_vals,
+//                       const array<double, 4>& dist_and_val)
+// {
+//     array<double, 2> dist = {dist_and_val[0], dist_and_val[1]};
+//     #pragma omp critical
+//     {
+//         regrouped_vals[dist][0].push_back({dist_and_val[2]});
+//         regrouped_vals[dist][1].push_back({dist_and_val[3]});
+//     }
+// }
+
 /**
  * \brief Combines two vectors of arrays of two elements.
  */
@@ -42,6 +56,15 @@ void combine_vectors(vector<array<double,3>>& dest, const vector<array<double,3>
     #pragma omp critical
     dest.insert(dest.end(), src.begin(), src.end());
 }
+
+// /**
+//  * \brief Combines two vectors of arrays of four elements.
+//  */
+// void combine_vectors(vector<array<double,4>>& dest, const vector<array<double,4>>& src)
+// {
+//     #pragma omp critical
+//     dest.insert(dest.end(), src.begin(), src.end());
+// }
 
 /**
  * \brief Applies an operation between each values of a map and computes the pixel distances.
