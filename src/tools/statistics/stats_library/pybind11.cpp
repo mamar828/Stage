@@ -22,5 +22,4 @@ PYBIND11_MODULE(advanced_stats, m) {
           "Compute the one-dimensional increment function of a two-dimensional array.");
 }
 
-// clang++ -std=c++17 -shared -undefined dynamic_lookup -I./pybind11/include/ `python3.12 -m pybind11 --includes` advanced_stats.cpp utils.cpp stats.cpp pybind11.cpp -o advanced_stats.so `python3.12-config --ldflags`
 // clang++ -std=c++17 -shared -undefined dynamic_lookup -I./pybind11/include/ `python3.12 -m pybind11 --includes` advanced_stats.cpp stats.cpp tools.cpp pybind11.cpp -o advanced_stats.so `python3.12-config --ldflags` -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
