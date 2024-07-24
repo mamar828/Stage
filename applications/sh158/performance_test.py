@@ -3,8 +3,8 @@ import graphinglib as gl
 from datetime import datetime
 import time
 
-from src.statistics.advanced_stats import structure_function, autocorrelation_function, autocorrelation_function_2d, \
-                                          increments
+from src.tools.statistics.advanced_stats import structure_function, autocorrelation_function, \
+                                                autocorrelation_function_2d, increments
 from src.hdu.maps.map import Map
 
 test = Map.load("summer_2023/gaussian_fitting/maps/external_maps/"
