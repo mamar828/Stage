@@ -14,7 +14,7 @@ class Coord:
         self.degrees = degrees
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__} : {self.degrees:.4f}°"
+        return f"{self.__class__.__name__} : {self.degrees:.4f}°, {self.sexagesimal}"
 
 
 
