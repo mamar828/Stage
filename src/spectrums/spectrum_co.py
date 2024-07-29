@@ -66,7 +66,9 @@ class SpectrumCO(Spectrum):
         self.NOISE_CHANNELS = noise_channels
         self.INITIAL_GUESSES_BINNING = initial_guesses_binning
         self.MAX_RESIDUE_SIGMAS = max_residue_sigmas
-        self.STDDEV_DETECTION_THRESHOLD = 0.9   # defines the half distance threshold when trying to guess stddevs
+        self.STDDEV_DETECTION_THRESHOLD = 0.5   # defines the half distance threshold when trying to guess stddevs
+        self.RESIDUE_RATIO_AMPLITUDE_MODIFIER = 1.1 # defines the amount by which the maximum residue peak will be
+        # shifted when given as an initial guess when refitting, which accounts for the fitting algorithm's broadness
         self.INITIAL_GUESSES_MAXIMUM_GAUSSIAN_STDDEV = initial_guesses_maximum_gaussian_stddev
 
     @property
@@ -134,7 +136,7 @@ class SpectrumCO(Spectrum):
                 mean = np.argmax(np.abs(self.get_subtracted_fit()))
                 self.initial_guesses[len(self.initial_guesses)] = {
                     "mean" : mean + 1,
-                    "amplitude" : np.max(np.abs(self.get_subtracted_fit())),
+                    "amplitude" : np.max(np.abs(self.get_subtracted_fit())) * self.RESIDUE_RATIO_AMPLITUDE_MODIFIER,
                     "stddev" : 7.2      # value chosen from the mean of multiple successful fits
                 }
 
@@ -142,10 +144,10 @@ class SpectrumCO(Spectrum):
                 # The FWHM is estimated to be given as a stddev estimate
                 # The estimated intersection at half maximum is calculated
                 intersects = np.abs(self.data - peaks[1]["peak_heights"][i]/2) < self.STDDEV_DETECTION_THRESHOLD
-                # The left and right bounds around the peak are calculated
-                x_min = peaks[0][i] - np.argmax(np.flip(intersects[:peaks[0][i]], axis=0))
-                x_max = np.argmax(intersects[peaks[0][i]:]) + peaks[0][i] + 1  # correction for bounds included/excluded
-                stddev = (x_max - x_min) / (2*np.sqrt(2*np.log(2))) / 2
+                lower_half_width = np.argmax(np.flip(intersects[:peaks[0][i] + 1], axis=0))
+                upper_half_width = np.argmax(intersects[peaks[0][i]:])
+                stddev = min(lower_half_width, upper_half_width) / (np.sqrt(2*np.log(2)))
+                print(lower_half_width, peaks[0][i], upper_half_width)
 
                 # + 1 accounts for the fact that scipy uses 0-based indexing and headers/ds9 use 1-based indexing
                 self.initial_guesses[i] = {

@@ -11,10 +11,10 @@ from src.hdu.cubes.cube import Cube
 
 # c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:].bin((1,2,2))
 # c = Cube.load("data/Loop4_co/N2/Loop4N2_Conv_Med_FinalJS_wcs.fits")[500:800,:,:]
-# c = Cube.load("data/Loop4_co/N4/Loop4N4_Conv_Med_FinalJS_wcs.fits")[500:850,:,:]#[:,:,30:]
-c = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS_wcs.fits")[500:850,:,:].bin((1,2,2))
+c = Cube.load("data/Loop4_co/N4/Loop4N4_Conv_Med_FinalJS_wcs.fits")[500:850,:,:]#[:,:,30:]
+# c = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS_wcs.fits")[500:850,:,:].bin((1,2,2))
 
-for i in range(23*20+11, c.data.shape[1] * c.data.shape[2]):
+for i in range(22*45+25, c.data.shape[1] * c.data.shape[2]):
 # for i in range(1458, c.data.shape[1] * c.data.shape[2]):
     x = i % c.data.shape[2]
     y = i // c.data.shape[2]
@@ -26,11 +26,11 @@ for i in range(23*20+11, c.data.shape[1] * c.data.shape[2]):
     # s = SpectrumCO(c.data[:,y,x], c.header, peak_prominence=0.2, peak_minimum_distance=6, peak_width=2,
     #                initial_guesses_binning=2, max_residue_sigmas=5, initial_guesses_maximum_gaussian_stddev=7)
     """ Parameters for N4 """
-    # s = SpectrumCO(c.data[:,y,x], c.header, peak_prominence=0.2, peak_minimum_distance=6, peak_width=2,
-    #                initial_guesses_binning=2, max_residue_sigmas=5, initial_guesses_maximum_gaussian_stddev=7)
-    """ Parameters for p """
-    s = SpectrumCO(c.data[:,y,x], c.header, peak_prominence=0.4, peak_minimum_distance=6, peak_width=2.5,
+    s = SpectrumCO(c.data[:,y,x], c.header, peak_prominence=0.2, peak_minimum_distance=6, peak_width=2,
                    initial_guesses_binning=2, max_residue_sigmas=5, initial_guesses_maximum_gaussian_stddev=7)
+    """ Parameters for p """
+    # s = SpectrumCO(c.data[:,y,x], c.header, peak_prominence=0.4, peak_minimum_distance=6, peak_width=2.5,
+    #                initial_guesses_binning=2, max_residue_sigmas=5, initial_guesses_maximum_gaussian_stddev=7)
     if not np.isnan(s.data).all():
         s.fit()
 
