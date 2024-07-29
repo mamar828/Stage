@@ -1,6 +1,7 @@
 from __future__ import annotations
 from astropy.io import fits
 from copy import deepcopy
+from numpy import cos, radians
 from eztcolors import Colors as C
 
 
@@ -242,7 +243,13 @@ class Header(fits.Header):
             Coordinate closest to the specified value.
         """
         h_axis = self._h_axis(axis)
-        frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
+        if self[f"CTYPE{h_axis}"] == "RA---GLS":
+            DEC_axis = list(self.keys())[list(self.values()).index("DEC--GLS")][5:]
+            frame_number = (value - self[f"CRVAL{h_axis}"]) \
+                         / (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
+                         + self[f"CRPIX{h_axis}"]
+        else:
+            frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
         rounded_frame = round(frame_number)
         return rounded_frame
 
@@ -264,5 +271,11 @@ class Header(fits.Header):
             Value at the given coordinate.
         """
         h_axis = self._h_axis(axis)
-        value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
+        if self[f"CTYPE{h_axis}"] == "RA---GLS":
+            DEC_axis = list(self.keys())[list(self.values()).index("DEC--GLS")][5:]
+            value = (coordinate - self[f"CRPIX{h_axis}"]) \
+                  * (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
+                  + self[f"CRVAL{h_axis}"]
+        else:
+            value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
         return value
