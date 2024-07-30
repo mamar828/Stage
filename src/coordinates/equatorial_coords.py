@@ -55,7 +55,7 @@ class RA(Coord):
         hours = int(total_seconds // 3600)
         minutes = int((total_seconds % 3600) / 3600 * 60)
         seconds = total_seconds - hours * 3600 - minutes * 60
-        return f"{hours}:{minutes:02d}:{seconds:02.3f}"
+        return f"{hours}:{minutes:02d}:{seconds:06.3f}"
 
 
 
@@ -95,4 +95,4 @@ class DEC(Coord):
         whole_degrees = int(self.degrees)
         minutes = int((self.degrees % 1) * 60)
         seconds = ((self.degrees % 1) * 60 - minutes) * 60
-        return f"{whole_degrees}:{minutes:02d}:{seconds:02.3f}"
+        return f"{whole_degrees}:{minutes:02d}:{seconds:06.3f}"
