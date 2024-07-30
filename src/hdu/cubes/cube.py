@@ -29,7 +29,7 @@ class Cube(FitsFile):
         header : Header, default=None
             The header of the Cube.
         """
-        self.data = data
+        self.data = Array3D(data)
         self.header = header
 
     def __eq__(self, other):
