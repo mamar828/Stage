@@ -1,4 +1,5 @@
 import numpy as np
+from graphinglib import Heatmap
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.animation import FuncAnimation
@@ -13,7 +14,25 @@ class Array3D(Array):
     Encapsulates the methods specific to three-dimensional arrays.
     """
 
-    def plot(self, fig: Figure, ax: Axes, **kwargs) -> FuncAnimation:
+    @property
+    def plot(self) -> Heatmap:
+        """
+        Gives the plot of the Array3D's first slice with a Heatmap.
+
+        Returns
+        -------
+        heatmap : Heatmap
+            Plotted Array3D
+        """
+        heatmap = Heatmap(
+            image=self[0,:,:],
+            show_color_bar=True,
+            color_map="viridis",
+            origin_position="lower"
+        )
+        return heatmap
+
+    def plot_mpl(self, fig: Figure, ax: Axes, **kwargs) -> FuncAnimation:
         """
         Plots an Array3D onto an axis.
         Note that the returned object needs to be assigned to a variable to stay alive.
