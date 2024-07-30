@@ -227,7 +227,8 @@ class Header(fits.Header):
 
     def get_coordinate(self, value: float, axis: int=0) -> int:
         """
-        Gives the coordinate closest to the specified value, along the given axis.
+        Gives the coordinate closest to the specified value, along the given axis. Currently supported projections are
+        the Global Sinusoidal projection (GLS) and the cartesian projection (CAR).
         
         Parameters
         ----------
@@ -248,14 +249,15 @@ class Header(fits.Header):
             frame_number = (value - self[f"CRVAL{h_axis}"]) \
                          / (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
                          + self[f"CRPIX{h_axis}"]
-        else:
+        elif self[f"CTYPE{h_axis}"][-3:] == "CAR":
             frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
         rounded_frame = round(frame_number)
         return rounded_frame
 
     def get_value(self, coordinate: int, axis: int=0) -> float:
         """
-        Gives the value associated with the specified coordinate, along the given axis.
+        Gives the value associated with the specified coordinate, along the given axis. Currently supported projections
+        are the Global Sinusoidal projection (GLS) and the cartesian projection (CAR).
         
         Parameters
         ----------
@@ -276,6 +278,6 @@ class Header(fits.Header):
             value = (coordinate - self[f"CRPIX{h_axis}"]) \
                   * (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
                   + self[f"CRVAL{h_axis}"]
-        else:
+        elif self[f"CTYPE{h_axis}"][-3:] == "CAR":
             value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
         return value
