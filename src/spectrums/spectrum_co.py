@@ -25,8 +25,10 @@ class SpectrumCO(Spectrum):
             peak_width: int=3,
             noise_channels: slice=slice(0,100),
             initial_guesses_binning: int=1,
-            max_residue_sigmas: int=5,
-            initial_guesses_maximum_gaussian_stddev: float=7
+            max_residue_sigmas: float=5,
+            stddev_detection_threshold: float = 0.5,
+            initial_guesses_maximum_gaussian_stddev: float=7,
+            initial_guesses_minimum_gaussian_stddev: float=1,
     ):
         """
         Initializes a SpectrumCO object with a certain header, whose spectral information will be taken.
@@ -51,12 +53,18 @@ class SpectrumCO(Spectrum):
         initial_guesses_binning : int, default=1
             Factor by which to bin the data to find the initial guesses. If kept at 1, the initial guesses are found
             with the raw data.
-        max_residue_sigmas : int, default=6
+        max_residue_sigmas : float, default=6
             Minimum residue signal, in sigmas, at which the fit will not be marked as well fitted. This is used to refit
             abnormal spectrums.
+        stddev_detection_threshold : float, default=0.5
+            Vertical distance between the half maximum and the spectrum below which the spectrum points will be
+            considered for stddev estimation.
         initial_guesses_maximum_gaussian_stddev : float, default=7
             Maximum accepted stddev for the initial guess of each gaussian. This places an upper limit on the stddev the
-            algorithm can detetect.
+            algorithm can detect.
+        initial_guesses_maximum_gaussian_stddev : float, default=1
+            Minimum accepted stddev for the initial guess of each gaussian. This places a lower limit on the stddev the
+            algorithm can detect.
         """
         super().__init__(data, header)
         self.PEAK_PROMINENCE = peak_prominence
@@ -66,32 +74,25 @@ class SpectrumCO(Spectrum):
         self.NOISE_CHANNELS = noise_channels
         self.INITIAL_GUESSES_BINNING = initial_guesses_binning
         self.MAX_RESIDUE_SIGMAS = max_residue_sigmas
-        self.STDDEV_DETECTION_THRESHOLD = 0.5   # defines the half distance threshold when trying to guess stddevs
+        self.STDDEV_DETECTION_THRESHOLD = stddev_detection_threshold
         self.RESIDUE_RATIO_AMPLITUDE_MODIFIER = 1.1 # defines the amount by which the maximum residue peak will be
         # shifted when given as an initial guess when refitting, which accounts for the fitting algorithm's broadness
         self.INITIAL_GUESSES_MAXIMUM_GAUSSIAN_STDDEV = initial_guesses_maximum_gaussian_stddev
+        self.INITIAL_GUESSES_MINIMUM_GAUSSIAN_STDDEV = initial_guesses_minimum_gaussian_stddev
 
     @property
     def y_threshold(self):
-        noise_channels = slice(self.NOISE_CHANNELS.start // self.INITIAL_GUESSES_BINNING,
-                               self.NOISE_CHANNELS.stop // self.INITIAL_GUESSES_BINNING)
-        return float(np.std(self.data[noise_channels]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
+        return float(np.std(self.data[self.NOISE_CHANNELS]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
 
-    def fit(self, parameter_bounds: dict={}) -> models:
+    def fit(self, parameter_bounds: dict={}):
         """
         Fits the Spectrum using specutils. This method presupposes the existence of a double peak.
 
         Parameters
         ----------
         parameter_bounds : dict
-            Bounds of each gaussian (numbered keys) and corresponding dictionary of bounded parameters. For example,
-            parameter_bounds = {0 : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}}. A default
-            dictionary will always be given for some parameters, if unspecified.
-
-        Returns
-        -------
-        fitted function : astropy.modeling.core.CompoundModel
-            Model of the fitted distribution using two gaussian functions.
+            Bounds of every parameter for every gaussian. 
+            Example : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}.
         """
         default_parameter_bounds = {
             "amplitude" : (0, 100)*u.Jy,
@@ -99,7 +100,7 @@ class SpectrumCO(Spectrum):
             "mean" : (0, len(self))*u.um    
         }
 
-        return super().fit(default_parameter_bounds | parameter_bounds)
+        super().fit(default_parameter_bounds | parameter_bounds)
 
     def get_initial_guesses(self) -> dict:
         """
@@ -116,6 +117,7 @@ class SpectrumCO(Spectrum):
             data = s.data
         else:
             data = self.data
+
 
         peaks = find_peaks(
             data,
@@ -140,6 +142,7 @@ class SpectrumCO(Spectrum):
                     "stddev" : 7.2      # value chosen from the mean of multiple successful fits
                 }
 
+            max_ig, min_ig = self.INITIAL_GUESSES_MAXIMUM_GAUSSIAN_STDDEV, self.INITIAL_GUESSES_MINIMUM_GAUSSIAN_STDDEV
             for i in range(len(peaks[0])):
                 # The FWHM is estimated to be given as a stddev estimate
                 # The estimated intersection at half maximum is calculated
@@ -147,13 +150,12 @@ class SpectrumCO(Spectrum):
                 lower_half_width = np.argmax(np.flip(intersects[:peaks[0][i] + 1], axis=0))
                 upper_half_width = np.argmax(intersects[peaks[0][i]:])
                 stddev = min(lower_half_width, upper_half_width) / (np.sqrt(2*np.log(2)))
-                print(lower_half_width, peaks[0][i], upper_half_width)
 
                 # + 1 accounts for the fact that scipy uses 0-based indexing and headers/ds9 use 1-based indexing
                 self.initial_guesses[i] = {
                     "mean" : peaks[0][i] + 1,
                     "amplitude" : peaks[1]["peak_heights"][i],
-                    "stddev" : min(self.INITIAL_GUESSES_MAXIMUM_GAUSSIAN_STDDEV, stddev)
+                    "stddev" : min(max_ig, max(min_ig, stddev))
                 }
             
             return self.initial_guesses

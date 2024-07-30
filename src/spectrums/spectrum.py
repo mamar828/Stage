@@ -44,7 +44,7 @@ class Spectrum:
 
     def setattrs(self, attributes: dict):
         for key, value in attributes.items():
-            setattr(self, key, value)
+            setattr(self, key.upper(), value)
 
     @staticmethod
     def fit_needed(func):
@@ -93,7 +93,7 @@ class Spectrum:
             True if the fit succeeded, False otherwise.
         """
         fit_state = True if self.fitted_function is not None else False
-        return fit_state
+        return fit_state and not self.fit_results.empty
 
     @property
     def plot(self) -> Curve:
@@ -251,10 +251,9 @@ class Spectrum:
         Parameters
         ----------
         parameter_bounds : dict
-            Bounds of each gaussian (numbered keys) and corresponding dictionary of bounded parameters. For example,
-            parameter_bounds = {0 : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}}.
+            Bounds of every parameter for every gaussian. 
+            Example : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}.
         """
-        
         initial_guesses = self.get_initial_guesses()
         if initial_guesses:
             spectrum = Spectrum1D(flux=self.data*u.Jy, spectral_axis=self.x_values*u.um)
@@ -268,7 +267,7 @@ class Spectrum:
             ]
             self.fitted_function = fit_lines(
                 spectrum,
-                sum(gaussians, models.Gaussian1D(amplitude=0, mean=0, stddev=0)),       # Null element is needed for sum
+                sum(gaussians, models.Gaussian1D(amplitude=0, mean=0, stddev=0)), # Null element is needed to init sum
                 fitter=fitting.LMLSQFitter(calc_uncertainties=True),
                 get_fit_info=True,
                 maxiter=int(1e4)
