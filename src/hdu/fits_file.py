@@ -30,15 +30,19 @@ class FitsFile:
         """
         try:
             hdu_list.writeto(filename, overwrite=overwrite, output_verify="warn")
-        except OSError:
-            while True:
-                decision = input(f"{C.RED}{filename} already exists, do you wish to overwrite it? [y/n]{C.END}")
-                if decision.lower() == "y":
-                    hdu_list.writeto(filename, overwrite=True, output_verify="warn")
-                    print(f"{C.LIGHT_GREEN}File overwritten.{C.END}")
-                    break
-                elif decision.lower() == "n":
-                    break
+        except OSError as exception:
+            # Only catch exceptions related to an already existing file
+            if isinstance(exception.args[0], str) and exception.args[0][-31:] == " the argument \"overwrite=True\".":
+                while True:
+                    decision = input(f"{C.RED}{filename} already exists, do you wish to overwrite it? [y/n]{C.END}")
+                    if decision.lower() == "y":
+                        hdu_list.writeto(filename, overwrite=True, output_verify="warn")
+                        print(f"{C.LIGHT_GREEN}File overwritten.{C.END}")
+                        break
+                    elif decision.lower() == "n":
+                        break
+            else:
+                raise exception
 
     @staticmethod
     def silence_function(func):
