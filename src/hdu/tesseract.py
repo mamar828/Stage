@@ -185,6 +185,8 @@ class Tesseract(FitsFile):
                     )
                 )
 
+        if not spectrum_individual_gaussians:
+            raise KeyError(f"There is no successful fit at the given coordinates.")
         spectrum_total = sum(spectrum_individual_gaussians)
         spectrum_total.label = "Sum"
         return spectrum_plot, *spectrum_individual_gaussians, spectrum_total
