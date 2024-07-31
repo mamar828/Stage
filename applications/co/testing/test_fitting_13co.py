@@ -9,7 +9,8 @@ from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.cubes.cube_co import CubeCO
 
 
-cube = CubeCO.load("data/Loop4_co/N1/13co/Loop4N1_13co.fits")[500:800,:,:]
+# cube = CubeCO.load("data/Loop4_co/N1/13co/Loop4N1_13co.fits")[500:800,:,:]
+cube = CubeCO.load("data/Loop4_co/N2/13co/Loop4N2_13co.fits")[3200:4000,:,:]
 
 for y, map_ in enumerate(cube):
     for x, spectrum in enumerate(map_):
@@ -20,10 +21,10 @@ for y, map_ in enumerate(cube):
 
             spectrum.setattrs({
                 "PEAK_PROMINENCE" : 0.2,
-                "PEAK_MINIMUM_HEIGHT_SIGMAS" : 4,
-                "PEAK_MINIMUM_DISTANCE" : 6,
+                "PEAK_MINIMUM_HEIGHT_SIGMAS" : 3,
+                "PEAK_MINIMUM_DISTANCE" : 200,  # Force a single component
                 "PEAK_WIDTH" : 3,
-                "NOISE_CHANNELS" : slice(0,150),
+                "NOISE_CHANNELS" : slice(0,600),
                 "INITIAL_GUESSES_BINNING" : 2,
                 "MAX_RESIDUE_SIGMAS" : 100,
                 "STDDEV_DETECTION_THRESHOLD" : 0.1,
@@ -32,7 +33,7 @@ for y, map_ in enumerate(cube):
             })
             spectrum.fit()
             
-            fig1 = gl.Figure()
+            fig1 = gl.Figure(x_lim=(600, 800))
             fig1.add_elements(spectrum.plot)
             fig2 = gl.Figure()
 
