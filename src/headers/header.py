@@ -20,7 +20,7 @@ class Header(fits.Header):
         keys_equal = list(self.keys()) == list(other.keys())
 
         for key, value in self.items():
-            if value != other[key]:
+            if value != other[key] and key != "COMMENT":
                 values_equal = False
                 break
         else:
@@ -71,6 +71,8 @@ class Header(fits.Header):
                 header_copy[f"CDELT{h_ax}"] *= bin_
             if f"CRPIX{h_ax}" in list(self.keys()):
                 header_copy[f"CRPIX{h_ax}"] = (self[f"CRPIX{h_ax}"] - 0.5) / bin_ + 0.5
+            if f"NAXIS{h_ax}" in list(self.keys()):
+                header_copy[f"NAXIS{h_ax}"] = self[f"NAXIS{h_ax}"] // bin_
         
         return header_copy
 

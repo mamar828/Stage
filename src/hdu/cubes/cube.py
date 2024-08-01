@@ -108,13 +108,13 @@ class Cube(FitsFile):
         Parameters
         ----------
         bins : tuple[int, int, int]
-            Number of pixels to be binned together along each axis (1-3). A value of 1 results in the axis not being
-            binned. The axes are in the order z, y, x.
+            Number of pixels to be binned together along each axis. A value of 1 results in the axis not being binned.
+            The axes are in the order z, y, x.
         ignore_nans : bool, default=False
             Whether to ignore the nan values in the process of binning. If no nan values are present, this parameter is
             obsolete. If False, the function np.mean is used for binning whereas np.nanmean is used if True. If the nans
             are ignored, the cube might increase in size as pixels will take the place of nans. If the nans are not
-            ignored, the cube might decrease in size as every new pixel that contains a nan will be made a nan also.
+            ignored, the cube might decrease in size as every new pixel that contained a nan will be made a nan also.
 
         Returns
         -------
@@ -129,18 +129,22 @@ class Cube(FitsFile):
             func = np.mean
 
         cropped_pixels = np.array(self.data.shape) % np.array(bins)
-        data_copy = self.data[:self.data.shape[0] - cropped_pixels[0],
-                              :self.data.shape[1] - cropped_pixels[1], 
-                              :self.data.shape[2] - cropped_pixels[2]]
+        new_data = self.data[:self.data.shape[0] - cropped_pixels[0],
+                             :self.data.shape[1] - cropped_pixels[1], 
+                             :self.data.shape[2] - cropped_pixels[2]]
 
         for ax, b in enumerate(bins):
             if b != 1:
-                indices = list(data_copy.shape)
-                indices[ax:ax+1] = [data_copy.shape[ax] // b, b]
-                reshaped_data = data_copy.reshape(indices)
-                data_copy = func(reshaped_data, axis=ax+1)
+                indices = list(new_data.shape)
+                indices[ax:ax+1] = [new_data.shape[ax] // b, b]
+                reshaped_data = new_data.reshape(indices)
+                new_data = func(reshaped_data, axis=ax+1)
 
-        return self.__class__(data_copy, self.header.bin(bins))
+        if self.header:
+            new_header = self.header.bin(bins)
+        else:
+            new_header = None
+        return self.__class__(new_data, new_header)
 
     def invert_axis(self, axis: int) -> Cube:
         """

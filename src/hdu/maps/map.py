@@ -218,6 +218,51 @@ class Map(FitsFile, MathematicalObject):
         assert self.shape == other.shape, \
             f"{C.LIGHT_RED}Both Maps should have the same shapes. Current are {self.shape} and {other.shape}.{C.END}"
         
+    def bin(self, bins: tuple[int, int], ignore_nans: bool=False) -> Map:
+        """
+        Bins a Map.
+
+        Parameters
+        ----------
+        bins : tupleint, int]
+            Number of pixels to be binned together along each axis. A value of 1 results in the axis not being
+            binned. The axes are in the order y, x.
+        ignore_nans : bool, default=False
+            Whether to ignore the nan values in the process of binning. If no nan values are present, this parameter is
+            obsolete. If False, the function np.mean is used for binning whereas np.nanmean is used if True. If the nans
+            are ignored, the map might increase in size as pixels will take the place of nans. If the nans are not
+            ignored, the map might decrease in size as every new pixel that contained a nan will be made a nan also.
+
+        Returns
+        -------
+        map : Map
+            Binned Map.
+        """
+        assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
+            f"{C.LIGHT_RED}All values in bins must be integers greater than or equal to 1.{C.END}"
+        if ignore_nans:
+            func = np.nanmean
+        else:
+            func = np.mean
+
+        cropped_pixels = np.array(self.data.shape) % np.array(bins)
+        new_data = self.data[:self.data.shape[0] - cropped_pixels[0],
+                              :self.data.shape[1] - cropped_pixels[1]]
+
+        for ax, b in enumerate(bins):
+            if b != 1:
+                indices = list(new_data.shape)
+                indices[ax:ax+1] = [new_data.shape[ax] // b, b]
+                reshaped_data = new_data.reshape(indices)
+                new_data = func(reshaped_data, axis=ax+1)
+        
+        if self.header:
+            new_header = self.header.bin(bins)
+        else:
+            new_header = None
+
+        return self.__class__(new_data, new_header)
+
     @FitsFile.silence_function
     def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
         """
