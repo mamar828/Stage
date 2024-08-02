@@ -38,6 +38,8 @@ class Cube(FitsFile):
         return same_array and same_header
 
     def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map | MapCO | Cube:
+        if not all([isinstance(s, (int, slice)) for s in slices]):
+            raise TypeError(f"{C.LIGHT_RED}Every slice element must be an int or a slice.{C.END}")
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
             map_header = self.header.flatten(axis=int_slices.index(True))

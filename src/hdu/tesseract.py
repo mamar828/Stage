@@ -6,7 +6,6 @@ from collections import namedtuple
 from astropy.io import fits
 from astropy.modeling.models import Gaussian1D
 import astropy.units as u
-from typing import Any
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
@@ -64,6 +63,24 @@ class Tesseract(FitsFile):
         return cls(cls.swapaxes(cls.rectangularize(data)), header)
 
     def __setitem__(self, slice_: tuple[slice | int], value: float | np.ndarray):
+        """
+        Sets the parameters of a certain fitted gaussian at a specified pixel. Can also be used to remove entirely a
+        gaussian by setting it to np.NAN.
+
+        Parameters
+        ----------
+        slice_ : tuple[slice | int]
+            Three element tuple specifying where the values should be placed. The three elements refer respectively to
+            the gaussian function number [0,N[ where N is the number of fitted gaussians in the Tesseract, the y
+            coordinate and the x coordinate.
+        value : float | np.ndarray
+            Value to place at the given slice. If value is a float, then all the gaussian parameters for the specified
+            gaussian function number will be set to this value. This is especially useful for setting a gaussian to NAN.
+            If value is a np.ndarray, then it must contain a multiple of six elements which will attribute the six
+            values to the gaussian parameters.
+            Note : the setting of an individual gaussian at a time is encouraged to facilitate manipulations of
+            dimensions.
+        """
         assert len(slice_) == 3, f"{C.LIGHT_RED}slice_ must have 3 elements; current length is {len(slice_)}.{C.END}"
         assert (isinstance(value, float) and np.isnan(value)) or value.shape == (6,), \
             f"{C.LIGHT_RED}value must be np.NAN or a six elements array.{C.END}"
@@ -71,7 +88,6 @@ class Tesseract(FitsFile):
             self.data.__setitem__((slice(None,None),*slice_), np.full(6, value))
         else:
             self.data.__setitem__((slice(None,None),*slice_), value)
-        # self.data[(slice(None,None),*slice_)] = value
 
     @classmethod
     def load(cls, filename: str) -> Tesseract:
