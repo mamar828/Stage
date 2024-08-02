@@ -18,7 +18,7 @@ cube = CubeCO.load("data/Loop4_co/p/13co/Loop4p_13co.fits")[400:800,:,:]
 for i in range(0, cube.data.size // 400):
     y, x = np.unravel_index(i, cube.data.shape[1:])
     spectrum = cube[:,int(y),int(x)]
-    if not spectrum.isnan():
+    if not spectrum.isnan:
         print(f"\ni = {i}")
         fig = gl.Figure(figure_style="dim", title=f"({x+1},{y+1})")
 

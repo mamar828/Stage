@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from graphinglib import Curve, Scatter, Figure, MultiFigure
+from graphinglib import Curve, Scatter, Figure, MultiFigure, FitFromPolynomial
 import pandas as pd
 from copy import deepcopy
 from astropy import units as u
@@ -39,6 +39,7 @@ class Spectrum:
     def copy(self) -> Spectrum:
         return deepcopy(self)
     
+    @property
     def isnan(self) -> bool:
         return np.all(np.isnan(self.data))
 
@@ -274,6 +275,22 @@ class Spectrum:
             )
             self._store_fit_results()
     
+    def polyfit(self, degree: int=3) -> FitFromPolynomial:
+        """
+        Fits the spectrum using a polynomial of a given degree. This method is used for correcting continuum shifts.
+
+        Parameters
+        ----------
+        degree : int, optional
+            Degree of the polynomial to fit. Defaults to 3.
+
+        Returns
+        -------
+        polyfit_function : FitFromPolynomial
+            Fitted polynomial function in the form of a FitFromPolynomial.
+        """
+        return FitFromPolynomial(self.plot, degree)
+
     def _store_fit_results(self):
         """
         Stores the results of the fit in the fit_results variable in the forme of a DataFrame.
