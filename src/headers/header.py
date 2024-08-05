@@ -251,8 +251,10 @@ class Header(fits.Header):
             frame_number = (value - self[f"CRVAL{h_axis}"]) \
                          / (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
                          + self[f"CRPIX{h_axis}"]
-        elif self[f"CTYPE{h_axis}"][-3:] == "CAR":
+        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR"]:
             frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
+        else:
+            raise NotImplementedError(C.LIGHT_RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.END)
         rounded_frame = round(frame_number)
         return rounded_frame
 
@@ -280,6 +282,8 @@ class Header(fits.Header):
             value = (coordinate - self[f"CRPIX{h_axis}"]) \
                   * (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
                   + self[f"CRVAL{h_axis}"]
-        elif self[f"CTYPE{h_axis}"][-3:] == "CAR":
+        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR"]:
             value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
+        else:
+            raise NotImplementedError(C.LIGHT_RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.END)
         return value
