@@ -249,7 +249,7 @@ class Tesseract(FitsFile):
 
         new_header = self.header.copy()
         for i in range(self.header["NAXIS"] - 2):
-            new_header = self.header.flatten(axis=0)
+            new_header = new_header.flatten(axis=0)
 
         for i, name in zip(range(0, 6, 2), names):
             for j in range(np.shape(self.data)[1]):

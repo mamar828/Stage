@@ -62,14 +62,14 @@ class CubeCO(Cube):
                 progressbar.update(1)
             # results is now a list of [y_shape, x_shape, (chi2, fit_results)]
 
+        flattened_header = self.header.flatten(0)
         results_array = ak.Array(results)
         chi2_array = Map(
             data=Array2D(results_array[:,:,0,0,0]),
-            header=self.header
+            header=flattened_header
         )
 
-        tesseract_header = self.header.copy()
-        tesseract_header = tesseract_header.remove_axis(0)
+        tesseract_header = flattened_header.copy()
         tesseract_header["CTYPE3"] = "gaussian function index"
         tesseract_header["CTYPE4"] = "amplitude + unc., mean + unc., stddev + unc."
 
