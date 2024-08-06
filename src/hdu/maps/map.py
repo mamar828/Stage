@@ -121,6 +121,13 @@ class Map(FitsFile, MathematicalObject):
         else:
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.END}")
+        
+    def __abs__(self):
+        return self.__class__(
+            np.abs(self.data),
+            self.uncertainties,
+            self.header
+        )
 
     def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
@@ -262,6 +269,37 @@ class Map(FitsFile, MathematicalObject):
             new_header = None
 
         return self.__class__(new_data, new_header)
+    
+    def log(self) -> Self:
+        """
+        Computes the natural logarithm of the Map.
+
+        Returns
+        -------
+        map : Map
+            ln(self), with uncertainties.
+        """
+        return self.__class__(
+            np.log(self.data),
+            self.uncertainties / self.data,
+            self.header
+        )
+    
+    def exp(self) -> Self:
+        """
+        Computes the exponent of the Map.
+
+        Returns
+        -------
+        map : Map
+            e**(self), with uncertainties.
+        """
+        exp_data = np.exp(self.data)
+        return self.__class__(
+            exp_data,
+            exp_data * self.uncertainties,
+            self.header
+        )
 
     @FitsFile.silence_function
     def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
