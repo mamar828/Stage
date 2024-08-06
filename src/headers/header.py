@@ -78,7 +78,8 @@ class Header(fits.Header):
 
     def flatten(self, axis: int) -> Header:
         """
-        Flattens a Header by removing an axis.
+        Flattens a Header by removing an axis. The remaining axes are placed so they stay coherent (start at 1 and
+        increment by constant steps of 1). This method is safer than the _remove_axis method.
 
         Parameters
         ----------
@@ -92,23 +93,48 @@ class Header(fits.Header):
         """
         new_header = self.copy()
         for i in range(axis):
-            # Swap axes to place the axis to remove at indice 0 (NAXIS3)
+            # Swap axes to place the axis to remove at indice 0
             new_header = new_header.swap_axes(axis - i - 1, axis - i)
 
         # Erase the axis
-        new_header = new_header.remove_axis(0)
+        new_header = new_header._remove_axis(0)
 
         return new_header
 
+    def _remove_axis(self, axis: int) -> Header:
+        """
+        Removes an axis from a Header. The remaining axes are not moved so incoherent headers, without certain axes, may
+        occur (e.g. AXIS1 and AXIS3, but no AXIS2). The flatten method is safer to use than this one.
+
+        Parameters
+        ----------
+        axis : int
+            Axis to remove.
+
+        Returns
+        -------
+        header : Header
+            Header with the removed axis.
+        """
+        new_header = self.copy()
+        h_axis = str(self._h_axis(axis))
+        for key in deepcopy(list(new_header.keys())):
+            if key[-1] == h_axis:
+                new_header.pop(key)
+        
+        new_header["NAXIS"] -= 1
+
+        return new_header
+    
     def swap_axes(self, axis_1: int, axis_2: int) -> Header:
         """
         Switches a Header's axes to fit a FitsFile object with swapped axes.
         
         Parameters
         ----------
-        axis_1: int
+        axis_1 : int
             Source axis.
-        axis_2: int
+        axis_2 : int
             Destination axis.
         
         Returns
@@ -180,30 +206,6 @@ class Header(fits.Header):
 
         return new_header
     
-    def remove_axis(self, axis: int) -> Header:
-        """
-        Removes an axis from a Header.
-
-        Parameters
-        ----------
-        axis : int
-            Axis to remove.
-
-        Returns
-        -------
-        header : Header
-            Header with the removed axis.
-        """
-        new_header = self.copy()
-        h_axis = str(self._h_axis(axis))
-        for key in deepcopy(list(new_header.keys())):
-            if key[-1] == h_axis:
-                new_header.pop(key)
-        
-        new_header["NAXIS"] -= 1
-
-        return new_header
-    
     def concatenate(self, other: Header, axis: int) -> Header:
         """
         Concatenates two headers along an axis. The Header closest to the origin should be the one to call this method.
@@ -251,7 +253,7 @@ class Header(fits.Header):
             frame_number = (value - self[f"CRVAL{h_axis}"]) \
                          / (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
                          + self[f"CRPIX{h_axis}"]
-        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR"]:
+        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR", "    "]:
             frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
         else:
             raise NotImplementedError(C.LIGHT_RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.END)
@@ -282,7 +284,7 @@ class Header(fits.Header):
             value = (coordinate - self[f"CRPIX{h_axis}"]) \
                   * (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
                   + self[f"CRVAL{h_axis}"]
-        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR"]:
+        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR", "    "]:
             value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
         else:
             raise NotImplementedError(C.LIGHT_RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.END)
