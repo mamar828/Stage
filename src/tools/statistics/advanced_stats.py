@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.statistics.stats_library.advanced_stats import acr_func_1d_cpp, acr_func_2d_cpp, str_func_cpp, increments_cpp
+from src.tools.statistics.stats_library.advanced_stats import acr_func_1d_cpp, acr_func_2d_cpp, str_func_cpp, increments_cpp
 
 def autocorrelation_function(data: np.ndarray) -> np.ndarray:
     """

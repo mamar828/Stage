@@ -41,7 +41,7 @@ class MathematicalObject:
         self = self.__pow__(other)
         return self
 
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
         if method == '__call__':
             if ufunc is np.log:
                 return self.log()
@@ -51,5 +51,5 @@ class MathematicalObject:
                 return self.__abs__()
             else:
                 raise NotImplementedError(f"the ufunc {ufunc} is not implemented.")
-                # return ufunc(*inputs, **kwargs)
+                # return ufunc(*args, **kwargs)
         return NotImplemented
