@@ -45,8 +45,11 @@ def get_13co_column_density(
     """
     µ = 0.112           # taken from https://nvlpubs.nist.gov/nistpubs/Legacy/NSRDS/nbsnsrds10.pdf
     nu = 110.20e9       # taken from https://tinyurl.com/23e45pj3
+    print(fwhm_13co[19,27])
+    print(kinetic_temperature_13co[19,27])
+    print(kinetic_temperature_12co[19,27])
     column_density = (
         3 * scipy.constants.h * fwhm_13co * kinetic_temperature_13co 
         / (4 * np.pi**3 * μ**2 * (1 - np.exp(- scipy.constants.h*nu / (scipy.constants.k*kinetic_temperature_12co))))
-    )
+    ) * 1e48
     return column_density
