@@ -180,8 +180,11 @@ class Map(FitsFile, MathematicalObject):
         hdu_list = fits.open(filename)
         data = Array2D(hdu_list[0].data)
         uncertainties = np.NAN
-        if len(hdu_list) == 2:
+        if len(hdu_list) > 1:
             uncertainties = Array2D(hdu_list[1].data)
+        if len(hdu_list) > 2:
+            print(f"{C.BROWN}Warning: the given file {filename} contains more than two HDU elements. Only the first"
+                 +f" two will be opened.{C.END}")
         return cls(data, uncertainties, Header(hdu_list[0].header))
     
     @property
@@ -351,7 +354,7 @@ class Map(FitsFile, MathematicalObject):
             "median": np.nanmedian(uncertainties_array),
             "mean": np.nanmean(uncertainties_array),
             "nbpixels": np.count_nonzero(~np.isnan(reg_map.data)),
-            "stddev": np.nanstd(reg_map.data),
+            "stddev": float(np.nanstd(reg_map.data)),
             "skewness": scipy.stats.skew(reg_map.data, axis=None, nan_policy="omit"),
             "kurtosis": scipy.stats.kurtosis(reg_map.data, axis=None, nan_policy="omit")
         }

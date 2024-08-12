@@ -39,10 +39,10 @@ class Array2D(Array):
         dict: statistics of the region. Every key is a statistic measure.
         """
         stats =  {
-            "median": np.nanmedian(self),
-            "mean": np.nanmean(self),
+            "median": float(np.nanmedian(self)),
+            "mean": float(np.nanmean(self)),
             "nbpixels": np.count_nonzero(~np.isnan(self)),
-            "stddev": np.nanstd(self),
+            "stddev": float(np.nanstd(self)),
             "skewness": scipy.stats.skew(self, axis=None, nan_policy="omit"),
             "kurtosis": scipy.stats.kurtosis(self, axis=None, nan_policy="omit")
         }
