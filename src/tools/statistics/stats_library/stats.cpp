@@ -148,7 +148,6 @@ double variance(const vector<vector<double>>& vals)
                                                            inner_acc.second + 1);}
             );
             return make_pair(inner_result.first, inner_result.second);
-            // return make_pair(inner_result.first, acc.second + inner_result.second);
         }
     );
     return result.first / result.second;

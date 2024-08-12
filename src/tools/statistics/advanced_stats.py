@@ -1,10 +1,13 @@
 import numpy as np
 
-from src.tools.statistics.stats_library.advanced_stats import acr_func_1d_cpp, acr_func_2d_cpp, str_func_cpp, increments_cpp
+from src.tools.statistics.stats_library.advanced_stats import (
+    acr_func_1d_cpp, acr_func_2d_cpp, str_func_cpp, increments_cpp
+)
 
 def autocorrelation_function(data: np.ndarray) -> np.ndarray:
     """
-    Computes the one-dimensional autocorrelation function of a 2D array.
+    Computes the one-dimensional autocorrelation function of a 2D array. The intermediate estimator is used and the
+    values are normalized with the value at zero lag.
 
     Parameters
     ----------
@@ -14,14 +17,15 @@ def autocorrelation_function(data: np.ndarray) -> np.ndarray:
     Returns
     -------
     autocorrelation_function : np.ndarray
-        Two-dimensional array with every group of three elements representing the lag and its corresponding
+        Two-dimensional array with every group of two elements representing the lag and its corresponding
         autocorrelation function and uncertainty.
     """
     return np.array(acr_func_1d_cpp(data))
 
 def autocorrelation_function_2d(data: np.ndarray) -> np.ndarray:
     """
-    Computes the two-dimensional autocorrelation function of a 2D array.
+    Computes the two-dimensional autocorrelation function of a 2D array. The intermediate estimator is used and the
+    values are normalized with the value at zero lag.
 
     Parameters
     ----------
