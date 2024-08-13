@@ -42,12 +42,12 @@ class Cube(FitsFile):
             raise TypeError(f"{C.LIGHT_RED}Every slice element must be an int or a slice.{C.END}")
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
-            map_header = self.header.flatten(axis=int_slices.index(True))
+            map_header = self.header.flatten(axis=int_slices.index(True)) if self.header else None
             return self.map_type(data=Array2D(self.data[slices]), header=map_header)
         elif int_slices.count(True) == 2:
             first_int_i = int_slices.index(True)
-            map_header = self.header.flatten(axis=first_int_i)
-            spectrum_header = map_header.flatten(axis=(int_slices.index(True, first_int_i+1)))
+            map_header = self.header.flatten(axis=first_int_i) if self.header else None
+            spectrum_header = map_header.flatten(axis=(int_slices.index(True, first_int_i+1))) if self.header else None
             return self.spectrum_type(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 3:
             return self.data[slices]

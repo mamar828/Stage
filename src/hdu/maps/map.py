@@ -129,10 +129,10 @@ class Map(FitsFile, MathematicalObject):
             self.header
         )
 
-    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map:
+    def __getitem__(self, slices: tuple[slice | int]) -> Array2D | Spectrum | SpectrumCO | Map:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
-            spectrum_header = self.header.flatten(axis=int_slices.index(True))
+            spectrum_header = self.header.flatten(axis=int_slices.index(True)) if self.header else None
             return self.spectrum_type(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 2:
             return self.data[slices]
