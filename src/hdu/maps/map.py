@@ -4,6 +4,7 @@ import pyregion
 from astropy.io import fits
 from eztcolors import Colors as C
 import scipy
+import scipy.special
 from uncertainties import ufloat
 from reproject import reproject_interp
 from typing import Self
@@ -113,9 +114,10 @@ class Map(FitsFile, MathematicalObject):
     
     def __pow__(self, power):
         if isinstance(power, (int, float)) or (isinstance(power, np.ndarray) and power.size == 1):
+            float_data = self.data.astype(float)  # float type solves the integers to negative integer powers ValueError
             return self.__class__(
-                self.data ** power,
-                np.abs(self.uncertainties / self.data * power * self.data**power),
+                float_data ** power, 
+                np.abs(self.uncertainties / self.data * power * float_data**power),
                 self.header
             )
         else:
@@ -301,6 +303,21 @@ class Map(FitsFile, MathematicalObject):
         return self.__class__(
             exp_data,
             exp_data * self.uncertainties,
+            self.header
+        )
+    
+    def erf(self) -> Self:
+        """
+        Computes the error function of the Map
+        
+        Returns
+        -------
+        map : Map
+            erf(self), WITHOUT uncertainties.
+        """
+        return self.__class__(
+            scipy.special.erf(self.data),
+            np.NAN,
             self.header
         )
 
