@@ -1,6 +1,6 @@
 import numpy as np
 import scipy
-import scipy.constants
+import scipy.constants as c
 
 from src.hdu.cubes.cube import Cube
 from src.hdu.maps.map import Map
@@ -30,23 +30,64 @@ def get_kinetic_temperature(
         amplitude_map: Map
 ) -> Map:
     """
-    Computes the kinetic temperature of a given amplitude map.
+    Computes the kinetic temperature of a given amplitude map. Note that the kinetic temperature is assumed to be equal
+    to the excitation temperature.
     """
-    T_kin = 5.53 / np.log(1 + 5.53/(amplitude_map + 0.148))
+    T_kin = 5.532 / np.log(1 + 1 / (amplitude_map/5.532 + 0.151))
     return T_kin
 
-def get_13co_column_density(
-        fwhm_13co: Map,
-        kinetic_temperature_13co: Map,
-        kinetic_temperature_12co: Map,
+def integrate_gaussian(
+        amplitude_map: Map,
+        stddev_map: Map,
 ) -> Map:
     """
-    Computes the 13CO column density from the given FWHM and kinetic temperature maps.
+    Calculates the gaussian's area under the curve from -∞ to ∞.
     """
-    µ = 0.112           # taken from https://nvlpubs.nist.gov/nistpubs/Legacy/NSRDS/nbsnsrds10.pdf
+    # As the error function is odd, the integral is calculated as twice the function evaluated at high x
+    # The fact that the function rapidly converges on a specific value allows for this simplification (for small stddev)
+    high_x = 1000
+    area = 2 * amplitude_map * stddev_map * np.sqrt(np.pi / 2) * scipy.special.erf(high_x / (np.sqrt(2) * stddev_map))
+    return area
+
+def get_13co_column_density(
+        stddev_13co: Map,
+        antenna_temperature_13co: Map,
+        antenna_temperature_12co: Map,
+) -> Map:
+    """
+    Computes the 13CO column density from the given FWHM and temperature maps.
+
+    Parameters
+    ----------
+    stddev_13co : Map
+        Map of the 13CO emission's standard deviation, in km/s.
+    antenna_temperature_13co : Map
+        Map of the 13CO emission's amplitude, which corresponds to the antenna temperature, in K. Note that that the
+        amplitude must first be divided by 0.43 for correction and that this method assumes this correction has already
+        been applied.
+    antenna_temperature_12co : Map
+        Map of the 12CO emission's amplitude, which corresponds to the antenna temperature, in K., which is assumed to
+        be equal to the excitation temperature, in km/s.
+
+    Returns
+    -------
+    column_density : Map
+        Map of the calculated 13CO column density, in cm^{-2}.
+    """
     nu = 110.20e9       # taken from https://tinyurl.com/23e45pj3
-    column_density = (
-        3 * scipy.constants.h * fwhm_13co * kinetic_temperature_13co 
-        / (4 * np.pi**3 * μ**2 * (1 - np.exp(- scipy.constants.h*nu / (scipy.constants.k*kinetic_temperature_12co))))
-    ) * 1e48
+    A_10 = 6.294e-8     # taken from https://home.strw.leidenuniv.nl/~moldata/datafiles/13co.dat
+    g_0 = 2*0+1
+    g_1 = 2*1+1
+    T_rad = 2.725
+    T_x = get_kinetic_temperature(antenna_temperature_12co)
+    column_density = integrate_gaussian(
+        amplitude_map=antenna_temperature_13co,
+        stddev_map=stddev_13co
+    ) * (0.8 * (g_0/(g_1*A_10)) * ((c.pi*c.k*nu**2)/(c.h*c.c**3)) * 
+        1 / (
+            (1 / (np.exp((c.h*nu)/(c.k*T_x))-1)
+           - 1 / (np.exp((c.h*nu)/(c.k*T_rad))-1))
+          * (1 - np.exp(-(c.h*nu)/(c.k*T_x)))
+        )
+    )
     return column_density
