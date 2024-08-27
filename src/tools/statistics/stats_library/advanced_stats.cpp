@@ -46,7 +46,7 @@ vector<vector<double>> autocorrelation_function_1d(vector<vector<double>>& input
     double N_t_sqrt = pow(count_non_nan(input_array), 0.5);
 
     // Find the zero-lag value
-    double zero_lag_value;
+    double zero_lag_value = 0;
     for (const auto& [dist, vals] : regrouped_vals)
     {
         if (dist == 0)
@@ -132,7 +132,7 @@ vector<vector<double>> autocorrelation_function_2d(vector<vector<double>>& input
     double N_t_sqrt = pow(count_non_nan(input_array), 0.5);
 
     // Find the zero-lag value
-    double zero_lag_value;
+    double zero_lag_value = 0;
     for (const auto& [dist, vals] : regrouped_vals)
     {
         if (dist[0] == 0 and dist[1] == 0)
