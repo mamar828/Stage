@@ -270,8 +270,8 @@ class Header(fits.Header):
         coordinate : int
             Coordinate to determine the value. This should be a coordinate in the range of any axis.
         axis : int, default=0
-            Axis along which to get the value at the specified coordinate. The default axis (0) gives the value along a
-            cube's spectral axis.
+            Axis along which to get the value at the specified coordinate. For example, the default axis (0) gives the
+            value along a cube's spectral axis, if the header is associated with a Cube.
 
         Returns
         -------
