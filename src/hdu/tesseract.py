@@ -26,8 +26,8 @@ class Tesseract(FitsFile):
     def __init__(self, data: np.ndarray, header: Header):
         """
         Initializes a Tesseract object. The given data is assumed as such : along the first axis (axis=0) is the
-        parameters of each gaussian used for fitting, along the second axis (axis=1) is the data of each gaussian that
-        was used for fitting a specific pixel and the two last axes represent the image itself (y and x respectively).
+        parameters of each gaussian used for fitting, along the second axis (axis=1) is every gaussian that was used for
+        fitting a specific pixel and the two last axes represent the image itself (y and x respectively).
         Warning : the format of the given data is not the same as in the from_ak_array method.
 
         Parameters
