@@ -9,7 +9,6 @@ class MathematicalObject:
     The methods that need to be implemented in the children class are :
     __add__         __sub__         __mul__         __truediv__
     __pow__         __abs__         log             exp
-    erf
     """
     def __add__(self, other):
         raise NotImplementedError
@@ -67,9 +66,6 @@ class MathematicalObject:
     def exp(self):
         raise NotImplementedError
     
-    def erf(self):
-        raise NotImplementedError
-    
     def __array_ufunc__(self, ufunc, method, *args, **kwargs):
         if method == "__call__":
             if ufunc is np.add:
@@ -86,8 +82,6 @@ class MathematicalObject:
                 return self.exp()
             if ufunc is np.abs:
                 return self.__abs__()
-            if ufunc is scipy.special.erf:
-                return self.erf()
             else:
                 raise NotImplementedError(f"the ufunc {ufunc} is not implemented.")
                 # return ufunc(*args, **kwargs)

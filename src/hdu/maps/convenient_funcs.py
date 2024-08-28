@@ -44,9 +44,8 @@ def integrate_gaussian(
     Calculates the gaussian's area under the curve from -∞ to ∞.
     """
     # As the error function is odd, the integral is calculated as twice the function evaluated at high x
-    # The fact that the function rapidly converges on a specific value allows for this simplification (for small stddev)
-    high_x = 1000
-    area = 2 * amplitude_map * stddev_map * np.sqrt(np.pi / 2) * scipy.special.erf(high_x / (np.sqrt(2) * stddev_map))
+    # The error function converges to 1 for x -> ∞
+    area = 2 * amplitude_map * stddev_map * np.sqrt(np.pi / 2)
     return area
 
 def get_13co_column_density(

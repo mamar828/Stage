@@ -306,21 +306,6 @@ class Map(FitsFile, MathematicalObject):
             self.header
         )
     
-    def erf(self) -> Self:
-        """
-        Computes the error function of the Map
-        
-        Returns
-        -------
-        map : Map
-            erf(self), WITHOUT uncertainties.
-        """
-        return self.__class__(
-            scipy.special.erf(self.data),
-            np.NAN,
-            self.header
-        )
-
     @FitsFile.silence_function
     def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
         """
