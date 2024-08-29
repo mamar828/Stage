@@ -109,6 +109,8 @@ class Tesseract(FitsFile):
             fits_object.data,
             Header(fits_object.header)
         )
+        if len(tesseract.data.shape) != 4:
+            raise TypeError(C.LIGHT_RED+"The provided file is not a Tesseract."+C.END)
         return tesseract
     
     @staticmethod
