@@ -306,6 +306,28 @@ class Map(FitsFile, MathematicalObject):
             self.header
         )
     
+    def num_to_nan(self, num: float=0) -> Self:
+        """
+        Converts a number to np.NAN and change the uncertainties accordingly.
+
+        Parameters
+        ----------
+        num : float, default=0
+            Value to convert to np.NAN.
+
+        Returns
+        -------
+        map : Map
+            Map with converted values to NANs. Note that the mask created for the data is used also for the
+            uncertainties (indices where num was encountered in the data array will also be replaced with NAN in the
+            uncertainties array).
+        """
+        mask = self.data == num
+        map_ = self.copy()
+        map_.data[mask] = np.NAN
+        map_.uncertainties[mask] = np.NAN
+        return map_
+
     @FitsFile.silence_function
     def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
         """
