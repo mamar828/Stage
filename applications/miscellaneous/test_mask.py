@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-from src.regions.mask import Mask
+from tools.mask import Mask
 
 
 mask = Mask(image_shape=(1000, 1000))
