@@ -9,13 +9,22 @@
 
 using namespace std;
 
-PYBIND11_MODULE(advanced_stats, m) {
+PYBIND11_MODULE(advanced_stats, m)
+{
     m.doc() = string("Module that regroups the necessary statistic and analysis tools to compute autocorrelation and ")
             + string("structure functions.");
-    m.def("acr_func_1d_cpp", &autocorrelation_function_1d, 
-          "Compute the one-dimensional autocorrelation function of a two-dimensional array.");
-    m.def("acr_func_2d_cpp", &autocorrelation_function_2d, 
-          "Compute the two-dimensional autocorrelation function of a two-dimensional array.");
+    m.def("acr_func_1d_kleiner_dickman_cpp", &autocorrelation_function_1d_kleiner_dickman, 
+          "Compute the one-dimensional autocorrelation function of a two-dimensional array using the method given by "
+          "Kleiner and Dickman (1984).");
+    m.def("acr_func_1d_boily_cpp", &autocorrelation_function_1d_boily, 
+          "Compute the one-dimensional autocorrelation function of a two-dimensional array using the method given by "
+          "Boily (1993).");
+    m.def("acr_func_2d_kleiner_dickman_cpp", &autocorrelation_function_2d_kleiner_dickman, 
+          "Compute the two-dimensional autocorrelation function of a two-dimensional array using the method given by "
+          "Kleiner and Dickman (1984).");
+    m.def("acr_func_2d_boily_cpp", &autocorrelation_function_2d_boily, 
+          "Compute the two-dimensional autocorrelation function of a two-dimensional array using the method given by "
+          "Boily (1993).");
     m.def("str_func_cpp", &structure_function, 
           "Compute the one-dimensional structure function of a two-dimensional array.");
     m.def("increments_cpp", &increments, 

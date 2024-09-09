@@ -1,33 +1,16 @@
 #include <iostream>
-#include <vector>
-#include <array>
 #include <omp.h>
 
 #include "advanced_stats.h"
-#include "tools.h"
 
 using namespace std;
 
 /**
- * \brief Computes the one-dimensional autocorrelation function of a 2d vector.
+ * Calculates and regroups the distances used in computing the one-dimensional autocorrelation function.
  */
-vector<vector<double>> autocorrelation_function_1d(vector<vector<double>>& input_array)
+double_unordered_map autocorrelation_function_1d_calculation(vector_2d& input_array)
 {
-    const size_t height = input_array.size();
-    const size_t width = input_array[0].size();
-    double mean_value = mean(input_array);
-
-    #pragma omp parallel
-    {
-        #pragma omp for collapse(1) schedule(dynamic)
-        for (size_t y = 0; y < height; y++)
-        {
-            for (size_t x = 0; x < width; x++)
-            {
-                input_array[y][x] -= mean_value;
-            }
-        }
-    }
+    subtract_mean(input_array);
 
     vector<array<double, 2>> single_dists_and_vals_1d = multiply_elements(input_array);
     single_dists_and_vals_1d.shrink_to_fit();
@@ -38,8 +21,17 @@ vector<vector<double>> autocorrelation_function_1d(vector<vector<double>>& input
         regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
         single_dists_and_vals_1d.pop_back();
     }
+    return regrouped_vals;
+}
 
-    vector<vector<double>> output_array;
+/**
+ * \brief Computes the one-dimensional autocorrelation function of two-dimensional data using the technique described in
+ * Kleiner, S.C. and Dickman, R.L. 1984.
+ */
+vector_2d autocorrelation_function_1d_kleiner_dickman(vector_2d& input_array)
+{
+    unordered_map<double, vector<double>> regrouped_vals = autocorrelation_function_1d_calculation(input_array);
+    vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
 
     double denominator = sum_of_squares(input_array);
@@ -68,9 +60,30 @@ vector<vector<double>> autocorrelation_function_1d(vector<vector<double>>& input
 }
 
 /**
- * \brief Computes the two-dimensional autocorrelation function of a 2d vector.
+ * \brief Computes the one-dimensional autocorrelation function of two-dimensional data using the technique described in
+ * Boily E. 1993.
  */
-vector<vector<double>> autocorrelation_function_2d(vector<vector<double>>& input_array)
+vector_2d autocorrelation_function_1d_boily(vector_2d& input_array)
+{
+    unordered_map<double, vector<double>> regrouped_vals = autocorrelation_function_1d_calculation(input_array);
+    vector_2d output_array;
+    output_array.reserve(regrouped_vals.size());
+
+    double denominator = sum_of_squares(input_array) / count_non_nan(input_array);
+
+    for (const auto& [dist, vals] : regrouped_vals)
+    {
+        int N = vals.size();
+        if (N == 1) continue;
+        output_array.push_back({dist, mean(vals) / denominator, standard_deviation(vals) / (denominator * sqrt(N-1))});
+    }
+    return output_array;
+}
+
+/**
+ * Calculates and regroups the distances used in computing the two-dimensional autocorrelation function.
+ */
+array_unordered_map autocorrelation_function_2d_calculation(vector_2d& input_array)
 {
     const size_t height = input_array.size();
     const size_t width = input_array[0].size();
@@ -79,18 +92,10 @@ vector<vector<double>> autocorrelation_function_2d(vector<vector<double>>& input
     // Reserve an approximate size to avoid multiple allocations
     size_t max_possible_size = (height * width * (height * width - 1)) / 2;
     single_dists_and_vals_2d.reserve(max_possible_size);
-    double mean_value = mean(input_array);
 
+    subtract_mean(input_array);
     #pragma omp parallel
     {
-        #pragma omp for collapse(1) schedule(dynamic)
-        for (size_t y = 0; y < height; y++)
-        {
-            for (size_t x = 0; x < width; x++)
-            {
-                input_array[y][x] -= mean_value;
-            }
-        }
         vector<array<double, 3>> thread_single_dists_and_vals;
         thread_single_dists_and_vals.reserve(max_possible_size / omp_get_num_threads());
 
@@ -118,14 +123,23 @@ vector<vector<double>> autocorrelation_function_2d(vector<vector<double>>& input
 
     single_dists_and_vals_2d.shrink_to_fit();
 
-    unordered_map<array<double, 2>, vector<double>, DoubleArrayHash> regrouped_vals;
+    array_unordered_map regrouped_vals;
     while (!single_dists_and_vals_2d.empty())
     {
         regroup_distance(regrouped_vals, single_dists_and_vals_2d.back());
         single_dists_and_vals_2d.pop_back();
     }
+    return regrouped_vals;
+}
 
-    vector<vector<double>> output_array;
+/**
+ * \brief Computes the two-dimensional autocorrelation function of two-dimensional data using the technique described in
+ * Kleiner, S.C. and Dickman, R.L. 1984.
+ */
+vector_2d autocorrelation_function_2d_kleiner_dickman(vector_2d& input_array)
+{
+    array_unordered_map regrouped_vals = autocorrelation_function_2d_calculation(input_array);
+    vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
 
     double denominator = sum_of_squares(input_array);
@@ -155,9 +169,28 @@ vector<vector<double>> autocorrelation_function_2d(vector<vector<double>>& input
 }
 
 /**
- * \brief Computes the structure function of a 2d vector.
+ * \brief Computes the two-dimensional autocorrelation function of two-dimensional data using the technique described in
+ * Kleiner, S.C. and Dickman, R.L. 1984.
  */
-vector<vector<double>> structure_function(const vector<vector<double>>& input_array)
+vector_2d autocorrelation_function_2d_boily(vector_2d& input_array)
+{
+    array_unordered_map regrouped_vals = autocorrelation_function_2d_calculation(input_array);
+    vector_2d output_array;
+    output_array.reserve(regrouped_vals.size());
+
+    double denominator = sum_of_squares(input_array) / count_non_nan(input_array);
+
+    for (const auto& [dist, vals] : regrouped_vals)
+    {
+        output_array.push_back({dist[0], dist[1], mean(vals) / denominator});
+    }
+    return output_array;
+}
+
+/**
+ * \brief Computes the structure function of two-dimensional data.
+ */
+vector_2d structure_function(const vector_2d& input_array)
 {
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
 
@@ -169,7 +202,7 @@ vector<vector<double>> structure_function(const vector<vector<double>>& input_ar
         single_dists_and_vals_1d.pop_back();
     }
 
-    vector<vector<double>> output_array;
+    vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
     double variance_val = variance(input_array);
 
@@ -190,7 +223,7 @@ vector<vector<double>> structure_function(const vector<vector<double>>& input_ar
     return output_array;
 }
 
-vector<vector<double>> increments(const vector<vector<double>>& input_array)
+vector_2d increments(const vector_2d& input_array)
 {
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
 
@@ -202,7 +235,7 @@ vector<vector<double>> increments(const vector<vector<double>>& input_array)
         single_dists_and_vals_1d.pop_back();
     }
 
-    vector<vector<double>> output_array;
+    vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
     double variance_val = variance(input_array);
 

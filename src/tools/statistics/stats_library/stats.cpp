@@ -23,7 +23,7 @@ double mean(const vector<double>& vals)
 /**
  * \brief Computes the mean of a 2d vector.
  */
-double mean(const vector<vector<double>>& vals)
+double mean(const vector_2d& vals)
 {
     int size = 0;
     double total = 0;
@@ -76,7 +76,7 @@ double sum(const std::vector<std::vector<double>>& vals)
 /**
  * \brief Computes the sum of the squares of a 2d vector.
  */
-double sum_of_squares(const vector<vector<double>>& vals)
+double sum_of_squares(const vector_2d& vals)
 {
     double total = accumulate(
         vals.begin(), vals.end(), 0.0,
@@ -134,7 +134,7 @@ double variance(const vector<double>& vals)
  * \note For the sake of performance, this function may only be used with real values and not complex ones.
  * \note The population variance is the one computed (the denominator is the population size N).
  */
-double variance(const vector<vector<double>>& vals)
+double variance(const vector_2d& vals)
 {
     double mean_val = mean(vals);
     pair<double, int> result = accumulate(
@@ -163,7 +163,7 @@ double standard_deviation(const vector<double>& vals)
 }
 
 /**
- * \brief Count the number of non nan elements in a 2d vector.
+ * \brief Counts the number of non nan elements in a 2d vector.
  */
 int count_non_nan(const std::vector<std::vector<double>>& vals)
 {
@@ -180,4 +180,25 @@ int count_non_nan(const std::vector<std::vector<double>>& vals)
         }
     );
     return size;
+}
+
+/**
+ * \brief Subtracts the mean value from a 2d vector.
+ */
+void subtract_mean(vector_2d& input_array)
+{
+    const size_t height = input_array.size();
+    const size_t width = input_array[0].size();
+    double mean_value = mean(input_array);
+    #pragma omp parallel
+    {
+        #pragma omp for collapse(1) schedule(dynamic)
+        for (size_t y = 0; y < height; y++)
+        {
+            for (size_t x = 0; x < width; x++)
+            {
+                input_array[y][x] -= mean_value;
+            }
+        }
+    }
 }

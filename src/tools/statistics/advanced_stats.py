@@ -3,10 +3,15 @@ from scipy.ndimage import gaussian_filter
 from graphinglib import Contour
 
 from src.tools.statistics.stats_library.advanced_stats import (
-    acr_func_1d_cpp, acr_func_2d_cpp, str_func_cpp, increments_cpp
+    acr_func_1d_kleiner_dickman_cpp,
+    acr_func_1d_boily_cpp,
+    acr_func_2d_kleiner_dickman_cpp,
+    acr_func_2d_boily_cpp,
+    str_func_cpp,
+    increments_cpp
 )
 
-def autocorrelation_function(data: np.ndarray) -> np.ndarray:
+def autocorrelation_function(data: np.ndarray, method: str="Boily") -> np.ndarray:
     """
     Computes the one-dimensional autocorrelation function of a 2D array. The intermediate estimator is used and the
     values are normalized with the value at zero lag.
@@ -15,16 +20,26 @@ def autocorrelation_function(data: np.ndarray) -> np.ndarray:
     ----------
     data : np.ndarray
         Data from which to compute the autocorrelation function.
+    method : str, default="Boily"
+        Method to use for autocorrelation function calculation. The two available methods are "Boily" and
+        "Kleiner Dickman". The Boily method simply averages without any normalizing factor whilst the Kleiner Dickman
+        method uses a normalization factor dependent on the number of points.
 
     Returns
     -------
     autocorrelation_function : np.ndarray
-        Two-dimensional array with every group of two elements representing the lag and its corresponding
-        autocorrelation function and uncertainty.
+        Two-dimensional array. If method="Boily" every group of three elements represents the lag and its corresponding
+        autocorrelation function and uncertainty. If method="Kleiner Dickman" every group of two elements represents
+        the lag and its corresponding autocorrelation function, without uncertainty.
     """
-    return np.array(acr_func_1d_cpp(data))
+    if method == "Boily":
+        return np.array(acr_func_1d_boily_cpp(data))
+    elif method == "Kleiner Dickman":
+        return np.array(acr_func_1d_kleiner_dickman_cpp(data))
+    else:
+        raise ValueError(f"Unsupported autocorrelation function method: {method}")
 
-def autocorrelation_function_2d(data: np.ndarray) -> np.ndarray:
+def autocorrelation_function_2d(data: np.ndarray, method: str="Boily") -> np.ndarray:
     """
     Computes the two-dimensional autocorrelation function of a 2D array. The intermediate estimator is used and the
     values are normalized with the value at zero lag.
@@ -33,6 +48,10 @@ def autocorrelation_function_2d(data: np.ndarray) -> np.ndarray:
     ----------
     data : np.ndarray
         Data from which to compute the 2D autocorrelation function.
+    method : str, default="Boily"
+        Method to use for autocorrelation function calculation. The two available methods are "Boily" and
+        "Kleiner Dickman". The Boily method simply averages without any normalizing factor whilst the Kleiner Dickman
+        method uses a normalization factor dependent on the number of points.
 
     Returns
     -------
@@ -40,7 +59,12 @@ def autocorrelation_function_2d(data: np.ndarray) -> np.ndarray:
         Two-dimensional array with every group of three elements representing the x lag, the y lag and its corresponding
         autocorrelation function.
     """
-    return np.array(acr_func_2d_cpp(data))
+    if method == "Boily":
+        return np.array(acr_func_2d_boily_cpp(data))
+    elif method == "Kleiner Dickman":
+        return np.array(acr_func_2d_kleiner_dickman_cpp(data))
+    else:
+        raise ValueError(f"Unsupported autocorrelation function method: {method}")
 
 def structure_function(data: np.ndarray) -> np.ndarray:
     """
@@ -79,16 +103,16 @@ def increments(data: np.ndarray) -> dict:
         increments_dict[increment[0]] = np.array(increment[1:])
     return increments_dict
 
-def get_autocorrelation_function_2d_contour(autocorrelation_function_2d: np.ndarray) -> Contour:
+def get_autocorrelation_function_2d_contour(autocorrelation_function_2d_data: np.ndarray) -> Contour:
     """
-    Reads the output given by the autocorrelation_function_2d function and translates to a Contour object. A 3x3
+    Reads the output given by the autocorrelation_function_2d_data function and translates to a Contour object. A 3x3
     gaussian filter is used for smoothing the data.
 
     Parameters
     ----------
-    autocorrelation_function_2d : np.ndarray
+    autocorrelation_function_2d_data : np.ndarray
         Two-dimensional array with every group of three elements representing the x lag, the y lag and its corresponding
-        autocorrelation function. The output of the autocorrelation_function_2d function may be given.
+        autocorrelation function. The output of the autocorrelation_function_2d_data function may be given.
 
     Returns
     -------
@@ -98,8 +122,8 @@ def get_autocorrelation_function_2d_contour(autocorrelation_function_2d: np.ndar
     """
     # Copy paste the data with a diagonal reflection
     data = np.append(
-        autocorrelation_function_2d,
-        autocorrelation_function_2d * np.tile((-1, -1, 1), (autocorrelation_function_2d.shape[0], 1)),
+        autocorrelation_function_2d_data,
+        autocorrelation_function_2d_data * np.tile((-1, -1, 1), (autocorrelation_function_2d_data.shape[0], 1)),
         axis=0
     )
 

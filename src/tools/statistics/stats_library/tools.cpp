@@ -51,7 +51,7 @@ void combine_vectors(vector<array<double,3>>& dest, const vector<array<double,3>
  * \return a vector of arrays of two elements, which represent a pixel distance and the result of the applied function.
  */
 template <typename T>
-vector<array<double, 2>> apply_vector_map(const vector<vector<double>>& input_array, const T& function)
+vector<array<double, 2>> apply_vector_map(const vector_2d& input_array, const T& function)
 {
     const size_t height = input_array.size();
     const size_t width = input_array[0].size();
@@ -95,12 +95,12 @@ vector<array<double, 2>> apply_vector_map(const vector<vector<double>>& input_ar
     return single_dists_and_vals;
 }
 
-vector<array<double, 2>> multiply_elements(const vector<vector<double>>& input_array)
+vector<array<double, 2>> multiply_elements(const vector_2d& input_array)
 {
     return apply_vector_map(input_array, [](double a, double b) { return a * b; });
 }
 
-vector<array<double, 2>> subtract_elements(const vector<vector<double>>& input_array)
+vector<array<double, 2>> subtract_elements(const vector_2d& input_array)
 {
     return apply_vector_map(input_array, [](double a, double b) { return abs(a - b); });
 }
