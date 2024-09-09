@@ -353,7 +353,8 @@ class Map(FitsFile, MathematicalObject):
             mask = np.ones_like(self.data)
         return self.__class__(
             self.data * mask,
-            self.uncertainties * mask
+            self.uncertainties * mask,
+            self.header
         )
 
     def get_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
@@ -364,11 +365,13 @@ class Map(FitsFile, MathematicalObject):
 
         Arguments
         ---------
-        region: pyregion.core.ShapeList, default=None. If present, region in which the statistics need to be calculated.
+        region: pyregion.core.ShapeList, default=None
+            If present, region in which the statistics need to be calculated.
 
         Returns
         -------
-        dict: statistics of the region. Every key is a statistic measure.
+        stats : dict
+            Statistic of the region. Every key is a statistic measure.
         """
         reg_map = self.get_masked_region(region)
         

@@ -36,7 +36,8 @@ class Array2D(Array):
 
         Returns
         -------
-        dict: statistics of the region. Every key is a statistic measure.
+        stats : dict
+            Statistic of the region. Every key is a statistic measure.
         """
         stats =  {
             "median": float(np.nanmedian(self)),
