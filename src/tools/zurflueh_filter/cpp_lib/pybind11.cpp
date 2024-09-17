@@ -12,7 +12,7 @@ using namespace std;
 PYBIND11_MODULE(zfilter, m) {
     m.doc() = string("Module that allows the application of a zurflueh filter.");
     m.def("zfilter_cpp", &zfilter, 
-          "Compute the Zurflueh filter of a two-dimensional array with a 13x13 kernel.");
+          "Computes the Zurflueh filter of a two-dimensional array with a given kernel.");
 }
 
 // clang++ -std=c++17 -shared -undefined dynamic_lookup -I./pybind11/include/ `python3.12 -m pybind11 --includes` zfilter.cpp pybind11.cpp -o zfilter.so `python3.12-config --ldflags` -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
