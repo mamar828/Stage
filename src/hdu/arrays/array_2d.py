@@ -1,3 +1,4 @@
+from __future__ import annotations
 from graphinglib import Heatmap
 import numpy as np
 import scipy
@@ -27,10 +28,10 @@ class Array2D(Array):
             origin_position="lower"
         )
         return heatmap
-
+    
     def get_statistics(self) -> dict:
         """
-        Get the statistics of the array. Supported statistic measures are: median, mean, nbpixels stddev, skewness and
+        Gives the statistics of the array. Supported statistic measures are: median, mean, nbpixels stddev, skewness and
         kurtosis. If the statistics need to be computed in a region, the mask should be first applied to the Map and
         then the statistics may be computed.
 
@@ -48,3 +49,19 @@ class Array2D(Array):
             "kurtosis": scipy.stats.kurtosis(self, axis=None, nan_policy="omit")
         }
         return stats
+
+    def get_nan_cropping_slices(self) -> tuple[slice, slice]:
+        """
+        Gives the slices for cropping the border nan values of the array.
+
+        Returns
+        -------
+        slices : tuple[slice, slice]
+            Slice that must be applied on the Array2D for cropping, i.e. (valid columns, valid rows).
+        """
+        non_nan_cols = np.any(~np.isnan(self), axis=0)
+        non_nan_rows = np.any(~np.isnan(self), axis=1)
+
+        cols = slice(np.argmax(non_nan_rows), non_nan_rows.size - np.argmax(non_nan_rows[::-1]))
+        rows = slice(np.argmax(non_nan_cols), non_nan_cols.size - np.argmax(non_nan_cols[::-1]))
+        return cols, rows

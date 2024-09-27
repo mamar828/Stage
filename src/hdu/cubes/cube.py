@@ -1,6 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from astropy.io import fits
+from typing import Self
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
@@ -10,6 +11,7 @@ from src.hdu.maps.map import Map, MapCO
 from src.spectrums.spectrum import Spectrum
 from src.spectrums.spectrum_co import SpectrumCO
 from src.headers.header import Header
+from src.base_objects.silent_none import SilentNone
 
 
 class Cube(FitsFile):
@@ -18,7 +20,7 @@ class Cube(FitsFile):
     """
     spectrum_type, map_type = Spectrum, Map
 
-    def __init__(self, data: Array3D, header: Header=None):
+    def __init__(self, data: Array3D, header: Header=SilentNone()):
         """
         Initialize a Cube object.
 
@@ -37,17 +39,17 @@ class Cube(FitsFile):
         same_header = self.header == other.header
         return same_array and same_header
 
-    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map | MapCO | Cube:
+    def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map | MapCO | Self:
         if not all([isinstance(s, (int, slice)) for s in slices]):
             raise TypeError(f"{C.LIGHT_RED}Every slice element must be an int or a slice.{C.END}")
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
-            map_header = self.header.flatten(axis=int_slices.index(True)) if self.header else None
+            map_header = self.header.flatten(axis=int_slices.index(True))
             return self.map_type(data=Array2D(self.data[slices]), header=map_header)
         elif int_slices.count(True) == 2:
             first_int_i = int_slices.index(True)
-            map_header = self.header.flatten(axis=first_int_i) if self.header else None
-            spectrum_header = map_header.flatten(axis=(int_slices.index(True, first_int_i+1))) if self.header else None
+            map_header = self.header.flatten(axis=first_int_i)
+            spectrum_header = map_header.flatten(axis=(int_slices.index(True, first_int_i+1)))
             return self.spectrum_type(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 3:
             return self.data[slices]
@@ -69,7 +71,7 @@ class Cube(FitsFile):
         return self.__class__(self.data.copy(), self.header.copy())
     
     @classmethod
-    def load(cls, filename: str) -> Cube:
+    def load(cls, filename: str) -> Self:
         """
         Loads a Cube from a .fits file.
 
@@ -103,7 +105,7 @@ class Cube(FitsFile):
         """
         super().save(filename, fits.HDUList([self.data.get_PrimaryHDU(self.header)]), overwrite)
 
-    def bin(self, bins: tuple[int, int, int], ignore_nans: bool=False) -> Cube:
+    def bin(self, bins: tuple[int, int, int], ignore_nans: bool=False) -> Self:
         """
         Bins a Cube.
 
@@ -123,32 +125,9 @@ class Cube(FitsFile):
         cube : Cube
             Binned Cube.
         """
-        assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
-            f"{C.LIGHT_RED}All values in bins must be integers greater than or equal to 1.{C.END}"
-        if ignore_nans:
-            func = np.nanmean
-        else:
-            func = np.mean
+        return self.__class__(self.data.bin(bins, ignore_nans), self.header.bin(bins, ignore_nans))
 
-        cropped_pixels = np.array(self.data.shape) % np.array(bins)
-        new_data = self.data[:self.data.shape[0] - cropped_pixels[0],
-                             :self.data.shape[1] - cropped_pixels[1], 
-                             :self.data.shape[2] - cropped_pixels[2]]
-
-        for ax, b in enumerate(bins):
-            if b != 1:
-                indices = list(new_data.shape)
-                indices[ax:ax+1] = [new_data.shape[ax] // b, b]
-                reshaped_data = new_data.reshape(indices)
-                new_data = func(reshaped_data, axis=ax+1)
-
-        if self.header:
-            new_header = self.header.bin(bins)
-        else:
-            new_header = None
-        return self.__class__(new_data, new_header)
-
-    def invert_axis(self, axis: int) -> Cube:
+    def invert_axis(self, axis: int) -> Self:
         """
         Inverts the elements' order along an axis.
 
@@ -164,7 +143,7 @@ class Cube(FitsFile):
         """
         return self.__class__(np.flip(self.data, axis=axis), self.header.invert_axis(axis))
 
-    def swap_axes(self, axis_1: int, axis_2: int) -> Cube:
+    def swap_axes(self, axis_1: int, axis_2: int) -> Self:
         """
         Swaps a Cube's axes.
         
@@ -180,6 +159,17 @@ class Cube(FitsFile):
         cube : Cube
             Cube with the switched axes.
         """
-        new_data = self.data.copy().swapaxes(axis_1, axis_2)
+        new_data = self.data.swapaxes(axis_1, axis_2)
         new_header = self.header.swap_axes(axis_1, axis_2)
         return self.__class__(new_data, new_header)
+
+    def crop_nans(self) -> Self:
+        """
+        Crops the nan values at the borders of the Cube.
+
+        Returns
+        -------
+        cropped_cube : Cube
+            Cube with the nan values removed.
+        """
+        return self[self.data.get_nan_cropping_slices()]

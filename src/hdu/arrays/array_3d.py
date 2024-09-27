@@ -98,3 +98,19 @@ class Array3D(Array):
                                                                                             DEFAULT_TIME_INTERVAL))
 
         return animation
+
+    def get_nan_cropping_slices(self) -> tuple[slice, slice, slice]:
+        """
+        Gives the slices for cropping the border nan values of the array.
+
+        Returns
+        -------
+        slices : tuple[slice, slice]
+            Slice that must be applied on the Array3D for cropping, i.e. (valid columns, valid rows).
+        """
+        non_nan_cols = np.any(~np.isnan(self), axis=1)
+        non_nan_rows = np.any(~np.isnan(self), axis=2)
+
+        cols = slice(np.argmax(non_nan_rows), non_nan_rows.size - np.argmax(non_nan_rows[::-1]))
+        rows = slice(np.argmax(non_nan_cols), non_nan_cols.size - np.argmax(non_nan_cols[::-1]))
+        return slice(None, None), cols, rows

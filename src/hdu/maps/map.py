@@ -15,6 +15,7 @@ from src.headers.header import Header
 from src.spectrums.spectrum import Spectrum
 from src.spectrums.spectrum_co import SpectrumCO
 from src.base_objects.mathematical_object import MathematicalObject
+from src.base_objects.silent_none import SilentNone
 
 
 class Map(FitsFile, MathematicalObject):
@@ -23,7 +24,7 @@ class Map(FitsFile, MathematicalObject):
     """
     spectrum_type = Spectrum
 
-    def __init__(self, data: Array2D, uncertainties: Array2D=np.NAN, header: Header=None):
+    def __init__(self, data: Array2D, uncertainties: Array2D=SilentNone(), header: Header=SilentNone()):
         """
         Initialize a Map object.
 
@@ -37,7 +38,7 @@ class Map(FitsFile, MathematicalObject):
             Header of the Map.
         """
         self.data = Array2D(data)
-        self.uncertainties = Array2D(uncertainties)
+        self.uncertainties = Array2D(uncertainties) if uncertainties else SilentNone()
         self.header = header
 
     def __add__(self, other):
@@ -134,14 +135,14 @@ class Map(FitsFile, MathematicalObject):
     def __getitem__(self, slices: tuple[slice | int]) -> Array2D | Spectrum | SpectrumCO | Map:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
-            spectrum_header = self.header.flatten(axis=int_slices.index(True)) if self.header else None
+            spectrum_header = self.header.flatten(axis=int_slices.index(True))
             return self.spectrum_type(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 2:
             return self.data[slices]
         else:
             return self.__class__(
                 self.data[slices],
-                self.uncertainties[slices] if isinstance(self.uncertainties, Array2D) else np.NAN,
+                self.uncertainties[slices],
                 header=self.header.crop_axes(slices)
             )
 
@@ -161,8 +162,12 @@ class Map(FitsFile, MathematicalObject):
               + f"Uncertainty : {True if isinstance(self.uncertainties, Array2D) else False}")
 
     @property
-    def shape(self):
+    def shape(self) -> np.ndarray:
         return self.data.shape
+
+    @property
+    def has_uncertainties(self) -> bool:
+        return isinstance(self.uncertainties, SilentNone)
 
     @classmethod
     def load(cls, filename: str) -> Self:
@@ -181,7 +186,7 @@ class Map(FitsFile, MathematicalObject):
         """
         hdu_list = fits.open(filename)
         data = Array2D(hdu_list[0].data)
-        uncertainties = np.NAN
+        uncertainties = SilentNone()
         if len(hdu_list) > 1:
             uncertainties = Array2D(hdu_list[1].data)
         if len(hdu_list) > 2:
@@ -201,7 +206,7 @@ class Map(FitsFile, MathematicalObject):
         """
         hdu_list = fits.HDUList([])
         hdu_list.append(self.data.get_PrimaryHDU(self.header))
-        if self.uncertainties.size > 1 or not np.isnan(self.uncertainties):
+        if self.uncertainties:
             hdu_list.append(self.uncertainties.get_ImageHDU(self.header))
         return hdu_list
 
@@ -236,7 +241,7 @@ class Map(FitsFile, MathematicalObject):
 
         Parameters
         ----------
-        bins : tupleint, int]
+        bins : tuple[int, int]
             Number of pixels to be binned together along each axis. A value of 1 results in the axis not being
             binned. The axes are in the order y, x.
         ignore_nans : bool, default=False
@@ -250,35 +255,23 @@ class Map(FitsFile, MathematicalObject):
         map : Map
             Binned Map.
         """
-        assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
-            f"{C.LIGHT_RED}All values in bins must be integers greater than or equal to 1.{C.END}"
-        if ignore_nans:
-            func = np.nanmean
-        else:
-            func = np.mean
+        return self.__class__(
+            self.data.bin(bins, ignore_nans),
+            self.uncertainties.bin(bins, ignore_nans),
+            self.header.bin(bins)
+        )
 
-        cropped_pixels = np.array(self.data.shape) % np.array(bins)
-        new_data = self.data[:self.data.shape[0] - cropped_pixels[0],
-                             :self.data.shape[1] - cropped_pixels[1]]
-        new_uncertainties = self.uncertainties[:self.uncertainties.shape[0] - cropped_pixels[0],
-                                               :self.uncertainties.shape[1] - cropped_pixels[1]]
+    def crop_nans(self) -> Map:
+        """
+        Crops the nan values at the borders of the Map.
 
-        for ax, b in enumerate(bins):
-            if b != 1:
-                indices = list(new_data.shape)
-                indices[ax:ax+1] = [new_data.shape[ax] // b, b]
-                reshaped_data = new_data.reshape(indices)
-                reshaped_uncertainties = new_uncertainties.reshape(indices)
-                new_data = func(reshaped_data, axis=ax+1)
-                new_uncertainties = func(reshaped_uncertainties, axis=ax+1)
-        
-        if self.header:
-            new_header = self.header.bin(bins)
-        else:
-            new_header = None
+        Returns
+        -------
+        cropped_map : Map
+            Map with the nan values removed.
+        """
+        return self[self.data.get_nan_cropping_slices()]
 
-        return self.__class__(new_data, new_uncertainties, new_header)
-    
     def log(self) -> Self:
         """
         Computes the natural logarithm of the Map.
@@ -335,7 +328,7 @@ class Map(FitsFile, MathematicalObject):
     @FitsFile.silence_function
     def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
         """
-        Gets the Map within a region.
+        Gives the Map within a region.
 
         Parameters
         ----------
@@ -349,7 +342,7 @@ class Map(FitsFile, MathematicalObject):
         """
         if region:
             if self.header:
-                mask = region.get_mask(fits.PrimaryHDU(self.data, self.header))
+                mask = region.get_mask(self.data.get_PrimaryHDU(self.header))
             else:
                 mask = region.get_mask(shape=self.data.shape)
             mask = np.where(mask == False, np.nan, 1)
@@ -363,9 +356,9 @@ class Map(FitsFile, MathematicalObject):
 
     def get_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
         """
-        Get the statistics of the map's data. Supported statistic measures are: median, mean, nbpixels stddev, skewness
-        and kurtosis. The statistics may be computed in a region, if one is given. This method is for convenience and
-        uses the lower-level Array2D.get_statistics method.
+        Gives the statistics of the map's data. Supported statistic measures are: median, mean, nbpixels stddev,
+        skewness and kurtosis. The statistics may be computed in a region, if one is given. This method is for
+        convenience and uses the lower-level Array2D.get_statistics method.
 
         Arguments
         ---------
@@ -414,7 +407,7 @@ class Map(FitsFile, MathematicalObject):
             return_footprint=False,
             order="nearest-neighbor"
         ))
-        if self.uncertainties is not np.NAN:
+        if self.has_uncertainties:
             uncertainties_reprojection = Array2D(reproject_interp(
                 input_data=self.uncertainties.get_PrimaryHDU(self.header),
                 output_projection=other.header,
