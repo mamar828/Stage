@@ -259,21 +259,25 @@ class Map(FitsFile, MathematicalObject):
 
         cropped_pixels = np.array(self.data.shape) % np.array(bins)
         new_data = self.data[:self.data.shape[0] - cropped_pixels[0],
-                              :self.data.shape[1] - cropped_pixels[1]]
+                             :self.data.shape[1] - cropped_pixels[1]]
+        new_uncertainties = self.uncertainties[:self.uncertainties.shape[0] - cropped_pixels[0],
+                                               :self.uncertainties.shape[1] - cropped_pixels[1]]
 
         for ax, b in enumerate(bins):
             if b != 1:
                 indices = list(new_data.shape)
                 indices[ax:ax+1] = [new_data.shape[ax] // b, b]
                 reshaped_data = new_data.reshape(indices)
+                reshaped_uncertainties = new_uncertainties.reshape(indices)
                 new_data = func(reshaped_data, axis=ax+1)
+                new_uncertainties = func(reshaped_uncertainties, axis=ax+1)
         
         if self.header:
             new_header = self.header.bin(bins)
         else:
             new_header = None
 
-        return self.__class__(new_data, new_header)
+        return self.__class__(new_data, new_uncertainties, new_header)
     
     def log(self) -> Self:
         """
@@ -308,7 +312,7 @@ class Map(FitsFile, MathematicalObject):
     
     def num_to_nan(self, num: float=0) -> Self:
         """
-        Converts a number to np.NAN and change the uncertainties accordingly.
+        Converts a number to np.NAN and changes the uncertainties accordingly.
 
         Parameters
         ----------
