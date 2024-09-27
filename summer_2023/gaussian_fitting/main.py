@@ -4,14 +4,18 @@ from astropy.visualization.wcsaxes import WCSAxes
 from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.visualization import LogStretch
 from astropy.visualization import LinearStretch
-
-from fits_analyzer import *
-
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-
 import pyregion
+import sys
+import os
+
+# Allows the file to be run from the command line
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+
+from summer_2023.gaussian_fitting.fits_analyzer import *
+
 
 """
 In this file are examples of code that have been used to create the .fits files. Every operation has been grouped into
@@ -23,25 +27,26 @@ def get_maps():
     """
     In this example, all important maps that will be used later are computed once.
     """
-    nii_cube = NII_data_cube(fits.open("gaussian_fitting/data_cubes/night_34_wcs.fits")[0])
+    nii_cube = NII_data_cube(fits.open("data/sh158/fit_no_bin/night_34_wcs.fits")[0])
     # The cube is binned, then fitted, and the FWHM, mean and amplitude of every gaussian is stored
     # The extract argument specifies the order in which the Maps will be returned
     # Note that the extract argument can have fewer elements if not all Maps are desired
-    fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit(extract=["FWHM", "mean", "amplitude"])
+    # fwhm_maps, mean_maps, amplitude_maps = nii_cube.bin_cube(2).fit(extract=["FWHM", "mean", "amplitude"])
+    fwhm_maps, mean_maps, amplitude_maps = nii_cube.fit(extract=["FWHM", "mean", "amplitude"])
     # All fwhm_maps are saved
-    fwhm_maps.save_as_fits_file("gaussian_fitting/maps/computed_data")
+    fwhm_maps.save_as_fits_file("data/sh158/fit_no_bin")
     # Only the NII and Ha maps for mean and amplitude are saved
-    mean_maps["NII_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data/NII_mean.fits")
-    mean_maps["Ha_mean"].save_as_fits_file("gaussian_fitting/maps/computed_data/Ha_mean.fits")
-    amplitude_maps["NII_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data/NII_amplitude.fits")
-    amplitude_maps["Ha_amplitude"].save_as_fits_file("gaussian_fitting/maps/computed_data/Ha_amplitude.fits")
+    mean_maps["NII_mean"].save_as_fits_file("data/sh158/fit_no_bin/NII_mean.fits")
+    mean_maps["Ha_mean"].save_as_fits_file("data/sh158/fit_no_bin/Ha_mean.fits")
+    amplitude_maps["NII_amplitude"].save_as_fits_file("data/sh158/fit_no_bin/NII_amplitude.fits")
+    amplitude_maps["Ha_amplitude"].save_as_fits_file("data/sh158/fit_no_bin/Ha_amplitude.fits")
 
 
 # Note that some functions are called in a if __name__ == "__main__" block because the fitting algorithm uses the 
 # multiprocessing library which creates multiple instances of the same code to allow parallel computation. Without 
 # this condition, the program would multiply itself recursively.
-# if __name__ == "__main__":
-#     get_maps()
+if __name__ == "__main__":
+    get_maps()
 
 
 def example_fitting():
@@ -390,7 +395,7 @@ def get_courtes_temperature(settings: dict):
                                                         settings["map_1"]["element"])
         map_1_FWHM_with_temperature = (map_1_FWHM**2 + temp_in_fwhm**2)**0.5
         # Unnecessary data without physical significance is removed, in this case pixels with a FWHM superior to 10 000
-        map_1_FWHM_with_temperature.data[map_1_FWHM_with_temperature.data > 10000] = np.NAN
+        map_1_FWHM_with_temperature.data[map_1_FWHM_with_temperature.data > 10000] = np.nan
     else:
         map_1_FWHM_with_temperature = settings["map_1"]["fwhm_map"]
 
@@ -404,7 +409,7 @@ def get_courtes_temperature(settings: dict):
                                                         settings["map_2"]["element"])
         map_2_FWHM_with_temperature = (map_2_FWHM**2 + temp_in_fwhm**2)**0.5
         # Unnecessary data without physical significance is removed, in this case pixels with a FWHM superior to 10 000
-        map_2_FWHM_with_temperature.data[map_2_FWHM_with_temperature.data > 10000] = np.NAN
+        map_2_FWHM_with_temperature.data[map_2_FWHM_with_temperature.data > 10000] = np.nan
     else:
         map_2_FWHM_with_temperature = settings["map_2"]["fwhm_map"]
 

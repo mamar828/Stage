@@ -764,7 +764,7 @@ class NII_spectrum(Spectrum):
         -------
         list: each element in the list is a 7x3 numpy array filled with NaNs.
         """
-        return [np.full((7,3), np.NAN), np.full((7,3), np.NAN), np.full((7,3), np.NAN)]
+        return [np.full((7,3), np.nan), np.full((7,3), np.nan), np.full((7,3), np.nan)]
 
     def is_nicely_fitted_for_NII(self) -> bool:
         """
@@ -1103,7 +1103,7 @@ class SII_spectrum(Spectrum):
         -------
         list: each element in the list is a 4x3 numpy array filled with NaNs.
         """
-        return [np.full((4,3), np.NAN), np.full((4,3), np.NAN), np.full((4,3), np.NAN)]
+        return [np.full((4,3), np.nan), np.full((4,3), np.nan), np.full((4,3), np.nan)]
 
     def is_nicely_fitted(self) -> bool:
         """

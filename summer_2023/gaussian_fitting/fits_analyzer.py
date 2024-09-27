@@ -349,7 +349,7 @@ class Calibration_data_cube(Data_cube):
         try:
             return spectrum.get_FWHM_speed()
         except:
-            return [np.NAN, np.NAN]
+            return [np.nan, np.nan]
 
 
 
@@ -481,7 +481,7 @@ class NII_data_cube(Data_cube):
             return return_list[-1]
         else:
             return return_list
-        
+
     def worker_fit(self, x: int) -> list:
         """
         Fit a pixel of a 2 dimensional NII_data_cube, i.e., a Data_cube that is a simple line.
@@ -503,6 +503,7 @@ class NII_data_cube(Data_cube):
                                 seven_components_fit_authorized=self._double_NII_peak_authorized)
         spectrum.fit()
         if spectrum.is_nicely_fitted_for_NII():
+        # if True:
             return [
                 spectrum.get_FWHM_snr_7_components_array(), 
                 spectrum.get_amplitude_7_components_array(), 
@@ -907,12 +908,12 @@ class Map(Fits_file):
                     near_pixels = np.copy(self.data[y-3:y+4, x-3:x+4])
 
                     if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
-                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.nan
                     else:
-                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.nan
                     
                     data[y,x] = np.nanmean(near_pixels)
-                    # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
+                    # The addition of near_pixels * 0 makes it so the pixels that have np.nan will not be used
         return Map(fits.PrimaryHDU(data, self.header), self.name)
 
     def reproject_on(self, other: Map) -> Map:
@@ -1077,7 +1078,7 @@ class Map(Fits_file):
         else:
             bins = np.arange(np.nanmin(self.data), np.nanmax(self.data) + bin_width, bin_width)
         if region is None:
-            # The NANs are removed from the data from which the statistics are computed
+            # The nans are removed from the data from which the statistics are computed
             map_data_without_nan = np.ma.masked_invalid(self.data).compressed()
             plt.hist(map_data_without_nan, bins=bins, color="black")
         else:
@@ -1529,13 +1530,13 @@ class Map_u(Map):
                     near_pixels_uncertainty = np.copy(self.uncertainties[y-3:y+4, x-3:x+4])
 
                     if radiuses[0] - 4*bin_factor <= current_radius <= radiuses[0] + 4*bin_factor:
-                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.NAN
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[0]] = np.nan
                     else:
-                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.NAN
+                        near_pixels[near_pixels < np.max(near_pixels)-smoothing_max_thresholds[1]] = np.nan
                     
                     data[y,x] = np.nanmean(near_pixels)
                     uncertainties[y,x] = np.nanmean(near_pixels * 0 + near_pixels_uncertainty)
-                    # The addition of near_pixels * 0 makes it so the pixels that have np.NAN will not be used
+                    # The addition of near_pixels * 0 makes it so the pixels that have np.nan will not be used
         return Map_u(fits.HDUList([fits.PrimaryHDU(data, self.header),
                                    fits.ImageHDU(uncertainties, self.header)]), self.name)
 
@@ -1906,7 +1907,7 @@ class Map_usnr(Map_u):
         Map_usnr object: map with the filtered data.
         """
         mask = np.ma.masked_less(self.snr, snr_threshold).mask
-        mask = np.where(mask == True, np.NAN, 1)
+        mask = np.where(mask == True, np.nan, 1)
         return Map_usnr(fits.HDUList([fits.PrimaryHDU(self.data * mask, self.header),
                                       fits.ImageHDU(self.uncertainties * mask, self.header),
                                       fits.ImageHDU(self.snr * mask, self.header)]), self.name)
