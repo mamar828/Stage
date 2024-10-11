@@ -33,7 +33,7 @@ def create_zfilter(pixel_width: int=13) -> np.ndarray:
     new_filter /= new_filter.sum()
     return new_filter
 
-def zfilter(data: np.ndarray=None, pixel_width: int=13) -> np.ndarray:
+def zfilter(data: np.ndarray, pixel_width: int=13) -> np.ndarray:
     """
     Computes the Zurflueh filter of a 2D array.
 

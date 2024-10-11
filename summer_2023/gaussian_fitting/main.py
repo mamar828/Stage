@@ -11,8 +11,8 @@ import pyregion
 import sys
 import os
 
-# Allows the file to be run from the command line
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+# Allows the file to be run from the command line (adding to PYTHONPATH also works and replaces this)
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 
 from summer_2023.gaussian_fitting.fits_analyzer import *
 

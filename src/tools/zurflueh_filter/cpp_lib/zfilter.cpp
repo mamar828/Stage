@@ -1,5 +1,7 @@
 #include <iostream>
 #include <numeric>
+#include <limits>
+#include <cmath>
 #include <omp.h>
 
 #include "zfilter.h"
