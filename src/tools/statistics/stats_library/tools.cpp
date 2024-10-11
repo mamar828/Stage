@@ -5,24 +5,61 @@
 using namespace std;
 
 /**
- * \brief Regroups a distance modulus to its struct.
+ * \brief Regroups a distance vector to the unordered map with multiprocesssing.
  */
-void regroup_distance(unordered_map<double, vector<double>>& regrouped_vals,
-                      const array<double, 2>& dist_and_val)
+void regroup_distance_thread_local(
+    double_unordered_map& regrouped_vals,
+    const vector<array<double, 2>>& single_dists_and_vals_1d)
 {
-    #pragma omp critical
-    regrouped_vals[dist_and_val[0]].push_back(dist_and_val[1]);
+    // Create thread-local storage for the unordered_map
+    vector<double_unordered_map> local_regroup_vals(omp_get_max_threads());
+
+    #pragma omp parallel for
+    for (size_t i = 0; i < single_dists_and_vals_1d.size(); ++i)
+    {
+        int thread_id = omp_get_thread_num();
+        const auto& dist_and_val = single_dists_and_vals_1d[i];
+        local_regroup_vals[thread_id][dist_and_val[0]].push_back(dist_and_val[1]);
+    }
+
+    // Merge results from all threads into the final unordered_map
+    for (const auto& local_map : local_regroup_vals)
+    {
+        for (const auto& pair : local_map)
+        {
+            regrouped_vals[pair.first].insert(regrouped_vals[pair.first].end(),
+                                              pair.second.begin(), pair.second.end());
+        }
+    }
 }
 
 /**
- * \brief Regroups a distance vector to its struct.
+ * \brief Regroups a distance vector to the unordered map with multiprocesssing.
  */
-void regroup_distance(unordered_map<array<double, 2>, vector<double>, DoubleArrayHash>& regrouped_vals,
-                      const array<double, 3>& dist_and_val)
+void regroup_distance_thread_local(
+    array_unordered_map& regrouped_vals,
+    const vector<array<double, 3>>& single_dists_and_vals_2d)
 {
-    array<double, 2> dist = {dist_and_val[0], dist_and_val[1]};
-    #pragma omp critical
-    regrouped_vals[dist].push_back(dist_and_val[2]);
+    // Create thread-local storage for the unordered_map
+    vector<array_unordered_map> local_regroup_vals(omp_get_max_threads());
+
+    #pragma omp parallel for
+    for (size_t i = 0; i < single_dists_and_vals_2d.size(); ++i)
+    {
+        int thread_id = omp_get_thread_num();
+        const auto& dist_and_val = single_dists_and_vals_2d[i];
+        local_regroup_vals[thread_id][{dist_and_val[0], dist_and_val[1]}].push_back(dist_and_val[2]);
+    }
+
+    // Merge results from all threads into the final unordered_map
+    for (const auto& local_map : local_regroup_vals)
+    {
+        for (const auto& pair : local_map)
+        {
+            regrouped_vals[pair.first].insert(regrouped_vals[pair.first].end(),
+                                              pair.second.begin(), pair.second.end());
+        }
+    }
 }
 
 /**

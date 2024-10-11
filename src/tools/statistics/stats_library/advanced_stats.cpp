@@ -1,9 +1,12 @@
 #include <iostream>
 #include <omp.h>
 
+#include "time.h"
 #include "advanced_stats.h"
 
 using namespace std;
+
+Time current_time;
 
 /**
  * Calculates and regroups the distances used in computing the one-dimensional autocorrelation function.
@@ -14,13 +17,8 @@ double_unordered_map autocorrelation_function_1d_calculation(vector_2d& input_ar
 
     vector<array<double, 2>> single_dists_and_vals_1d = multiply_elements(input_array);
     single_dists_and_vals_1d.shrink_to_fit();
-    
-    unordered_map<double, vector<double>> regrouped_vals;
-    while (!single_dists_and_vals_1d.empty())
-    {
-        regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
-        single_dists_and_vals_1d.pop_back();
-    }
+    double_unordered_map regrouped_vals;
+    regroup_distance_thread_local(regrouped_vals, single_dists_and_vals_1d);
     return regrouped_vals;
 }
 
@@ -30,7 +28,7 @@ double_unordered_map autocorrelation_function_1d_calculation(vector_2d& input_ar
  */
 vector_2d autocorrelation_function_1d_kleiner_dickman(vector_2d& input_array)
 {
-    unordered_map<double, vector<double>> regrouped_vals = autocorrelation_function_1d_calculation(input_array);
+    double_unordered_map regrouped_vals = autocorrelation_function_1d_calculation(input_array);
     vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
 
@@ -65,7 +63,7 @@ vector_2d autocorrelation_function_1d_kleiner_dickman(vector_2d& input_array)
  */
 vector_2d autocorrelation_function_1d_boily(vector_2d& input_array)
 {
-    unordered_map<double, vector<double>> regrouped_vals = autocorrelation_function_1d_calculation(input_array);
+    double_unordered_map regrouped_vals = autocorrelation_function_1d_calculation(input_array);
     vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
 
@@ -124,11 +122,7 @@ array_unordered_map autocorrelation_function_2d_calculation(vector_2d& input_arr
     single_dists_and_vals_2d.shrink_to_fit();
 
     array_unordered_map regrouped_vals;
-    while (!single_dists_and_vals_2d.empty())
-    {
-        regroup_distance(regrouped_vals, single_dists_and_vals_2d.back());
-        single_dists_and_vals_2d.pop_back();
-    }
+    regroup_distance_thread_local(regrouped_vals, single_dists_and_vals_2d);
     return regrouped_vals;
 }
 
@@ -170,7 +164,7 @@ vector_2d autocorrelation_function_2d_kleiner_dickman(vector_2d& input_array)
 
 /**
  * \brief Computes the two-dimensional autocorrelation function of two-dimensional data using the technique described in
- * Kleiner, S.C. and Dickman, R.L. 1984.
+ * Boily E. 1993.
  */
 vector_2d autocorrelation_function_2d_boily(vector_2d& input_array)
 {
@@ -193,14 +187,9 @@ vector_2d autocorrelation_function_2d_boily(vector_2d& input_array)
 vector_2d structure_function(const vector_2d& input_array)
 {
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
-
     
-    unordered_map<double, vector<double>> regrouped_vals;
-    while (single_dists_and_vals_1d.size() > 0)
-    {
-        regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
-        single_dists_and_vals_1d.pop_back();
-    }
+    double_unordered_map regrouped_vals;
+    regroup_distance_thread_local(regrouped_vals, single_dists_and_vals_1d);
 
     vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
@@ -227,13 +216,8 @@ vector_2d increments(const vector_2d& input_array)
 {
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);
 
-    
-    unordered_map<double, vector<double>> regrouped_vals;
-    while (single_dists_and_vals_1d.size() > 0)
-    {
-        regroup_distance(regrouped_vals, single_dists_and_vals_1d.back());
-        single_dists_and_vals_1d.pop_back();
-    }
+    double_unordered_map regrouped_vals;
+    regroup_distance_thread_local(regrouped_vals, single_dists_and_vals_1d);
 
     vector_2d output_array;
     output_array.reserve(regrouped_vals.size());
