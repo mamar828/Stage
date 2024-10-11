@@ -38,7 +38,7 @@ class Map(FitsFile, MathematicalObject):
             Header of the Map.
         """
         self.data = Array2D(data)
-        self.uncertainties = Array2D(uncertainties) if uncertainties else SilentNone()
+        self.uncertainties = Array2D(uncertainties) if not type(uncertainties) == SilentNone else uncertainties
         self.header = header
 
     def __add__(self, other):

@@ -3,8 +3,9 @@ from src.base_objects.mathematical_object import MathematicalObject
 
 class SilentNone(MathematicalObject):
     """
-    This class implements the SilentNone object, which is used as a placeholder for Maps or Cubes without uncertainties
-    or headers. Calling methods on this object will never raise an error.
+    This class implements the SilentNone object, which is the equivalent of the None object. This used as a placeholder
+    for Maps or Cubes without uncertainties or headers. Calling methods, operations, getitems, etc. on this object will
+    never raise an error.
     """
     def __getattr__(self, _):
         return self
