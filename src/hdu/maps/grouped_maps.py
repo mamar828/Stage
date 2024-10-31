@@ -30,6 +30,9 @@ class GroupedMaps(FitsFile):
             setattr(self, name, map_list)
             self.names.append(name)
 
+    def __getitem__(self, name: str) -> list[Map]:
+        return self.names
+
     @classmethod
     def load(cls, filename: str) -> GroupedMaps:
         """
@@ -50,7 +53,8 @@ class GroupedMaps(FitsFile):
         for key in deepcopy(list(new_header.keys())):
             if key.startswith("IMAGE") or key.startswith("EXT") or key == "NAXIS3":
                 del new_header[key]
-            
+        new_header["NAXIS"] = 2
+
         maps = []
         header_frames = [hdu_list[0].header[f"IMAGE{i}"] for i in range(1, hdu_list[0].shape[0] + 1)]
         unique_names = list(dict.fromkeys(header_frames))

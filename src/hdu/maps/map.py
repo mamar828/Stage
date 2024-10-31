@@ -192,6 +192,8 @@ class Map(FitsFile, MathematicalObject):
         if len(hdu_list) > 2:
             print(f"{C.BROWN}Warning: the given file {filename} contains more than two HDU elements. Only the first"
                  +f" two will be opened.{C.END}")
+        if len(data.shape) != 2:
+            raise TypeError("The provided data is not two-dimensional.")
         return cls(data, uncertainties, Header(hdu_list[0].header))
     
     @property
