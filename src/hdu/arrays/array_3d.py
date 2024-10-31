@@ -81,8 +81,10 @@ class Array3D(Array):
         if kwargs.get("cbar_limits") and not kwargs.get("discrete_colormap"):
             imshow.set_clim(*kwargs.get("cbar_limits"))
         cbar.set_label(kwargs.get("cbar_label"))
-        ax.set_xlabel(kwargs.get("xlabel"))
-        ax.set_ylabel(kwargs.get("ylabel"))
+        if kwargs.get("xlabel"):
+            ax.set_xlabel(kwargs.get("xlabel"))
+        if kwargs.get("ylabel"):
+            ax.set_ylabel(kwargs.get("ylabel"))
         if kwargs.get("xlim"):
             ax.set_xlim(*kwargs.get("xlim"))
         if kwargs.get("ylim"):
