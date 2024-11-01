@@ -95,8 +95,7 @@ vector<array<double, 2>> apply_vector_map(const vector_2d& input_array, const T&
     vector<array<double, 2>> single_dists_and_vals;
 
     // Reserve an approximate size to avoid multiple allocations
-    size_t max_possible_size = (height * width * (height * width - 1)) / 2;
-    single_dists_and_vals.reserve(max_possible_size);
+    size_t max_possible_size = (height * width * (height * width)) / 2;
 
     #pragma omp parallel
     {

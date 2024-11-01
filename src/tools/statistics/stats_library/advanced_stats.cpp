@@ -69,13 +69,36 @@ vector_2d autocorrelation_function_1d_boily(vector_2d& input_array)
 
     double denominator = sum_of_squares(input_array) / count_non_nan(input_array);
 
-    for (const auto& [dist, vals] : regrouped_vals)
+    // Thread-local storage for results
+    vector<vector_2d> thread_local_results(omp_get_max_threads());
+
+    #pragma omp parallel
     {
-        int N = vals.size();
-        if (N == 1) continue;
-        output_array.push_back({dist, mean(vals) / denominator, standard_deviation(vals) / (denominator * sqrt(N-1))});
+        int thread_id = omp_get_thread_num();
+        vector_2d& local_output = thread_local_results[thread_id];
+
+        #pragma omp for
+        for (int i = 0; i < regrouped_vals.size(); ++i)
+        {
+            auto it = next(regrouped_vals.begin(), i); // Access ith element
+            const auto& [dist, vals] = *it;
+
+            int N = vals.size();
+            if (N == 1) continue;
+            local_output.push_back(
+                {dist, mean(vals) / denominator, standard_deviation(vals) / (denominator * sqrt(N-1))}
+            );
+        }
     }
+
+    // Combine results from all threads
+    for (const auto& local_result : thread_local_results)
+    {
+        output_array.insert(output_array.end(), local_result.begin(), local_result.end());
+    }
+
     return output_array;
+
 }
 
 /**
@@ -195,20 +218,41 @@ vector_2d structure_function(const vector_2d& input_array)
     output_array.reserve(regrouped_vals.size());
     double variance_val = variance(input_array);
 
-    for (const auto& [dist, vals] : regrouped_vals)
+    // Thread-local storage for results
+    vector<vector_2d> thread_local_results(omp_get_max_threads());
+
+    #pragma omp parallel
     {
-        if (dist == 0) continue;
-        vector<double> pow2_values = pow2(vals);
-        int N = pow2_values.size();
-        if (N == 1) continue;
+        int thread_id = omp_get_thread_num();
+        vector_2d& local_output = thread_local_results[thread_id];
 
-        double mean_val = mean(pow2_values);
-        double std_val = standard_deviation(pow2_values);
+        #pragma omp for
+        for (int i = 0; i < regrouped_vals.size(); ++i)
+        {
+            auto it = next(regrouped_vals.begin(), i); // Access ith element
+            const auto& [dist, vals] = *it;
+            if (dist == 0) continue;
 
-        double structure = mean_val / (variance_val);
-        double structure_uncertainty = std_val / (variance_val * sqrt(N-1));
-        output_array.push_back(vector<double> {dist, structure, structure_uncertainty});
+            vector<double> pow2_values = pow2(vals);
+            int N = pow2_values.size();
+            if (N == 1) continue;
+
+            double mean_val = mean(pow2_values);
+            double std_val = standard_deviation(pow2_values);
+            double structure = mean_val / variance_val;
+            double structure_uncertainty = std_val / (variance_val * sqrt(N - 1));
+
+            // Store result in thread-local buffer
+            local_output.push_back({dist, structure, structure_uncertainty});
+        }
     }
+
+    // Combine results from all threads
+    for (const auto& local_result : thread_local_results)
+    {
+        output_array.insert(output_array.end(), local_result.begin(), local_result.end());
+    }
+
     return output_array;
 }
 
