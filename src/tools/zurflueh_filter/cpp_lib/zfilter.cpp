@@ -28,10 +28,14 @@ vector_2d zfilter(const vector_2d& input_array, const vector_2d& filter_)
             double filtered_val = 0.0, sum = 0.0;
             for (int j = max(0, hw - y); j < min(w, height - y + hw); j++)
             {
-                for (int i = max(0, hw - x); i < min(w, height - x + hw); i++)
+                for (int i = max(0, hw - x); i < min(w, width - x + hw); i++)
                 {
-                    if (isnan(input_array[y+j - hw][x+i - hw])) continue;
-                    filtered_val += filter_[j][i] * input_array[y+j - hw][x+i - hw];
+                    if (isnan(input_array[y + j - hw][x + i - hw])) continue;
+                    
+                    #pragma omp atomic
+                    filtered_val += filter_[j][i] * input_array[y + j - hw][x + i - hw];
+
+                    #pragma omp atomic
                     sum += filter_[j][i];
                 }
             }

@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 from scipy.interpolate import RegularGridInterpolator
 
 from src.tools.zurflueh_filter.cpp_lib.zfilter import zfilter_cpp
@@ -50,4 +51,4 @@ def zfilter(data: np.ndarray, pixel_width: int=13) -> np.ndarray:
     filtered data : np.ndarray
         Two-dimensional filtered array with the same shape as the input array.
     """
-    return np.array(zfilter_cpp(data, create_zfilter(pixel_width)))
+    return np.array(zfilter_cpp(deepcopy(data), create_zfilter(pixel_width)))
