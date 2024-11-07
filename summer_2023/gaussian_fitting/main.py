@@ -45,8 +45,8 @@ def get_maps():
 # Note that some functions are called in a if __name__ == "__main__" block because the fitting algorithm uses the 
 # multiprocessing library which creates multiple instances of the same code to allow parallel computation. Without 
 # this condition, the program would multiply itself recursively.
-if __name__ == "__main__":
-    get_maps()
+# if __name__ == "__main__":
+#     get_maps()
 
 
 def example_fitting():
