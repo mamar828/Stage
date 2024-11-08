@@ -112,6 +112,53 @@ def increments(data: np.ndarray) -> dict:
         increments_dict[increment[0]] = np.array(increment[1:])
     return increments_dict
 
+def evaluate_delta_f2(data: np.ndarray) -> float:
+    """
+    Evaluates the ∆F_2(tau_0) parameter which quantifies the Zurflueh filter's efficiency that implies quasi-homogeneous
+    motions.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data from which to compute the ∆F_2(tau_0) parameter.
+
+    Returns
+    -------
+    delta_f2_tau_0 : float
+        ∆F_2(tau_0) parameter.
+    """
+    # Find tau_0
+    autocorrelation_1d = autocorrelation_function(data, "Boily")
+    autocorrelation_1d_curve = gl.Curve(autocorrelation_1d[:,0], autocorrelation_1d[:,1])
+    zero_intersects = autocorrelation_1d_curve.create_intersection_points(
+        gl.Curve(
+            [autocorrelation_1d_curve.x_data],
+            [0]*len(autocorrelation_1d_curve.x_data)
+        )
+    )
+    if len(zero_intersects) > 0:
+        tau_0 = zero_intersects[0].x
+
+        # Compute ∆F_2(tau_0)
+        structure_func = structure_function(data)
+        mask = (structure_func[:,0] <= tau_0)
+        if structure_func[mask,0].shape[0] > 1:
+            linear = lambda x, a, b: a*x + b
+            a, b = curve_fit(
+                linear,
+                np.log10(structure_func[mask,0]),
+                np.log10(structure_func[mask,1]),
+                [0.3, 0.5],
+                maxfev=100000
+            )[0]
+            F_2_fit_tau_0 = linear(tau_0, a, b)
+
+            # Compute F_1(0) (≈ 1)
+            F_1_0 = autocorrelation_1d[autocorrelation_1d[:,0] == 0, 1]
+
+            delta_f2_tau_0 = np.abs(F_2_fit_tau_0 - 2*F_1_0)
+            return float(delta_f2_tau_0)
+
 def get_autocorrelation_function_scatter(autocorrelation_function_data: np.ndarray) -> gl.Scatter:
     """
     Reads the output given by the autocorrelation_function function and translates it to a gl.Scatter object.
@@ -187,53 +234,6 @@ def get_autocorrelation_function_2d_contour(autocorrelation_function_2d_data: np
     )
     return contour
 
-def evaluate_delta_f2(data: np.ndarray) -> float:
-    """
-    Evaluates the ∆F_2(tau_0) parameter which quantifies the Zurflueh filter's efficiency that implies quasi-homogeneous
-    motions.
-
-    Parameters
-    ----------
-    data : np.ndarray
-        Data from which to compute the ∆F_2(tau_0) parameter.
-
-    Returns
-    -------
-    delta_f2_tau_0 : float
-        ∆F_2(tau_0) parameter.
-    """
-    # Find tau_0
-    autocorrelation_1d = autocorrelation_function(data, "Boily")
-    autocorrelation_1d_curve = gl.Curve(autocorrelation_1d[:,0], autocorrelation_1d[:,1])
-    zero_intersects = autocorrelation_1d_curve.create_intersection_points(
-        gl.Curve(
-            [autocorrelation_1d_curve.x_data],
-            [0]*len(autocorrelation_1d_curve.x_data)
-        )
-    )
-    if len(zero_intersects) > 0:
-        tau_0 = zero_intersects[0].x
-
-        # Compute ∆F_2(tau_0)
-        structure_func = structure_function(data)
-        mask = (structure_func[:,0] <= tau_0)
-        if structure_func[mask,0].shape[0] > 1:
-            linear = lambda x, a, b: a*x + b
-            a, b = curve_fit(
-                linear,
-                np.log10(structure_func[mask,0]),
-                np.log10(structure_func[mask,1]),
-                [0.3, 0.5],
-                maxfev=100000
-            )[0]
-            F_2_fit_tau_0 = linear(tau_0, a, b)
-
-            # Compute F_1(0) (≈ 1)
-            F_1_0 = autocorrelation_1d[autocorrelation_1d[:,0] == 0, 1]
-
-            delta_f2_tau_0 = np.abs(F_2_fit_tau_0 - 2*F_1_0)
-            return float(delta_f2_tau_0)
-
 def get_fitted_structure_function_figure(
         data: np.ndarray, 
         fit_bounds: tuple[float, float],
@@ -294,13 +294,20 @@ def get_fitted_structure_function_figure(
 
     parameters = np.array(parameters)
     m, b = parameters.mean(axis=0)
-    slope = ufloat(m, parameters.std(axis=0)[0])
+    dm, db = parameters.std(axis=0)     # uncertainties on the m and b parameters
+    slope = ufloat(m, dm)
     fit = gl.Curve.from_function(
         lambda x: m*x + b,
         *fit_bounds,
         color="red",
         label=f"Slope : {slope:.1u}".replace("+/-", " ± "),
-        line_width=1
+        line_width=1,
+        number_of_points=2
+    )
+    y_fit_errors = db + np.array(fit_bounds)*dm
+    fit.add_error_curves(
+        y_error=y_fit_errors,
+        error_curves_line_style=""
     )
 
     fig = gl.Figure(x_lim=(0,1.35), y_lim=(-0.2,0.5))
