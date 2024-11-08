@@ -1,4 +1,3 @@
-#include <iostream>
 #include <omp.h>
 
 #include "time.h"
@@ -98,7 +97,6 @@ vector_2d autocorrelation_function_1d_boily(vector_2d& input_array)
     }
 
     return output_array;
-
 }
 
 /**
@@ -106,18 +104,18 @@ vector_2d autocorrelation_function_1d_boily(vector_2d& input_array)
  */
 array_unordered_map autocorrelation_function_2d_calculation(vector_2d& input_array)
 {
+    subtract_mean(input_array);
+
     const size_t height = input_array.size();
     const size_t width = input_array[0].size();
     vector<array<double, 3>> single_dists_and_vals_2d;
 
-    // Reserve an approximate size to avoid multiple allocations
     size_t max_possible_size = (height * width * (height * width - 1)) / 2;
-    single_dists_and_vals_2d.reserve(max_possible_size);
 
-    subtract_mean(input_array);
     #pragma omp parallel
     {
         vector<array<double, 3>> thread_single_dists_and_vals;
+        // Reserve an approximate size to avoid multiple allocations
         thread_single_dists_and_vals.reserve(max_possible_size / omp_get_num_threads());
 
         #pragma omp for collapse(2) schedule(dynamic)
@@ -128,7 +126,7 @@ array_unordered_map autocorrelation_function_2d_calculation(vector_2d& input_arr
                 if (isnan(input_array[y][x])) continue;
                 for (size_t j = y; j < height; j++)
                 {
-                    for (size_t i = (j == y) ? x /*+ 1*/ : 0; i < width; i++) // lag=0 is considered here
+                    for (size_t i = (j == y) ? x : 0; i < width; i++) // lag=0 is considered here
                     {
                         if (isnan(input_array[j][i])) continue;
                         double dist_x = int(i - x);
@@ -197,9 +195,28 @@ vector_2d autocorrelation_function_2d_boily(vector_2d& input_array)
 
     double denominator = sum_of_squares(input_array) / count_non_nan(input_array);
 
-    for (const auto& [dist, vals] : regrouped_vals)
+    // Thread-local storage for results
+    vector<vector_2d> thread_local_results(omp_get_max_threads());
+
+    #pragma omp parallel
     {
-        output_array.push_back({dist[0], dist[1], mean(vals) / denominator});
+        int thread_id = omp_get_thread_num();
+        vector_2d& local_output = thread_local_results[thread_id];
+
+        #pragma omp for
+        for (int i = 0; i < regrouped_vals.size(); ++i)
+        {
+            auto it = next(regrouped_vals.begin(), i); // Access ith element
+            const auto& [dist, vals] = *it;
+
+            local_output.push_back({dist[0], dist[1], mean(vals) / denominator});
+        }
+    }
+
+    // Combine results from all threads
+    for (const auto& local_result : thread_local_results)
+    {
+        output_array.insert(output_array.end(), local_result.begin(), local_result.end());
     }
     return output_array;
 }

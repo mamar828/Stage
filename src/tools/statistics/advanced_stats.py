@@ -203,15 +203,7 @@ def evaluate_delta_f2(data: np.ndarray) -> float:
             F_1_0 = autocorrelation_1d[autocorrelation_1d[:,0] == 0, 1]
 
             delta_f2_tau_0 = np.abs(F_2_fit_tau_0 - 2*F_1_0)
-
-            fig = gl.Figure(x_lim=(0, np.log10(36)))
-            fig.add_elements(
-                gl.Scatter(np.log10(structure_func[:,0]), np.log10(structure_func[:,1]), marker_size=3),
-                gl.Curve.from_function(lambda x: linear(x, a, b), 0, np.log10(tau_0)),
-                gl.Point(np.log10(tau_0), F_2_fit_tau_0)
-            )
-
-            return float(delta_f2_tau_0), fig
+            return float(delta_f2_tau_0)
 
 def get_fitted_structure_function_figure(
         data: np.ndarray, 

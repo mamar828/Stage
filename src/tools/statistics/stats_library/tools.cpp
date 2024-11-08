@@ -94,12 +94,12 @@ vector<array<double, 2>> apply_vector_map(const vector_2d& input_array, const T&
     const size_t width = input_array[0].size();
     vector<array<double, 2>> single_dists_and_vals;
 
-    // Reserve an approximate size to avoid multiple allocations
     size_t max_possible_size = (height * width * (height * width)) / 2;
 
     #pragma omp parallel
     {
         vector<array<double, 2>> thread_single_dists_and_vals;
+        // Reserve an approximate size to avoid multiple allocations
         thread_single_dists_and_vals.reserve(max_possible_size / omp_get_num_threads());
 
         #pragma omp for collapse(2) schedule(dynamic)
