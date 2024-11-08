@@ -112,16 +112,45 @@ def increments(data: np.ndarray) -> dict:
         increments_dict[increment[0]] = np.array(increment[1:])
     return increments_dict
 
+def get_autocorrelation_function_scatter(autocorrelation_function_data: np.ndarray) -> gl.Scatter:
+    """
+    Reads the output given by the autocorrelation_function function and translates it to a gl.Scatter object.
+
+    Parameters
+    ----------
+    autocorrelation_function_data : np.ndarray
+        Two-dimensional array with every group of three elements representing the lag and its corresponding value and
+        uncertainty. The output of the autocorrelation_function function may be given.
+
+    Returns
+    -------
+    scatter plot : gl.Scatter
+        A Scatter object which correctly represents the lag as well as the value and uncertainty of the autocorrelation
+        function.
+    """
+    scat = gl.Scatter(
+        x_data=autocorrelation_function_data[:,0],
+        y_data=autocorrelation_function_data[:,1],
+        face_color="black",
+        marker_size=3
+    )
+    scat.add_errorbars(
+        y_error=autocorrelation_function_data[:,2],
+        cap_width=None,
+        errorbars_line_width=0.25
+    )
+    return scat
+
 def get_autocorrelation_function_2d_contour(autocorrelation_function_2d_data: np.ndarray) -> gl.Contour:
     """
-    Reads the output given by the autocorrelation_function_2d_data function and translates to a gl.Contour object. A 3x3
+    Reads the output given by the autocorrelation_function_2d function and translates it to a gl.Contour object. A 3x3
     gaussian filter is used for smoothing the data.
 
     Parameters
     ----------
     autocorrelation_function_2d_data : np.ndarray
         Two-dimensional array with every group of three elements representing the x lag, the y lag and its corresponding
-        autocorrelation function. The output of the autocorrelation_function_2d_data function may be given.
+        autocorrelation function. The output of the autocorrelation_function_2d function may be given.
 
     Returns
     -------
