@@ -159,7 +159,7 @@ class Map(FitsFile, MathematicalObject):
 
     def __str__(self):
         return (f"Value : {True if isinstance(self.data, Array2D) else False}, "
-              + f"Uncertainty : {True if isinstance(self.uncertainties, Array2D) else False}")
+              + f"Uncertainty : {self.has_uncertainties}")
 
     @property
     def shape(self) -> np.ndarray:
@@ -167,7 +167,7 @@ class Map(FitsFile, MathematicalObject):
 
     @property
     def has_uncertainties(self) -> bool:
-        return isinstance(self.uncertainties, SilentNone)
+        return not isinstance(self.uncertainties, SilentNone)
 
     @classmethod
     def load(cls, filename: str) -> Self:

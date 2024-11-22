@@ -273,6 +273,9 @@ vector_2d structure_function(const vector_2d& input_array)
     return output_array;
 }
 
+/**
+ * \brief Computes the increments of two-dimensional data, i.e. the difference between every pair of pixels.
+ */
 vector_2d increments(const vector_2d& input_array)
 {
     vector<array<double, 2>> single_dists_and_vals_1d = subtract_elements(input_array);

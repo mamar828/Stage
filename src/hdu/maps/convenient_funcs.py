@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import scipy.constants as c
+import warnings
 
 from src.hdu.cubes.cube import Cube
 from src.hdu.maps.map import Map
@@ -23,7 +24,8 @@ def get_speed(
     """
     Converts a channel map into a speed map.
     """
-    speed_map = ((channel_map - src_cube.header["CRPIX3"])*src_cube.header["CDELT3"] + src_cube.header["CRVAL3"]) / 1000
+    warnings.warn("The output of this function has been modified by a 1000 factor.")
+    speed_map = (channel_map - src_cube.header["CRPIX3"])*src_cube.header["CDELT3"] + src_cube.header["CRVAL3"]
     return speed_map
 
 def get_kinetic_temperature(
