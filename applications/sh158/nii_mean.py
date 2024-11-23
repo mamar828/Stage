@@ -204,32 +204,32 @@ def generate_figure(data: Map, figure_filename: str, scale: str="linear"):
 
 # Structure function figure
 # -------------------------
-m = Map.load("data/sh158/fit_no_bin/NII_mean.fits").get_masked_region(target_region)
-gradient = zfilter(m.data, 81)
-filtered_map = Map(m.data - gradient, m.uncertainties, m.header)
-fit_lengths = [(0.45, 1.1)]*4
-# fit_lengths = [(0.45, 1.15), (0.45, 1.2), (0.45, 1), (0.45, 1.05)]
-figs = []
-for (name, region, _), fit_length in zip(regions, fit_lengths):
-    if False:
-        data_masked = filtered_map.get_masked_region(region)
-        str_data = structure_function(data_masked.data)
-        np.save(f"figures/sh158/nii_mean/{name}.npy", str_data)
-        figs.append(get_fitted_structure_function_figure(str_data, fit_length, 10000))
-    else:
-        str_data = np.load(f"figures/sh158/nii_mean/{name}.npy")
-        fig = get_fitted_structure_function_figure(str_data, fit_length, 10000)
-        fig.title = name
-        figs.append(fig)
-figs[0].y_lim = 0.1, 0.4
-figs[1].y_lim = 0, 0.4
-figs[2].y_lim = -0.3, 0.45
-figs[3].y_lim = -0.3, 0.45
-multifig = gl.MultiFigure.from_grid(figs, (2,2), (13, 8.6))
-multifig.x_label = "Lag [pixels]"
-multifig.y_label = "Structure Function [-]"
-# multifig.show()
-multifig.save("figures/sh158/nii_mean/str_func_same_lengths.pdf", dpi=600)
+# m = Map.load("data/sh158/fit_no_bin/NII_mean.fits").get_masked_region(target_region)
+# gradient = zfilter(m.data, 81)
+# filtered_map = Map(m.data - gradient, m.uncertainties, m.header)
+# fit_lengths = [(0.45, 1.1)]*4
+# # fit_lengths = [(0.45, 1.15), (0.45, 1.2), (0.45, 1), (0.45, 1.05)]
+# figs = []
+# for (name, region, _), fit_length in zip(regions, fit_lengths):
+#     if False:
+#         data_masked = filtered_map.get_masked_region(region)
+#         str_data = structure_function(data_masked.data)
+#         np.save(f"figures/sh158/nii_mean/{name}.npy", str_data)
+#         figs.append(get_fitted_structure_function_figure(str_data, fit_length, 10000))
+#     else:
+#         str_data = np.load(f"figures/sh158/nii_mean/{name}.npy")
+#         fig = get_fitted_structure_function_figure(str_data, fit_length, 10000)
+#         fig.title = name
+#         figs.append(fig)
+# figs[0].y_lim = 0.1, 0.4
+# figs[1].y_lim = 0, 0.4
+# figs[2].y_lim = -0.3, 0.45
+# figs[3].y_lim = -0.3, 0.45
+# multifig = gl.MultiFigure.from_grid(figs, (2,2), (13, 8.6))
+# multifig.x_label = "Lag [pixels]"
+# multifig.y_label = "Structure Function [-]"
+# # multifig.show()
+# multifig.save("figures/sh158/nii_mean/str_func_same_lengths.pdf", dpi=600)
 
 # Individual regions
 # ------------------
@@ -253,7 +253,7 @@ multifig.save("figures/sh158/nii_mean/str_func_same_lengths.pdf", dpi=600)
 # ---------------------------------------------
 # m = Map.load("data/sh158/fit_no_bin/NII_mean.fits")
 # zfilter_widths = [81, 65, 31, 33]
-# fit_lengths = [(0.45, 1.15), (0.45, 1.1), (0.45, 0.9), (0.45, 0.9)]
+# fit_lengths = [(0.45, 1.15), (0.45, 1.1), (0.45, 0.92), (0.45, 0.92)]
 # figs = []
 # for (name, region, _), width, fit_length in zip(regions, zfilter_widths, fit_lengths):
 #     masked = m.get_masked_region(region)
@@ -275,7 +275,7 @@ multifig.save("figures/sh158/nii_mean/str_func_same_lengths.pdf", dpi=600)
 # multifig.x_label = "Lag [pixels]"
 # multifig.y_label = "Structure Function [-]"
 # # multifig.show()
-# multifig.save("figures/sh158/nii_mean/str_func_variable_zfilter.pdf", dpi=600)
+# multifig.save("figures/sh158/nii_mean/str_func_variable_zfilter_2.pdf", dpi=600)
 
 # Autocorrelation function figures
 # --------------------------------
@@ -313,3 +313,4 @@ multifig.save("figures/sh158/nii_mean/str_func_same_lengths.pdf", dpi=600)
 # multifig_2d.x_label = "x lag [pixels]"
 # multifig_2d.y_label = "y lag [pixels]"
 # multifig_2d.save("figures/sh158/nii_mean/acr_func_2d_same_zfilter.pdf", dpi=600)
+
