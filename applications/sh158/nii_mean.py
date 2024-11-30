@@ -231,8 +231,8 @@ def generate_figure(data: Map, figure_filename: str, scale: str="linear"):
 # # multifig.show()
 # multifig.save("figures/sh158/nii_mean/str_func_same_lengths.pdf", dpi=600)
 
-# Individual regions
-# ------------------
+# Individual regions ∆F_2_tau_0
+# -----------------------------
 # m = Map.load("data/sh158/fit_no_bin/NII_mean.fits")
 # width_ranges = [range(53,85,2), range(13,45,2), range(13,45,2)]
 # # range(3,113,10)
@@ -314,3 +314,44 @@ def generate_figure(data: Map, figure_filename: str, scale: str="linear"):
 # multifig_2d.y_label = "y lag [pixels]"
 # multifig_2d.save("figures/sh158/nii_mean/acr_func_2d_same_zfilter.pdf", dpi=600)
 
+# Unfiltered NII_mean structure functions
+# ---------------------------------------
+# m = Map.load("data/sh158/fit_no_bin/NII_mean.fits")
+# fit_lengths = [(0.45, 1.15), (0.45, 1.1), (0.45, 0.92), (0.45, 0.92)]
+# figs = []
+# for (name, region, _), fit_length in zip(regions, fit_lengths):
+#     masked = m.get_masked_region(region)
+#     str_data = structure_function(masked.data)
+#     fig = get_fitted_structure_function_figure(str_data, fit_length, 10000)
+#     fig.x_lim = 0, 1.5
+#     fig.title = name
+#     figs.append(fig)
+
+# figs[0].y_lim = -0.3, 0.2
+# figs[1].y_lim = -0.4, 0.2
+# figs[2].y_lim = -0.3, 0.5
+# figs[3].y_lim = -0.4, 0.5
+# multifig = gl.MultiFigure.from_grid(figs, (2,2), (13, 8.6))
+# multifig.x_label = "Lag [pixels]"
+# multifig.y_label = "Structure Function [-]"
+# # multifig.show()
+# multifig.save("figures/sh158/nii_mean/str_func_no_zfilter.pdf", dpi=600)
+
+# Zfilters used
+# ---------------------------------------
+# cube = Cube.load("summer_2023/gaussian_fitting/data_cubes/night_34_wcs.fits")
+# m = get_speed(Map.load("data/sh158/fit_no_bin/NII_mean.fits").get_masked_region(regions[0][1]).crop_nans(), cube)
+# zfilter_widths = [81, 65, 31, 33]
+# figs = []
+# for (name, region, _), width in zip(regions, zfilter_widths):
+#     masked = m.get_masked_region(region)
+#     gradient = zfilter(masked.data, width)
+#     hm = gl.Heatmap(gradient, origin_position="lower", vmin=-136, vmax=-124)
+#     fig = gl.Figure()
+#     fig.add_elements(hm)
+#     fig.title = f"{name} $w={width}$"
+#     figs.append(fig)
+
+# multifig = gl.MultiFigure.from_grid(figs, (2,2), (10, 8.6))
+# # multifig.show()
+# multifig.save("figures/sh158/nii_mean/zfilters.pdf", dpi=600)
