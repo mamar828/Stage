@@ -2,9 +2,6 @@ from astropy.io import fits
 from copy import deepcopy
 import os
 from contextlib import redirect_stdout
-from asyncio import run as asyncio_run
-from telegram_send import send as telegram_send
-from time import time
 from eztcolors import Colors as C
 
 
@@ -52,35 +49,8 @@ class FitsFile:
         """
         Decorates verbose functions to silence their terminal output.
         """
-        def inner_func(self, *args, **kwargs):
+        def inner_func(*args, **kwargs):
             with open(os.devnull, "w") as outer_space, redirect_stdout(outer_space):
-                return func(self, *args, **kwargs)
+                return func(*args, **kwargs)
             
-        return inner_func
-
-    def _notification_send(message: str):
-        """
-        Sends a notification message via Telegram. This function is called by the notify function.
-
-        Parameters
-        ----------
-        message : str
-            The message to be sent.
-        """
-        try:
-            asyncio_run(telegram_send(messages=[message]))
-        except:
-            print("No telegram bot configuration was available.")
-
-    @staticmethod
-    def notify(func):
-        """
-        Decorates a function to notify when it has finished running.
-        """
-        def inner_func(self, *args, **kwargs):
-            start_time = time()
-            result = func(self, *args, **kwargs)
-            FitsFile._notification_send(f"{func.__name__} has finished running in {round(time()-start_time)}s.")
-            return result
-        
         return inner_func
