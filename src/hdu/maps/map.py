@@ -32,9 +32,9 @@ class Map(FitsFile, MathematicalObject):
         ----------
         data : Array2D
             The values of the Map.
-        uncertainties : Array2D, default=np.NAN
+        uncertainties : Array2D, default=SilentNone()
             The uncertainties of the Map.
-        header : Header, default=None
+        header : Header, default=SilentNone()
             Header of the Map.
         """
         self.data = Array2D(data)
@@ -208,7 +208,7 @@ class Map(FitsFile, MathematicalObject):
         """
         hdu_list = fits.HDUList([])
         hdu_list.append(self.data.get_PrimaryHDU(self.header))
-        if self.uncertainties:
+        if self.has_uncertainties:
             hdu_list.append(self.uncertainties.get_ImageHDU(self.header))
         return hdu_list
 

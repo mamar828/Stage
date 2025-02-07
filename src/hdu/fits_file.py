@@ -58,9 +58,9 @@ class FitsFile:
             
         return inner_func
 
-    def notification_send(message: str):
+    def _notification_send(message: str):
         """
-        Sends a notification message via Telegram.
+        Sends a notification message via Telegram. This function is called by the notify function.
 
         Parameters
         ----------
@@ -80,7 +80,7 @@ class FitsFile:
         def inner_func(self, *args, **kwargs):
             start_time = time()
             result = func(self, *args, **kwargs)
-            FitsFile.notification_send(f"{func.__name__} has finished running in {round(time()-start_time)}s.")
+            FitsFile._notification_send(f"{func.__name__} has finished running in {round(time()-start_time)}s.")
             return result
         
         return inner_func
