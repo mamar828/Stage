@@ -237,7 +237,7 @@ class Map(FitsFile, MathematicalObject):
         assert self.shape == other.shape, \
             f"{C.LIGHT_RED}Both Maps should have the same shapes. Current are {self.shape} and {other.shape}.{C.END}"
         
-    def bin(self, bins: tuple[int, int], ignore_nans: bool=False) -> Map:
+    def bin(self, bins: tuple[int, int], ignore_nans: bool=False) -> Self:
         """
         Bins a Map.
 
@@ -263,7 +263,7 @@ class Map(FitsFile, MathematicalObject):
             self.header.bin(bins)
         )
 
-    def crop_nans(self) -> Map:
+    def crop_nans(self) -> Self:
         """
         Crops the nan values at the borders of the Map.
 

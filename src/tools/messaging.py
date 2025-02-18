@@ -2,6 +2,8 @@ from asyncio import run as asyncio_run
 from telegram_send import send as telegram_send
 from time import time
 
+from src.tools.utilities import format_time
+
 
 def telegram_send_message(message: str):
     """
@@ -26,7 +28,7 @@ def notify(func):
     def inner_func(*args, **kwargs):
         start_time = time()
         result = func(*args, **kwargs)
-        telegram_send_message(f"{func.__name__} has finished running in {round(time()-start_time)}s.")
+        telegram_send_message(f"{func.__name__} has finished running in {format_time(time()-start_time)}.")
         return result
     
     return inner_func
