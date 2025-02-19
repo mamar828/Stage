@@ -358,7 +358,7 @@ def generate_figure(data: Map, figure_filename: str, scale: str="linear"):
 #         hm = gl.Heatmap(gradient, origin_position="lower", vmin=-136, vmax=-124)
 #         fig = gl.Figure()
 #         fig.add_elements(hm)
-#         fig.title = f"{name} $w={width}$"
+#         fig.title = f"{name} $W={width}$"
 #         figs.append(fig)
 
 #     multifig = gl.MultiFigure.from_grid(figs, (2,2), (10, 8.6))
@@ -382,12 +382,13 @@ def generate_figure(data: Map, figure_filename: str, scale: str="linear"):
 
 #         im = ax.imshow(gradient, origin="lower", vmin=-136, vmax=-124, cmap="coolwarm")
 #         ax.tick_params("both", direction="in")
-#         ax.set_title(f"{name} $w={width}$", fontsize=10)
+#         ax.set_title(f"{name} $W={width}$", fontsize=10)
 
 #     fig.subplots_adjust(right=0.8)
 #     cbar = fig.colorbar(im, cax=fig.add_axes([0.82, 0.11, 0.03, 0.77]))
 #     cbar.ax.tick_params(length=0)
 #     cbar.ax.set_yticklabels([])
+#     cbar.set_label("Normalized gradient [-]", rotation=90, labelpad=15)
 #     fig.text(0.41, 0.07, "Right ascension")
 #     fig.text(0.06, 0.45, "Declination", rotation=90)
 
