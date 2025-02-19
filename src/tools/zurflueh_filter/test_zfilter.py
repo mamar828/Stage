@@ -1,7 +1,9 @@
 import numpy as np
 import graphinglib as gl
+from scipy.signal import convolve2d
 
-from src.tools.zurflueh_filter.zfilter import zfilter
+from src.tools.zurflueh_filter.zfilter import zfilter, create_zfilter
+
 
 rand = np.random.normal(0, 0.1, (50,50))
 # test_array_linear = np.tile(np.arange(50), (50,1)) + rand
@@ -25,16 +27,14 @@ figs[4].add_elements(gl.Heatmap(gradient, show_color_bar=True))
 figs[5].add_elements(gl.Heatmap(rand - (test_array_linear-gradient), show_color_bar=True, vmin=-1.5, vmax=1.5))
 
 fig = gl.MultiFigure.from_grid(figs, (2,3), size=(14,9))
-fig.show()
-# fig.save("figures/zfilter/zurflueh_test_diagonal_3.png")
+# fig.show()
 
-# arr = np.array([
-#     [0,1,2,3,4],
-#     [5,6,7,8,9],
-#     [10,11,12,13,14],
-#     [15,16,17,18,19],
-#     [20,21,22,23,24]
-# ])
-
-# z = zfilter(arr, 5)
-# print(np.nanmean(z))
+# Test convolution
+matrix = create_zfilter(11)
+gradient_test = convolve2d(test_array_linear, matrix)[5:-5,5:-5]
+fig_test = gl.Figure(title="test")
+fig_test.add_elements(gl.Heatmap(gradient_test, show_color_bar=True))
+multifig_test = gl.MultiFigure.from_row(
+    [fig_test, figs[4]]
+)
+multifig_test.show()
