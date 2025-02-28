@@ -21,6 +21,11 @@ from src.base_objects.silent_none import SilentNone
 class Map(FitsFile, MathematicalObject):
     """
     Encapsulates the necessary methods to compare and treat maps.
+
+    Uncertainty propagation is done automatically using linear error propagation theory (similar to what is done by the
+    uncertainties package). The formulaes are given in
+    Bevington, P. R., & Robinson, D. K. (2003). Data reduction and error analysis. McGrawâ€“Hill, New York.
+    Note: the formula for natural logarithm propagation is incorrect, no b factor should be present.
     """
     spectrum_type = Spectrum
 
@@ -46,7 +51,7 @@ class Map(FitsFile, MathematicalObject):
             self.assert_shapes(other)
             return self.__class__(
                 self.data + other.data,
-                self.uncertainties + other.uncertainties,
+                np.sqrt(self.uncertainties**2 + other.uncertainties**2),
                 self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
@@ -58,13 +63,13 @@ class Map(FitsFile, MathematicalObject):
         else:
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for +: 'Map' and '{type(other).__name__}'{C.END}")
-    
+
     def __sub__(self, other):
         if isinstance(other, Map):
             self.assert_shapes(other)
             return self.__class__(
                 self.data - other.data,
-                self.uncertainties + other.uncertainties,
+                np.sqrt(self.uncertainties**2 + other.uncertainties**2),
                 self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
@@ -82,7 +87,7 @@ class Map(FitsFile, MathematicalObject):
             self.assert_shapes(other)
             return self.__class__(
                 self.data * other.data,
-                ((self.uncertainties / self.data) + (other.uncertainties / other.data)) * self.data * other.data,
+                self.data*other.data * np.sqrt((self.uncertainties/self.data)**2 + (other.uncertainties/other.data)**2),
                 self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
@@ -100,7 +105,7 @@ class Map(FitsFile, MathematicalObject):
             self.assert_shapes(other)
             return self.__class__(
                 self.data / other.data,
-                ((self.uncertainties / self.data) + (other.uncertainties / other.data)) * self.data / other.data,
+                self.data/other.data * np.sqrt((self.uncertainties/self.data)**2 + (other.uncertainties/other.data)**2),
                 self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
@@ -115,10 +120,11 @@ class Map(FitsFile, MathematicalObject):
     
     def __pow__(self, power):
         if isinstance(power, (int, float)) or (isinstance(power, np.ndarray) and power.size == 1):
-            float_data = self.data.astype(float)  # float type solves the integers to negative integer powers ValueError
+            # cast to float type to solve the integers to negative integer powers ValueError
+            pow_data = self.data.astype(float)**power
             return self.__class__(
-                float_data ** power, 
-                np.abs(self.uncertainties / self.data * power * float_data**power),
+                pow_data, 
+                pow_data * np.abs(power * self.uncertainties / self.data),
                 self.header
             )
         else:
@@ -132,7 +138,7 @@ class Map(FitsFile, MathematicalObject):
             self.header
         )
 
-    def __getitem__(self, slices: tuple[slice | int]) -> Array2D | Spectrum | SpectrumCO | Map:
+    def __getitem__(self, slices: tuple[slice | int]) -> Array2D | Spectrum | Map:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
             spectrum_header = self.header.flatten(axis=int_slices.index(True))
