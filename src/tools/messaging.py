@@ -9,7 +9,7 @@ def telegram_send_message(message: str):
     """
     Sends a notification message via Telegram. This function is called by the notify function.
     Note: messages can also be sent directly with a terminal command at the end of the execution 
-    {cmd} ; telegram-send "{message}"
+    e.g. : {cmd} ; telegram-send "{message}"
 
     Parameters
     ----------
@@ -21,7 +21,7 @@ def telegram_send_message(message: str):
     except:
         print("No telegram bot configuration was available.")
 
-def notify(func):
+def notify_function_end(func):
     """
     Decorates a function to notify when it has finished running.
     """
