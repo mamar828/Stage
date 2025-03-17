@@ -1,0 +1,32 @@
+Sh2-158:
+median: -0.0+/-0.9
+mean: -0.007+/-0.012
+nbpixels: 8251
+stddev: 2.086774422761725
+skewness: -0.13485485536205355
+kurtosis: 1.673249802342096
+
+Diffuse region:
+median: 0.1+/-1.1
+mean: 0.011+/-0.033
+nbpixels: 1252
+stddev: 1.946894890903441
+skewness: 0.0035035357253180967
+kurtosis: 0.8983441196436752
+
+Central region:
+median: -0.1+/-0.8
+mean: -0.040+/-0.029
+nbpixels: 799
+stddev: 1.4584237460235394
+skewness: -0.05752166892167563
+kurtosis: 0.7128186864990411
+
+Filament region:
+median: -0.0+/-0.5
+mean: -0.06+/-0.04
+nbpixels: 429
+stddev: 1.4000111259113683
+skewness: -0.3042299466654586
+kurtosis: 0.49937468933200346
+
