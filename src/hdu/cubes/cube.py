@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+import pyregion
 from astropy.io import fits
 from typing import Self, Any
 from eztcolors import Colors as C
@@ -173,3 +174,32 @@ class Cube(FitsFile):
             Cube with the nan values removed.
         """
         return self[self.data.get_nan_cropping_slices()]
+
+    @FitsFile.silence_function
+    def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
+        """
+        Gives the Cube within a region.
+
+        Parameters
+        ----------
+        region : pyregion.core.ShapeList
+            Region that will be kept in the final Cube. If None, the whole cube is returned.
+        
+        Returns
+        -------
+        Self
+            Masked Cube.
+        """
+        if region:
+            if self.header:
+                mask = region.get_mask(self[0,:,:].data.get_PrimaryHDU(self.header))
+            else:
+                mask = region.get_mask(shape=self.data.shape[1:])
+            mask = np.where(mask == False, np.nan, 1)
+            mask = np.tile(mask, (self.data.shape[0], 1, 1))
+        else:
+            mask = np.ones_like(self.data)
+        return self.__class__(
+            self.data * mask,
+            self.header
+        )
