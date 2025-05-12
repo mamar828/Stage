@@ -47,15 +47,15 @@ class Array(np.ndarray):
         """
         return fits.ImageHDU(self.data, header)
 
-    def bin(self, bins: tuple[int, int], ignore_nans: bool=False) -> Self:
+    def bin(self, bins: tuple[int, int] | tuple[int, int, int], ignore_nans: bool=False) -> Self:
         """
         Bins an Array.
 
         Parameters
         ----------
-        bins : tuple[int, int]
+        bins : tuple[int, int] | tuple[int, int, int]
             Number of pixels to be binned together along each axis. A value of 1 results in the axis not being
-            binned. The axes are in the order y, x.
+            binned. The axes are in the order y, x for Array2Ds and z, y, x for Array3Ds.
         ignore_nans : bool, default=False
             Whether to ignore the nan values in the process of binning. If no nan values are present, this parameter is
             obsolete. If False, the function np.mean is used for binning whereas np.nanmean is used if True. If the nans

@@ -383,8 +383,8 @@ class Map(FitsFile, MathematicalObject):
         uncertainties_array = np.vectorize(lambda data, unc: ufloat(data, unc))(reg_map.data, reg_map.uncertainties)
 
         stats =  {
-            "median": np.nanmedian(uncertainties_array),
-            "mean": np.nanmean(uncertainties_array),
+            "median": np.nanmedian(uncertainties_array)[()],
+            "mean": np.nanmean(uncertainties_array)[()],
             "nbpixels": np.count_nonzero(~np.isnan(reg_map.data)),
             "stddev": float(np.nanstd(reg_map.data)),
             "skewness": scipy.stats.skew(reg_map.data, axis=None, nan_policy="omit"),
