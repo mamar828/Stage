@@ -18,7 +18,7 @@ class CubeCO(Cube):
     """
     spectrum_type, map_type = SpectrumCO, MapCO
 
-    def fit(self, spectrum_parameters: dict=None) -> tuple[Map, Tesseract]:
+    def fit(self, spectrum_parameters: dict = None) -> tuple[Map, Tesseract]:
         """
         Fits the CubeCO with a variable number of peaks.
         WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
@@ -28,7 +28,7 @@ class CubeCO(Cube):
 
         Parameters
         ----------
-        spectrum_parameters: dict=None
+        spectrum_parameters : dict, default=None
             Parameters for initialization of the SpectrumCO objects. Supported parameters are "peak_prominence", 
             "peak_minimum_height_sigmas", "peak_minimum_distance", "peak_width", "noise_channels",
             "initial_guesses_binning" and "max_residue_sigmas" (See the SpectrumCO constructor for a definition of each
@@ -37,7 +37,7 @@ class CubeCO(Cube):
 
         Returns
         -------
-        fit results : tuple[Map, Tesseract]
+        tuple[Map, Tesseract]
             Results of fitting the entire Cube. The first element is a Map representing the chi-square of the fit at
             each pixel. The second elemenent is a Tesseract containing the adjusted function's parameters at every
             pixel.
@@ -91,7 +91,7 @@ class CubeCO(Cube):
 
         Returns
         -------
-        fit results : list[list[float, np.ndarray]]
+        list[list[float, np.ndarray]]
             Results of fitting every pixel along the line. Each pixel presents another list : [chi2, fit results]. The
             fit results is the converted DataFrame of the spectrum, now in a numpy array of shape (n_components, 6)
             where n_components is the number of fitted gaussians. The numpy array's format is determined by the

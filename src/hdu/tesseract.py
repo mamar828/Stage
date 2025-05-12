@@ -1,11 +1,12 @@
 from __future__ import annotations
 import numpy as np
-from graphinglib import Curve
 import awkward as ak
+import astropy.units as u
+from graphinglib import Curve
+from typing import Self
 from collections import namedtuple
 from astropy.io import fits
 from astropy.modeling.models import Gaussian1D
-import astropy.units as u
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
@@ -14,8 +15,6 @@ from src.hdu.maps.grouped_maps import GroupedMaps
 from src.hdu.maps.map import Map
 from src.hdu.arrays.array_2d import Array2D
 from src.hdu.cubes.cube import Cube
-from src.spectrums.spectrum import Spectrum
-from src.coordinates.ds9_coords import DS9Coords
 
 
 class Tesseract(FitsFile):
@@ -57,8 +56,8 @@ class Tesseract(FitsFile):
         
         Returns
         -------
-        tesseract : Tesseract
-            Initialized Tesseract.
+        Tesseract
+            An instance of the given class containing the given data and header.
         """
         return cls(cls.swapaxes(cls.rectangularize(data)), header)
 
@@ -101,8 +100,8 @@ class Tesseract(FitsFile):
 
         Returns
         -------
-        tesseract : Tesseract
-            Loaded Tesseract.
+        Tesseract
+            An instance of the given class containing the file's contents.
         """
         fits_object = fits.open(filename)[0]
         tesseract = cls(
@@ -125,7 +124,7 @@ class Tesseract(FitsFile):
         
         Returns
         -------
-        array : np.ndarray
+        np.ndarray
             Rectangularized array.
         """
         for i, value in zip(range(1,4), [[], [], np.NAN]):
@@ -149,13 +148,13 @@ class Tesseract(FitsFile):
         
         Returns
         -------
-        array : np.ndarray
+        np.ndarray
             Swapped array.
         """
         swapped_array = array.swapaxes(0, 2).swapaxes(1, 3).swapaxes(0, 1)
         return swapped_array
     
-    def save(self, filename: str, overwrite: bool=False):
+    def save(self, filename: str, overwrite: bool = False):
         """
         Saves a Tesseract to a file.
 
@@ -182,7 +181,7 @@ class Tesseract(FitsFile):
 
         Returns
         -------
-        spectrum : tuple[Curve]
+        tuple[Curve]
             The first element is the Spectrum's data at every channel and the last element is the Spectrum's total fit.
             The middle elements are every individual gaussian fitted. If a single Gaussian was fitted, the y_data of the
             middle and last Curves will be identical.
@@ -209,7 +208,7 @@ class Tesseract(FitsFile):
         spectrum_total.label = "Sum"
         return spectrum_plot, *spectrum_individual_gaussians, spectrum_total
 
-    def filter(self, slice: slice) -> Tesseract:
+    def filter(self, slice: slice) -> Self:
         """
         Filters the Tesseract to get only the elements whose third value along the first axis is between the specified
         slice. In the case of the Tesseract outputted by the src.hdu.cubes.cube_co.CubeCO.fit method, The returned
@@ -223,7 +222,7 @@ class Tesseract(FitsFile):
 
         Returns
         -------
-        filtered tesseract : Tesseract
+        Self
             Tesseract object with the specified slice applied to the third element of the first axis.
         """
         i = 2
@@ -241,7 +240,7 @@ class Tesseract(FitsFile):
 
         Returns
         -------
-        maps : GroupedMaps
+        GroupedMaps
             A GroupedMaps object containing the amplitude, mean, and standard deviation maps extracted from the
             Tesseract.
         """
@@ -268,7 +267,7 @@ class Tesseract(FitsFile):
         )
         return gm
 
-    def split(self, indice: int, axis: int) -> list[Tesseract, Tesseract]:
+    def split(self, indice: int, axis: int) -> list[Self, Self]:
         """
         Splits a Tesseract into two smaller Tesseracts along a certain axis at a given indice.
         
@@ -282,7 +281,7 @@ class Tesseract(FitsFile):
 
         Returns
         -------
-        splitted tesseracts : list[Tesseract, Tesseract]
+        list[Self, Self]
             Tesseracts that were splitted. The list is ordered so the Tesseract with the lowest slice is given first.
         """
         splitted = np.split(self.data, [indice], axis)
@@ -294,7 +293,7 @@ class Tesseract(FitsFile):
         tess = [self.__class__(data, self.header.crop_axes(h_slice)) for data, h_slice in zip(splitted, header_slices)]
         return tess
 
-    def concatenate(self, other, axis: int) -> Tesseract:
+    def concatenate(self, other, axis: int) -> Self:
         """
         Concatenates two Tesseracts into a single Tesseract. The Tesseract closest to the origin must be the one to call
         this method as the second Tesseract is added to the right (axis=3)/up (axis=2) depending on the chosen axis.
@@ -308,20 +307,20 @@ class Tesseract(FitsFile):
 
         Returns
         -------
-        merged tesseract : Tesseract
+        Self
             Merged Tesseract along the specified axis.
         """
         new_data = np.concatenate((self.data, other.data), axis)
         new_header = self.header.concatenate(other.header, axis)
         return self.__class__(new_data, new_header)
 
-    def compress(self) -> Tesseract:
+    def compress(self) -> Self:
         """
         Compresses the nan values of a Tesseract and removes unnecessary slices.
 
         Returns
         -------
-        compressed tesseract : Tesseract
+        Self
             Tesseract with the gaussian function indices shifted to the uppermost level and with all nan slices removed.
         """
         def collapse(row):

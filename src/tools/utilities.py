@@ -1,4 +1,4 @@
-def format_time(total_seconds: float, precision: int=2) -> str:
+def format_time(total_seconds: float, precision: int = 2) -> str:
     """
     Format a given time in seconds into a human-readable string. An example of the output format is "13h05m06.23s".
 

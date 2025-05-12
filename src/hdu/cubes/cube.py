@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from astropy.io import fits
-from typing import Self
+from typing import Self, Any
 from eztcolors import Colors as C
 
 from src.hdu.fits_file import FitsFile
@@ -20,7 +20,7 @@ class Cube(FitsFile):
     """
     spectrum_type, map_type = Spectrum, Map
 
-    def __init__(self, data: Array3D, header: Header=SilentNone()):
+    def __init__(self, data: Array3D, header: Header = SilentNone()):
         """
         Initialize a Cube object.
 
@@ -28,13 +28,13 @@ class Cube(FitsFile):
         ----------
         data : Array3D
             The values of the Cube.
-        header : Header, default=None
+        header : Header, default=SilentNone()
             The header of the Cube.
         """
         self.data = Array3D(data)
         self.header = header
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         same_array = np.allclose(self.data, other.data, equal_nan=True)
         same_header = self.header == other.header
         return same_array and same_header
@@ -56,22 +56,22 @@ class Cube(FitsFile):
         else:
             return self.__class__(self.data[slices], self.header.crop_axes(slices))
     
-    def __iter__(self):
+    def __iter__(self) -> Self:
         self.iter_n = -1
         return self
     
-    def __next__(self):
+    def __next__(self) -> Self:
         self.iter_n += 1
         if self.iter_n >= self.data.shape[1]:
             raise StopIteration
         else:
             return self[:,self.iter_n,:]
 
-    def copy(self):
+    def copy(self) -> Self:
         return self.__class__(self.data.copy(), self.header.copy())
     
     @classmethod
-    def load(cls, filename: str) -> Self:
+    def load(cls, filename: str) -> Cube:
         """
         Loads a Cube from a .fits file.
 
@@ -82,8 +82,8 @@ class Cube(FitsFile):
         
         Returns
         -------
-        cube : Cube
-            Loaded Cube.
+        Cube
+            An instance of the given class containing the file's contents.
         """
         fits_object = fits.open(filename)[0]
         cube = cls(
@@ -92,7 +92,7 @@ class Cube(FitsFile):
         )
         return cube
 
-    def save(self, filename: str, overwrite: bool=False):
+    def save(self, filename: str, overwrite: bool = False):
         """
         Saves a Cube to a file.
 
@@ -105,7 +105,7 @@ class Cube(FitsFile):
         """
         super().save(filename, fits.HDUList([self.data.get_PrimaryHDU(self.header)]), overwrite)
 
-    def bin(self, bins: tuple[int, int, int], ignore_nans: bool=False) -> Self:
+    def bin(self, bins: tuple[int, int, int], ignore_nans: bool = False) -> Self:
         """
         Bins a Cube.
 
@@ -122,7 +122,7 @@ class Cube(FitsFile):
 
         Returns
         -------
-        cube : Cube
+        Self
             Binned Cube.
         """
         return self.__class__(self.data.bin(bins, ignore_nans), self.header.bin(bins, ignore_nans))
@@ -138,7 +138,7 @@ class Cube(FitsFile):
 
         Returns
         -------
-        cube : Cube
+        Self
             Cube with the newly axis-flipped Data_cube.
         """
         return self.__class__(np.flip(self.data, axis=axis), self.header.invert_axis(axis))
@@ -156,7 +156,7 @@ class Cube(FitsFile):
         
         Returns
         -------
-        cube : Cube
+        Self
             Cube with the switched axes.
         """
         new_data = self.data.swapaxes(axis_1, axis_2)
@@ -169,7 +169,7 @@ class Cube(FitsFile):
 
         Returns
         -------
-        cropped_cube : Cube
+        Self
             Cube with the nan values removed.
         """
         return self[self.data.get_nan_cropping_slices()]

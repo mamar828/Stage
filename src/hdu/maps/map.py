@@ -7,7 +7,7 @@ import scipy
 import scipy.special
 from uncertainties import ufloat
 from reproject import reproject_interp
-from typing import Self
+from typing import Self, Any
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
@@ -29,7 +29,7 @@ class Map(FitsFile, MathematicalObject):
     """
     spectrum_type = Spectrum
 
-    def __init__(self, data: Array2D, uncertainties: Array2D=SilentNone(), header: Header=SilentNone()):
+    def __init__(self, data: Array2D, uncertainties: Array2D = SilentNone(), header: Header = SilentNone()):
         """
         Initialize a Map object.
 
@@ -46,7 +46,7 @@ class Map(FitsFile, MathematicalObject):
         self.uncertainties = Array2D(uncertainties) if not type(uncertainties) == SilentNone else uncertainties
         self.header = header
 
-    def __add__(self, other):
+    def __add__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
             self.assert_shapes(other)
             return self.__class__(
@@ -64,7 +64,7 @@ class Map(FitsFile, MathematicalObject):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for +: 'Map' and '{type(other).__name__}'{C.END}")
 
-    def __sub__(self, other):
+    def __sub__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
             self.assert_shapes(other)
             return self.__class__(
@@ -82,7 +82,7 @@ class Map(FitsFile, MathematicalObject):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for -: 'Map' and '{type(other).__name__}'{C.END}")
     
-    def __mul__(self, other):
+    def __mul__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
             self.assert_shapes(other)
             return self.__class__(
@@ -100,7 +100,7 @@ class Map(FitsFile, MathematicalObject):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for *: 'Map' and '{type(other).__name__}'{C.END}")
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
             self.assert_shapes(other)
             return self.__class__(
@@ -118,7 +118,7 @@ class Map(FitsFile, MathematicalObject):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for /: 'Map' and '{type(other).__name__}'{C.END}")
     
-    def __pow__(self, power):
+    def __pow__(self, power: int | float | np.ndarray) -> Self:
         if isinstance(power, (int, float)) or (isinstance(power, np.ndarray) and power.size == 1):
             # cast to float type to solve the integers to negative integer powers ValueError
             pow_data = self.data.astype(float)**power
@@ -131,7 +131,7 @@ class Map(FitsFile, MathematicalObject):
             raise NotImplementedError(
                 f"{C.LIGHT_RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.END}")
         
-    def __abs__(self):
+    def __abs__(self) -> Self:
         return self.__class__(
             np.abs(self.data),
             self.uncertainties,
@@ -152,18 +152,18 @@ class Map(FitsFile, MathematicalObject):
                 header=self.header.crop_axes(slices)
             )
 
-    def __iter__(self):
+    def __iter__(self) -> Self:
         self.iter_n = -1
         return self
     
-    def __next__(self):
+    def __next__(self) -> Self:
         self.iter_n += 1
         if self.iter_n >= self.data.shape[1]:
             raise StopIteration
         else:
             return self[:,self.iter_n]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (f"Value : {True if isinstance(self.data, Array2D) else False}, "
               + f"Uncertainty : {self.has_uncertainties}")
 
@@ -176,7 +176,7 @@ class Map(FitsFile, MathematicalObject):
         return not isinstance(self.uncertainties, SilentNone)
 
     @classmethod
-    def load(cls, filename: str) -> Self:
+    def load(cls, filename: str) -> Map:
         """
         Loads a Map from a file.
 
@@ -187,8 +187,8 @@ class Map(FitsFile, MathematicalObject):
         
         Returns
         -------
-        map : Map
-            Loaded Map.
+        Map
+            An instance of the given class containing the file's contents.
         """
         hdu_list = fits.open(filename)
         data = Array2D(hdu_list[0].data)
@@ -209,7 +209,7 @@ class Map(FitsFile, MathematicalObject):
         
         Returns
         -------
-        hdu_list : fits.HDUList
+        fits.HDUList
             List of PrimaryHDU and ImageHDU objects representing the Map.
         """
         hdu_list = fits.HDUList([])
@@ -218,7 +218,7 @@ class Map(FitsFile, MathematicalObject):
             hdu_list.append(self.uncertainties.get_ImageHDU(self.header))
         return hdu_list
 
-    def save(self, filename: str, overwrite: bool=False):
+    def save(self, filename: str, overwrite: bool = False):
         """
         Saves a Map to a file.
 
@@ -243,7 +243,7 @@ class Map(FitsFile, MathematicalObject):
         assert self.shape == other.shape, \
             f"{C.LIGHT_RED}Both Maps should have the same shapes. Current are {self.shape} and {other.shape}.{C.END}"
         
-    def bin(self, bins: tuple[int, int], ignore_nans: bool=False) -> Self:
+    def bin(self, bins: tuple[int, int], ignore_nans: bool = False) -> Self:
         """
         Bins a Map.
 
@@ -260,7 +260,7 @@ class Map(FitsFile, MathematicalObject):
 
         Returns
         -------
-        map : Map
+        Self
             Binned Map.
         """
         return self.__class__(
@@ -275,7 +275,7 @@ class Map(FitsFile, MathematicalObject):
 
         Returns
         -------
-        cropped_map : Map
+        Self
             Map with the nan values removed.
         """
         return self[self.data.get_nan_cropping_slices()]
@@ -286,7 +286,7 @@ class Map(FitsFile, MathematicalObject):
 
         Returns
         -------
-        map : Map
+        Self
             ln(self), with uncertainties.
         """
         return self.__class__(
@@ -301,7 +301,7 @@ class Map(FitsFile, MathematicalObject):
 
         Returns
         -------
-        map : Map
+        Self
             e**(self), with uncertainties.
         """
         exp_data = np.exp(self.data)
@@ -311,7 +311,7 @@ class Map(FitsFile, MathematicalObject):
             self.header
         )
     
-    def num_to_nan(self, num: float=0) -> Self:
+    def num_to_nan(self, num: float = 0) -> Self:
         """
         Converts a number to np.NAN and changes the uncertainties accordingly.
 
@@ -322,7 +322,7 @@ class Map(FitsFile, MathematicalObject):
 
         Returns
         -------
-        map : Map
+        Self
             Map with converted values to NANs. Note that the mask created for the data is used also for the
             uncertainties (indices where num was encountered in the data array will also be replaced with NAN in the
             uncertainties array).
@@ -345,7 +345,7 @@ class Map(FitsFile, MathematicalObject):
         
         Returns
         -------
-        map : Map
+        Self
             Masked Map.
         """
         if region:
@@ -375,7 +375,7 @@ class Map(FitsFile, MathematicalObject):
 
         Returns
         -------
-        stats : dict
+        dict
             Statistic of the region. Every key is a statistic measure.
         """
         reg_map = self.get_masked_region(region)
@@ -406,7 +406,7 @@ class Map(FitsFile, MathematicalObject):
             
         Returns
         -------
-        reprojected map : Map
+        Self
             Newly aligned Map.
         """
         data_reprojection = Array2D(reproject_interp(

@@ -19,16 +19,16 @@ class SpectrumCO(Spectrum):
             self,
             data: np.ndarray,
             header: Header,
-            peak_prominence: float=0.7,
-            peak_minimum_height_sigmas: float=5.0,
-            peak_minimum_distance: int=10,
-            peak_width: int=3,
-            noise_channels: slice=slice(0,100),
-            initial_guesses_binning: int=1,
-            max_residue_sigmas: float=5,
+            peak_prominence: float = 0.7,
+            peak_minimum_height_sigmas: float = 5.0,
+            peak_minimum_distance: int = 10,
+            peak_width: int = 3,
+            noise_channels: slice = slice(0,100),
+            initial_guesses_binning: int = 1,
+            max_residue_sigmas: float = 5,
             stddev_detection_threshold: float = 0.5,
-            initial_guesses_maximum_gaussian_stddev: float=7,
-            initial_guesses_minimum_gaussian_stddev: float=1,
+            initial_guesses_maximum_gaussian_stddev: float = 7,
+            initial_guesses_minimum_gaussian_stddev: float = 1,
     ):
         """
         Initializes a SpectrumCO object with a certain header, whose spectral information will be taken.
@@ -84,13 +84,13 @@ class SpectrumCO(Spectrum):
     def y_threshold(self):
         return float(np.std(self.data[self.NOISE_CHANNELS]) * self.PEAK_MINIMUM_HEIGHT_SIGMAS)
 
-    def fit(self, parameter_bounds: dict={}):
+    def fit(self, parameter_bounds: dict = {}):
         """
         Fits the Spectrum using specutils. This method presupposes the existence of a double peak.
 
         Parameters
         ----------
-        parameter_bounds : dict
+        parameter_bounds : dict, default={}
             Bounds of every parameter for every gaussian. 
             Example : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}.
         """
@@ -109,7 +109,7 @@ class SpectrumCO(Spectrum):
 
         Returns
         -------
-        initial guesses : dict
+        dict
             To every ray (key) is associated another dict in which the keys are the amplitude, stddev and mean.
         """
         if self.INITIAL_GUESSES_BINNING > 1:
@@ -174,7 +174,7 @@ class SpectrumCO(Spectrum):
 
         Returns
         -------
-        FWHM : np.ndarray
+        np.ndarray
             FWHM in km/s and its uncertainty measured in km/s.
         """
         channels_FWHM = self.get_FWHM_channels(gaussian_function_index)
@@ -190,7 +190,7 @@ class SpectrumCO(Spectrum):
 
         Returns
         -------
-        good fit : bool
+        bool
             True if the Spectrum is well fitted, False otherwise.
         """
         good_fit = np.max(np.abs(self.get_subtracted_fit())) \

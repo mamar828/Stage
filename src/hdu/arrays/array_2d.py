@@ -1,7 +1,7 @@
 from __future__ import annotations
 from graphinglib import Heatmap
 import numpy as np
-import scipy
+from scipy.stats import skew, kurtosis
 
 from src.hdu.arrays.array import Array
 
@@ -18,7 +18,7 @@ class Array2D(Array):
 
         Returns
         -------
-        heatmap : Heatmap
+        Heatmap
             Plotted Array2D
         """
         heatmap = Heatmap(
@@ -37,7 +37,7 @@ class Array2D(Array):
 
         Returns
         -------
-        stats : dict
+        dict
             Statistic of the region. Every key is a statistic measure.
         """
         stats =  {
@@ -45,8 +45,8 @@ class Array2D(Array):
             "mean": float(np.nanmean(self)),
             "nbpixels": np.count_nonzero(~np.isnan(self)),
             "stddev": float(np.nanstd(self)),
-            "skewness": scipy.stats.skew(self, axis=None, nan_policy="omit"),
-            "kurtosis": scipy.stats.kurtosis(self, axis=None, nan_policy="omit")
+            "skewness": skew(self, axis=None, nan_policy="omit"),
+            "kurtosis": kurtosis(self, axis=None, nan_policy="omit")
         }
         return stats
 
@@ -56,7 +56,7 @@ class Array2D(Array):
 
         Returns
         -------
-        slices : tuple[slice, slice]
+        tuple[slice, slice]
             Slice that must be applied on the Array2D for cropping, i.e. (valid columns, valid rows).
         """
         non_nan_cols = np.any(~np.isnan(self), axis=0)

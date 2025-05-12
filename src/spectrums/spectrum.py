@@ -1,7 +1,8 @@
 from __future__ import annotations
 import numpy as np
-from graphinglib import Curve, Scatter, Figure, MultiFigure, FitFromPolynomial
 import pandas as pd
+from typing import Self
+from graphinglib import Curve, Scatter, Figure, MultiFigure, FitFromPolynomial
 from copy import deepcopy
 from astropy import units as u
 from astropy.modeling import models, fitting, CompoundModel
@@ -64,7 +65,7 @@ class Spectrum:
         
         Returns
         -------
-        x_values : np.ndarray
+        np.ndarray
             Range from 1 and has the same length than the data array. The start value is chosen to match with SAOImage
             ds9 and with the headers, whose axes start at 1.
         """
@@ -78,7 +79,7 @@ class Spectrum:
         
         Returns
         -------
-        predicted_data : np.ndarray
+        np.ndarray
             Array representing the predicted intensity at every channel. The first element corresponds to channel 1.
         """
         return self.fitted_function(self.x_values * u.um) / u.Jy
@@ -90,7 +91,7 @@ class Spectrum:
         
         Returns
         -------
-        success : bool
+        bool
             True if the fit succeeded, False otherwise.
         """
         fit_state = True if self.fitted_function is not None else False
@@ -103,7 +104,7 @@ class Spectrum:
 
         Returns
         -------
-        spectrum : Curve
+        Curve
             Curve representing the spectrum's values at every channel.
         """
         curve = Curve(
@@ -122,7 +123,7 @@ class Spectrum:
 
         Returns
         -------
-        fitted function : tuple[Curve]
+        tuple[Curve]
             Curves representing every function fitted to the spectrum's values at every channel.
         """
         curves = [
@@ -146,7 +147,7 @@ class Spectrum:
 
         Returns
         -------
-        global function : Curve
+        Curve
             Curve representing the sum of every gaussian fitted.
         """
         total = sum(self.individual_functions_plot)
@@ -161,7 +162,7 @@ class Spectrum:
 
         Returns
         -------
-        initial guesses : Scatter
+        Scatter
             Scatter giving the spectrum's initial guesses for every detected peak.
         """
         initial_guesses_array = np.array([
@@ -185,7 +186,7 @@ class Spectrum:
 
         Returns
         -------
-        residue : Curve
+        Curve
             Curve representing the fit's residue at every channel.
         """
         curve = Curve(
@@ -222,7 +223,7 @@ class Spectrum:
         multi_figure.add_figure(figure_1, 0, 0, 1, 1)
         multi_figure.show()
 
-    def bin(self, bin: int) -> Spectrum:
+    def bin(self, bin: int) -> Self:
         """
         Bins a Spectrum.
 
@@ -234,7 +235,7 @@ class Spectrum:
 
         Returns
         -------
-        spectrum : Spectrum
+        Self
             Binned Spectrum.
         """
         cropped_pixels = np.array(self.data.shape) % np.array(bin)
@@ -286,7 +287,7 @@ class Spectrum:
 
         Returns
         -------
-        polyfit_function : FitFromPolynomial
+        FitFromPolynomial
             Fitted polynomial function in the form of a FitFromPolynomial.
         """
         return FitFromPolynomial(self.plot, degree)
@@ -312,7 +313,7 @@ class Spectrum:
 
         Returns
         -------
-        data : tuple[np.ndarray, np.ndarray]
+        tuple[np.ndarray, np.ndarray]
             Value and uncertainty of every relevant parameter of self.fitted_function.
         """
         n_submodels = self.fitted_function.n_submodels
@@ -330,7 +331,7 @@ class Spectrum:
         return filtered_flat_values, filtered_flat_uncertainties
 
     @fit_needed
-    def get_residue_stddev(self, bounds: slice=None) -> float:
+    def get_residue_stddev(self, bounds: slice = None) -> float:
         """
         Gives the standard deviation of the fit's residue.
 
@@ -343,7 +344,7 @@ class Spectrum:
 
         Returns
         -------
-        residue's stddev : float
+        float
             Value of the residue's standard deviation.
         """
         if bounds is None:
@@ -359,7 +360,7 @@ class Spectrum:
 
         Returns
         -------
-        subtracted fit : np.ndarray
+        np.ndarray
             Result values of the gaussian fit subtracted to the y values.
         """
         subtracted_y = self.data - self.predicted_data
@@ -377,7 +378,7 @@ class Spectrum:
 
         Returns
         -------
-        FWHM : np.ndarray
+        np.ndarray
             Array of the FWHM and its uncertainty measured in channels.
         """
         stddev = np.array([self.fit_results.stddev.value[gaussian_function_index],
@@ -398,7 +399,7 @@ class Spectrum:
 
         Returns
         -------
-        snr : float
+        float
             Value of the signal to noise ratio.
         """
         return self.fit_results.amplitude.value[gaussian_function_index] / self.get_residue_stddev()
@@ -410,7 +411,7 @@ class Spectrum:
 
         Returns
         -------
-        chi2 : float
+        float
             Chi-square of the fit.
         """
         chi2 = np.sum(self.get_subtracted_fit()**2 / np.var(self.data[self.NOISE_CHANNELS]))

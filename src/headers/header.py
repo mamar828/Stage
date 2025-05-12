@@ -2,6 +2,7 @@ from __future__ import annotations
 from astropy.io import fits
 from copy import deepcopy
 from numpy import cos, radians
+from typing import Self
 from eztcolors import Colors as C
 
 
@@ -39,13 +40,13 @@ class Header(fits.Header):
 
         Returns
         -------
-        header axis : int
+        int
             Axis converted to a header axis.
         """
         h_axis = self["NAXIS"] - axis
         return h_axis
 
-    def bin(self, bins: list[int] | tuple[int, int] | tuple[int, int, int]) -> Header:
+    def bin(self, bins: list[int] | tuple[int, int] | tuple[int, int, int]) -> Self:
         """
         Bins a Header.
 
@@ -58,7 +59,7 @@ class Header(fits.Header):
 
         Returns
         -------
-        header : Header
+        Self
             Binned Header.
         """
         assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
@@ -76,7 +77,7 @@ class Header(fits.Header):
         
         return header_copy
 
-    def flatten(self, axis: int) -> Header:
+    def flatten(self, axis: int) -> Self:
         """
         Flattens a Header by removing an axis. The remaining axes are placed so they stay coherent (start at 1 and
         increment by constant steps of 1). This method is safer than the _remove_axis method.
@@ -88,7 +89,7 @@ class Header(fits.Header):
 
         Returns
         -------
-        header : Header
+        Self
             Flattened header with the remaining data.
         """
         new_header = self.copy()
@@ -101,7 +102,7 @@ class Header(fits.Header):
 
         return new_header
 
-    def _remove_axis(self, axis: int) -> Header:
+    def _remove_axis(self, axis: int) -> Self:
         """
         Removes an axis from a Header. The remaining axes are not moved so incoherent headers, without certain axes, may
         occur (e.g. AXIS1 and AXIS3, but no AXIS2). The flatten method is safer to use than this one.
@@ -113,7 +114,7 @@ class Header(fits.Header):
 
         Returns
         -------
-        header : Header
+        Self
             Header with the removed axis.
         """
         new_header = self.copy()
@@ -126,7 +127,7 @@ class Header(fits.Header):
 
         return new_header
     
-    def swap_axes(self, axis_1: int, axis_2: int) -> Header:
+    def swap_axes(self, axis_1: int, axis_2: int) -> Self:
         """
         Switches a Header's axes to fit a FitsFile object with swapped axes.
         
@@ -139,7 +140,7 @@ class Header(fits.Header):
         
         Returns
         -------
-        header : Header
+        Self
             Header with the switched axes.
         """
         # Make header readable keywords
@@ -161,7 +162,7 @@ class Header(fits.Header):
 
         return new_header
 
-    def invert_axis(self, axis: int) -> Header:
+    def invert_axis(self, axis: int) -> Self:
         """
         Inverts a Header along an axis.
 
@@ -172,7 +173,7 @@ class Header(fits.Header):
 
         Returns
         -------
-        header : Header
+        Self
             Header with the inverted axis.
         """
         new_header = self.copy()
@@ -181,7 +182,7 @@ class Header(fits.Header):
         new_header[f"CRPIX{h_axis}"] = self[f"NAXIS{h_axis}"] - self[f"CRPIX{h_axis}"] + 1
         return new_header
     
-    def crop_axes(self, slices: tuple[slice | int]) -> Header:
+    def crop_axes(self, slices: tuple[slice | int]) -> Self:
         """
         Crops the Header to account for a cropped FitsFile.
 
@@ -192,7 +193,7 @@ class Header(fits.Header):
         
         Returns
         -------
-        header : Header
+        Self
             Cropped Header.
         """
         new_header = self.copy()
@@ -206,7 +207,7 @@ class Header(fits.Header):
 
         return new_header
     
-    def concatenate(self, other: Header, axis: int) -> Header:
+    def concatenate(self, other: Header, axis: int) -> Self:
         """
         Concatenates two headers along an axis. The Header closest to the origin should be the one to call this method.
         This method is used if a FitsFile whose header was previously cropped (with Header.crop_axes) needs to be
@@ -221,7 +222,7 @@ class Header(fits.Header):
         
         Returns
         -------
-        header : Header
+        Self
             Concatenated Header.
         """
         new_header = self.copy()
@@ -244,7 +245,7 @@ class Header(fits.Header):
 
         Returns
         -------
-        coordinate : int
+        int
             Coordinate closest to the specified value.
         """
         h_axis = self._h_axis(axis)
@@ -275,7 +276,7 @@ class Header(fits.Header):
 
         Returns
         -------
-        value : float
+        float
             Value at the given coordinate.
         """
         h_axis = self._h_axis(axis)

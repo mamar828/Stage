@@ -17,7 +17,6 @@ class Coord:
         return f"{self.__class__.__name__} : {self.degrees:.4f}°, {self.sexagesimal}"
 
 
-
 class RA(Coord):
     """
     This class implements a Coord for right ascension.
@@ -34,7 +33,7 @@ class RA(Coord):
 
         Returns
         -------
-        right ascension : RA
+        RA
             New RA object representing the given sexagesimal value.
         """
         hours, minutes, seconds = [float(val) for val in value.split(":")]
@@ -48,7 +47,7 @@ class RA(Coord):
 
         Returns
         -------
-        sexagesimal value : str
+        str
             Sexagesimal representation of the RA object in the format "hours:minutes:seconds".
         """
         total_seconds = self.degrees / 360 * (24*3600)
@@ -56,7 +55,6 @@ class RA(Coord):
         minutes = int((total_seconds % 3600) / 3600 * 60)
         seconds = total_seconds - hours * 3600 - minutes * 60
         return f"{hours}:{minutes:02d}:{seconds:06.3f}"
-
 
 
 class DEC(Coord):
@@ -75,7 +73,7 @@ class DEC(Coord):
 
         Returns
         -------
-        declination : DEC
+        DEC
             New DEC object representing the given sexagesimal value.
         """
         whole_degrees, minutes, seconds = [float(val) for val in value.split(":")]
@@ -89,7 +87,7 @@ class DEC(Coord):
 
         Returns
         -------
-        sexagesimal value : str
+        str
             Sexagesimal representation of the DEC object in the format "degrees:minutes:seconds".
         """
         whole_degrees = int(self.degrees)

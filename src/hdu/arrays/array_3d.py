@@ -107,7 +107,7 @@ class Array3D(Array):
 
         Returns
         -------
-        slices : tuple[slice, slice]
+        tuple[slice, slice]
             Slice that must be applied on the Array3D for cropping, i.e. (valid columns, valid rows).
         """
         non_nan_cols = np.any(~np.isnan(self), axis=1)

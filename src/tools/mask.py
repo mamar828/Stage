@@ -37,7 +37,7 @@ class Mask:
 
         Returns
         -------
-        mask : np.ndarray
+        np.ndarray
             Exported mask represented by the .reg file.
         """
         region = pyregion.open(filename).as_imagecoord(header)
@@ -56,7 +56,7 @@ class Mask:
 
         Returns
         -------
-        mask : np.ndarray
+        np.ndarray
             Generated circular mask.
         """
         region_id = f"image;circle({center[0]},{center[1]},{radius})"
@@ -89,7 +89,7 @@ class Mask:
 
         Returns
         -------
-        mask : np.ndarray
+        np.ndarray
             Generated elliptical mask.
         """
         region_id = f"image;ellipse({center[0]},{center[1]},{semi_major_axis},{semi_minor_axis},{angle})"
@@ -114,7 +114,7 @@ class Mask:
 
         Returns
         -------
-        mask : np.ndarray
+        np.ndarray
             Generated rectangular mask.
         """
         region_id = f"image;box({center[0]},{center[1]},{length},{height},{angle})"
@@ -134,7 +134,7 @@ class Mask:
 
         Returns
         -------
-        mask : np.ndarray
+        np.ndarray
             Generated polygonal mask.
         """
         region_id = f"image;polygon{sum(vertices, ())}"
@@ -156,7 +156,7 @@ class Mask:
 
         Returns
         -------
-        mask : np.ndarray
+        np.ndarray
             Generated ring mask.
         """
         inner_circle = self.circle(center, inner_radius)
@@ -174,7 +174,7 @@ class Mask:
 
         Returns
         -------
-        mask : np.ndarray
+        np.ndarray
             Exported mask.
         """
         mask = region.get_mask(shape=self.image_shape)

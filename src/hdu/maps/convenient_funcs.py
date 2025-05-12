@@ -72,7 +72,7 @@ def get_13co_column_density(
 
     Returns
     -------
-    column_density : Map
+    Map
         Map of the calculated 13CO column density, in cm^{-2}.
     """
     nu = 110.20e9       # taken from https://tinyurl.com/23e45pj3

@@ -26,7 +26,7 @@ class Array(np.ndarray):
         
         Returns
         -------
-        PrimaryHDU : fits.PrimaryHDU
+        fits.PrimaryHDU
             PrimaryHDU object of the Array.
         """
         return fits.PrimaryHDU(self.data, header)
@@ -42,7 +42,7 @@ class Array(np.ndarray):
         
         Returns
         -------
-        ImageHDU : fits.ImageHDU
+        fits.ImageHDU
             ImageHDU object of the Array.
         """
         return fits.ImageHDU(self.data, header)
@@ -64,7 +64,7 @@ class Array(np.ndarray):
 
         Returns
         -------
-        binned_array : Self
+        Self
             Binned Array.
         """
         assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \

@@ -1,6 +1,7 @@
+import os
+from typing import Self
 from astropy.io import fits
 from copy import deepcopy
-import os
 from contextlib import redirect_stdout
 from eztcolors import Colors as C
 
@@ -10,11 +11,11 @@ class FitsFile:
     Encapsulates the methods specific to .fits files.
     """
 
-    def copy(self):
+    def copy(self) -> Self:
         return deepcopy(self)
 
     @staticmethod
-    def save(filename: str, hdu_list: fits.HDUList, overwrite: bool=False):
+    def save(filename: str, hdu_list: fits.HDUList, overwrite: bool = False):
         """
         Saves to a file.
 

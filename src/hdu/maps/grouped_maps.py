@@ -45,8 +45,8 @@ class GroupedMaps(FitsFile):
 
         Returns
         -------
-        GroupedMaps : GroupedMaps
-            Loaded GroupedMaps.
+        GroupedMaps
+            An instance of the given class containing the file's contents.
         """
         hdu_list = fits.open(filename)
         new_header = hdu_list[0].header.copy()
@@ -77,11 +77,11 @@ class GroupedMaps(FitsFile):
         gm = cls(maps)
         return gm
 
-    def save(self, filename: str, overwrite: bool=False):
+    def save(self, filename: str, overwrite: bool = False):
         """
         Saves a GroupedMaps to a file. Saving a GroupedMaps object is discouraged as the format is more restrictive than
-        Tesseracts. This may however be useful for a more descriptive header and when no further change will be made to
-        the data.
+        Tesseracts. This may however be useful for a more descriptive header and when sharing this with others and that
+        no further changes will be made to the data.
 
         Parameters
         ----------

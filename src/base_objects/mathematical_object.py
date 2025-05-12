@@ -1,5 +1,5 @@
 import numpy as np
-import scipy
+from typing import Any
 
 
 class MathematicalObject:
@@ -10,50 +10,50 @@ class MathematicalObject:
     __add__         __sub__         __mul__         __truediv__
     __pow__         __abs__         log             exp
     """
-    def __add__(self, other):
+    def __add__(self, other: Any):
         raise NotImplementedError
     
-    def __radd__(self, other):
+    def __radd__(self, other: Any):
         return self.__add__(other)
     
-    def __iadd__(self, other):
+    def __iadd__(self, other: Any):
         self = self.__add__(other)
         return self
 
-    def __sub__(self, other):
+    def __sub__(self, other: Any):
         raise NotImplementedError
     
-    def __rsub__(self, other):
+    def __rsub__(self, other: Any):
         return self.__sub__(other) * (-1)
     
-    def __isub__(self, other):
+    def __isub__(self, other: Any):
         self = self.__sub__(other)
         return self
 
-    def __mul__(self, other):
+    def __mul__(self, other: Any):
         raise NotImplementedError
     
-    def __rmul__(self, other):
+    def __rmul__(self, other: Any):
         return self.__mul__(other)
     
-    def __imul__(self, other):
+    def __imul__(self, other: Any):
         self = self.__mul__(other)
         return self
     
-    def __truediv__(self, other):
+    def __truediv__(self, other: Any):
         raise NotImplementedError
     
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: Any):
         return self.__truediv__(other) ** (-1)
     
-    def __itruediv__(self, other):
+    def __itruediv__(self, other: Any):
         self = self.__truediv__(other)
         return self
     
-    def __pow__(self, other):
+    def __pow__(self, other: Any):
         raise NotImplementedError
 
-    def __ipow__(self, other):
+    def __ipow__(self, other: Any):
         self = self.__pow__(other)
         return self
     
