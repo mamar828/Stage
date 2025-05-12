@@ -23,10 +23,10 @@ skewness: 0.22268676065261478
 kurtosis: -0.1349540379103975
 
 Filament region:
-median: -128.5+/-0.7
-mean: -128.64+/-0.04
-nbpixels: 429
-stddev: 2.412533739123658
-skewness: -0.441706002542251
-kurtosis: 0.5395161537451632
+median: -128.1+/-0.4
+mean: -128.05+/-0.04
+nbpixels: 406
+stddev: 1.9408308151379716
+skewness: 0.03747765424031196
+kurtosis: -0.1365048390221073
 

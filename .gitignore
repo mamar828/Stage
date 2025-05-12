@@ -173,5 +173,6 @@ data/Loop4_co/felix
 *.pkl
 *.dat
 *.gz
+*.zip
 .*
 test_speed_str_acr
