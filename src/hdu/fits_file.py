@@ -4,7 +4,7 @@ from typing import Self
 from astropy.io import fits
 from copy import deepcopy
 from contextlib import redirect_stdout
-from eztcolors import Colors as C
+from colorist import BrightColor as C
 
 
 class FitsFile:
@@ -36,10 +36,10 @@ class FitsFile:
             # Only catch exceptions related to an already existing file
             if isinstance(exception.args[0], str) and exception.args[0][-31:] == " the argument \"overwrite=True\".":
                 while True:
-                    decision = input(f"{C.RED}{filename} already exists, do you wish to overwrite it? [y/n]{C.END}")
+                    decision = input(f"{C.RED}{filename} already exists, do you wish to overwrite it? [y/n]{C.OFF}")
                     if decision.lower() == "y":
                         hdu_list.writeto(filename, overwrite=True, output_verify="warn")
-                        print(f"{C.LIGHT_GREEN}File overwritten.{C.END}")
+                        print(f"{C.GREEN}File overwritten.{C.OFF}")
                         break
                     elif decision.lower() == "n":
                         break

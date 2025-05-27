@@ -2,12 +2,12 @@ from __future__ import annotations
 import numpy as np
 import awkward as ak
 import astropy.units as u
-from graphinglib import Curve
+from src.graphinglib import Curve
 from typing import Self
 from collections import namedtuple
 from astropy.io import fits
 from astropy.modeling.models import Gaussian1D
-from eztcolors import Colors as C
+from colorist import BrightColor as C
 
 from src.hdu.fits_file import FitsFile
 from src.headers.header import Header
@@ -80,9 +80,9 @@ class Tesseract(FitsFile):
             Note : the setting of an individual gaussian at a time is encouraged to facilitate manipulations of
             dimensions.
         """
-        assert len(slice_) == 3, f"{C.LIGHT_RED}slice_ must have 3 elements; current length is {len(slice_)}.{C.END}"
+        assert len(slice_) == 3, f"{C.RED}slice_ must have 3 elements; current length is {len(slice_)}.{C.OFF}"
         assert (isinstance(value, float) and np.isnan(value)) or value.shape == (6,), \
-            f"{C.LIGHT_RED}value must be np.NAN or a six elements array.{C.END}"
+            f"{C.RED}value must be np.NAN or a six elements array.{C.OFF}"
         if isinstance(value, float):
             self.data.__setitem__((slice(None,None),*slice_), np.full(6, value))
         else:
@@ -109,7 +109,7 @@ class Tesseract(FitsFile):
             Header(fits_object.header)
         )
         if len(tesseract.data.shape) != 4:
-            raise TypeError(C.LIGHT_RED+"The provided file is not a Tesseract."+C.END)
+            raise TypeError(C.RED+"The provided file is not a Tesseract."+C.OFF)
         return tesseract
     
     @staticmethod

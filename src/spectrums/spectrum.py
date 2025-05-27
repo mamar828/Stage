@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from typing import Self
-from graphinglib import Curve, Scatter, Figure, MultiFigure, FitFromPolynomial
+from src.graphinglib import Curve, Scatter, Figure, MultiFigure, FitFromPolynomial
 from copy import deepcopy
 from astropy import units as u
 from astropy.modeling import models, fitting, CompoundModel

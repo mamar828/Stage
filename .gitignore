@@ -166,6 +166,7 @@ cython_debug/
 MAITRISE_LEO_SHARPLESS_2_158
 notes.txt
 tests.*
+test.*
 figures
 figures_old
 data/Loop4_co/felix

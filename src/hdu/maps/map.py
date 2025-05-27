@@ -2,12 +2,12 @@ from __future__ import annotations
 import numpy as np
 import pyregion
 from astropy.io import fits
-from eztcolors import Colors as C
 import scipy
 import scipy.special
 from uncertainties import ufloat
 from reproject import reproject_interp
 from typing import Self, Any
+from colorist import BrightColor as C
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
@@ -62,7 +62,7 @@ class Map(FitsFile, MathematicalObject):
             )
         else:
             raise NotImplementedError(
-                f"{C.LIGHT_RED}unsupported operand type(s) for +: 'Map' and '{type(other).__name__}'{C.END}")
+                f"{C.RED}unsupported operand type(s) for +: 'Map' and '{type(other).__name__}'{C.OFF}")
 
     def __sub__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
@@ -80,7 +80,7 @@ class Map(FitsFile, MathematicalObject):
             )
         else:
             raise NotImplementedError(
-                f"{C.LIGHT_RED}unsupported operand type(s) for -: 'Map' and '{type(other).__name__}'{C.END}")
+                f"{C.RED}unsupported operand type(s) for -: 'Map' and '{type(other).__name__}'{C.OFF}")
     
     def __mul__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
@@ -98,7 +98,7 @@ class Map(FitsFile, MathematicalObject):
             )
         else:
             raise NotImplementedError(
-                f"{C.LIGHT_RED}unsupported operand type(s) for *: 'Map' and '{type(other).__name__}'{C.END}")
+                f"{C.RED}unsupported operand type(s) for *: 'Map' and '{type(other).__name__}'{C.OFF}")
 
     def __truediv__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
@@ -116,7 +116,7 @@ class Map(FitsFile, MathematicalObject):
             )
         else:
             raise NotImplementedError(
-                f"{C.LIGHT_RED}unsupported operand type(s) for /: 'Map' and '{type(other).__name__}'{C.END}")
+                f"{C.RED}unsupported operand type(s) for /: 'Map' and '{type(other).__name__}'{C.OFF}")
     
     def __pow__(self, power: int | float | np.ndarray) -> Self:
         if isinstance(power, (int, float)) or (isinstance(power, np.ndarray) and power.size == 1):
@@ -129,7 +129,7 @@ class Map(FitsFile, MathematicalObject):
             )
         else:
             raise NotImplementedError(
-                f"{C.LIGHT_RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.END}")
+                f"{C.RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.OFF}")
         
     def __abs__(self) -> Self:
         return self.__class__(
@@ -196,8 +196,8 @@ class Map(FitsFile, MathematicalObject):
         if len(hdu_list) > 1:
             uncertainties = Array2D(hdu_list[1].data)
         if len(hdu_list) > 2:
-            print(f"{C.BROWN}Warning: the given file {filename} contains more than two HDU elements. Only the first"
-                 +f" two will be opened.{C.END}")
+            print(f"{C.YELLOW}Warning: the given file {filename} contains more than two HDU elements. Only the first"
+                 +f" two will be opened.{C.OFF}")
         if len(data.shape) != 2:
             raise TypeError("The provided data is not two-dimensional.")
         return cls(data, uncertainties, Header(hdu_list[0].header))
@@ -241,7 +241,7 @@ class Map(FitsFile, MathematicalObject):
             Map to compare the current map with.
         """
         assert self.shape == other.shape, \
-            f"{C.LIGHT_RED}Both Maps should have the same shapes. Current are {self.shape} and {other.shape}.{C.END}"
+            f"{C.RED}Both Maps should have the same shapes. Current are {self.shape} and {other.shape}.{C.OFF}"
         
     def bin(self, bins: tuple[int, int], ignore_nans: bool = False) -> Self:
         """

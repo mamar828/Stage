@@ -3,7 +3,6 @@ import graphinglib as gl
 from astropy.io import fits
 import os
 import time
-from eztcolors import Colors as C
 
 from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.cubes.cube_co import CubeCO

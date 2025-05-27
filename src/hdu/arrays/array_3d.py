@@ -1,5 +1,5 @@
 import numpy as np
-from graphinglib import Heatmap
+from src.graphinglib import Heatmap
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.animation import FuncAnimation

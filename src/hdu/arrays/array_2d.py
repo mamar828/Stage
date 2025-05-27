@@ -1,5 +1,5 @@
 from __future__ import annotations
-from graphinglib import Heatmap
+from src.graphinglib import Heatmap
 import numpy as np
 from scipy.stats import skew, kurtosis
 

@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.io import fits
 from typing import Self
-from eztcolors import Colors as C
+from colorist import BrightColor as C
 
 from src.headers.header import Header
 
@@ -68,7 +68,7 @@ class Array(np.ndarray):
             Binned Array.
         """
         assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
-            f"{C.LIGHT_RED}All values in bins must be integers greater than or equal to 1.{C.END}"
+            f"{C.RED}All values in bins must be integers greater than or equal to 1.{C.OFF}"
         if ignore_nans:
             func = np.nanmean
         else:

@@ -2,7 +2,7 @@ import numpy as np
 from pathos.pools import ProcessPool
 from tqdm import tqdm
 import awkward as ak
-from eztcolors import Colors as C
+from colorist import BrightColor as C
 
 from src.hdu.cubes.cube import Cube
 from src.hdu.cubes.worker import _worker_split
@@ -44,7 +44,7 @@ class CubeCO(Cube):
         """
         self.spectrum_parameters = spectrum_parameters
         with ProcessPool() as pool:
-            print(f"{C.YELLOW}Number of processes used: {pool.nodes}{C.END}")
+            print(f"{C.YELLOW}Number of processes used: {pool.nodes}{C.OFF}")
             progressbar = tqdm(
                 desc="Fitting",
                 total=self.data.shape[1],

@@ -3,7 +3,7 @@ from astropy.io import fits
 from copy import deepcopy
 from numpy import cos, radians
 from typing import Self
-from eztcolors import Colors as C
+from colorist import BrightColor as C
 
 
 class Header(fits.Header):
@@ -63,7 +63,7 @@ class Header(fits.Header):
             Binned Header.
         """
         assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
-            f"{C.LIGHT_RED}All values in bins must be greater than or equal to 1 and must be integers.{C.END}"
+            f"{C.RED}All values in bins must be greater than or equal to 1 and must be integers.{C.OFF}"
         
         header_copy = self.copy()
         for ax, bin_ in enumerate(bins):
@@ -257,7 +257,7 @@ class Header(fits.Header):
         elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR", "    "]:
             frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
         else:
-            raise NotImplementedError(C.LIGHT_RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.END)
+            raise NotImplementedError(C.RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.OFF)
         rounded_frame = round(frame_number)
         return rounded_frame
 
@@ -288,5 +288,5 @@ class Header(fits.Header):
         elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR", "    "]:
             value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
         else:
-            raise NotImplementedError(C.LIGHT_RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.END)
+            raise NotImplementedError(C.RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.OFF)
         return value

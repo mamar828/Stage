@@ -3,7 +3,7 @@ import numpy as np
 import pyregion
 from astropy.io import fits
 from typing import Self, Any
-from eztcolors import Colors as C
+from colorist import BrightColor as C
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
@@ -42,7 +42,7 @@ class Cube(FitsFile):
 
     def __getitem__(self, slices: tuple[slice | int]) -> Spectrum | SpectrumCO | Map | MapCO | Self:
         if not all([isinstance(s, (int, slice)) for s in slices]):
-            raise TypeError(f"{C.LIGHT_RED}Every slice element must be an int or a slice.{C.END}")
+            raise TypeError(f"{C.RED}Every slice element must be an int or a slice.{C.OFF}")
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
             map_header = self.header.flatten(axis=int_slices.index(True))
