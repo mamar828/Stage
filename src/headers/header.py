@@ -120,7 +120,7 @@ class Header(fits.Header):
         new_header = self.copy()
         h_axis = str(self._h_axis(axis))
         for key in deepcopy(list(new_header.keys())):
-            if key[-1] == h_axis:
+            if key and key[-1] == h_axis:
                 new_header.pop(key)
         
         new_header["NAXIS"] -= 1

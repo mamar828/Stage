@@ -162,18 +162,19 @@ cython_debug/
 
 
 # FILES TO IGNORE
-
-MAITRISE_LEO_SHARPLESS_2_158
-notes.txt
-tests.*
-test.*
-figures
-figures_old
-data/Loop4_co/felix
 *.fits
 *.pkl
 *.dat
 *.gz
 *.zip
 .*
-test_speed_str_acr
+
+notes.txt
+tests.*
+test.*
+
+figures
+figures_old
+data/Loop4_co/felix
+data/orion
+MAITRISE_LEO_SHARPLESS_2_158
