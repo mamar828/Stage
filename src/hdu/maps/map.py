@@ -93,7 +93,7 @@ class Map(FitsFile, MathematicalObject):
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
             return self.__class__(
                 self.data * other,
-                self.uncertainties * other,
+                self.uncertainties * abs(other),
                 self.header
             )
         else:
@@ -111,7 +111,7 @@ class Map(FitsFile, MathematicalObject):
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
             return self.__class__(
                 self.data / other,
-                self.uncertainties / other,
+                self.uncertainties / abs(other),
                 self.header
             )
         else:

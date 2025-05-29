@@ -1,5 +1,6 @@
 from __future__ import annotations
 from astropy.io import fits
+from astropy.wcs import WCS
 from copy import deepcopy
 from numpy import cos, radians
 from typing import Self
@@ -28,7 +29,20 @@ class Header(fits.Header):
             values_equal = True
 
         return keys_equal and values_equal
-    
+
+    @property
+    def wcs_object(self) -> WCS:
+        """
+        Converts the Header to a WCS object. This is useful for plotting as the returned object can simply be passed to
+        the projection argument of the matplotlib/graphinglib figure.
+
+        Returns
+        -------
+        WCS
+            WCS object corresponding to the Header, that may be passed as the `projection` argument of a figure.
+        """
+        return WCS(self)
+
     def _h_axis(self, axis: int) -> int:
         """
         Converts a numpy axis to a header axis.
