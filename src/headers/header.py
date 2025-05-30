@@ -6,6 +6,8 @@ from numpy import cos, radians
 from typing import Self
 from colorist import BrightColor as C
 
+from src.hdu.fits_file import FitsFile
+
 
 class Header(fits.Header):
     """ 
@@ -140,7 +142,8 @@ class Header(fits.Header):
         new_header["NAXIS"] -= 1
 
         return new_header
-    
+
+    @FitsFile.silence_function
     def swap_axes(self, axis_1: int, axis_2: int) -> Self:
         """
         Switches a Header's axes to fit a FitsFile object with swapped axes.
@@ -162,16 +165,17 @@ class Header(fits.Header):
         new_header = self.copy()
 
         for key in deepcopy(list(self.keys())):
-            if key[-1] == str(h_axis_1):
-                new_header[f"{key[:-1]}{h_axis_2}-"] = new_header.pop(key)
-            elif key[-1] == str(h_axis_2):
-                new_header[f"{key[:-1]}{h_axis_1}-"] = new_header.pop(key)
+            if key:
+                if key[-1] == str(h_axis_1):
+                    new_header[f"{key[:-1]}{h_axis_2}-"] = new_header.pop(key)
+                elif key[-1] == str(h_axis_2):
+                    new_header[f"{key[:-1]}{h_axis_1}-"] = new_header.pop(key)
         
         # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the
         # process
         # After the process is done, the suffix is removed
         for key in deepcopy(list(new_header.keys())):
-            if key[-1] == "-":
+            if key and key[-1] == "-":
                 new_header[key[:-1]] = new_header.pop(key)
 
         return new_header
