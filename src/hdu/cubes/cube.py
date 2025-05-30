@@ -1,9 +1,13 @@
 from __future__ import annotations
 import numpy as np
+import scipy as sp
 import pyregion
 from astropy.io import fits
 from typing import Self, Any
 from colorist import BrightColor as C
+from pathos.pools import ProcessPool
+from copy import deepcopy
+from tqdm import tqdm
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
@@ -13,6 +17,7 @@ from src.spectrums.spectrum import Spectrum
 from src.spectrums.spectrum_co import SpectrumCO
 from src.headers.header import Header
 from src.base_objects.silent_none import SilentNone
+from src.tools.array_functions import list_to_array
 
 
 class Cube(FitsFile):
@@ -68,8 +73,12 @@ class Cube(FitsFile):
         else:
             return self[:,self.iter_n,:]
 
+    @property
+    def shape(self) -> tuple[int, int, int]:
+        return self.data.shape
+
     def copy(self) -> Self:
-        return self.__class__(self.data.copy(), self.header.copy())
+        return self.__class__(deepcopy(self.data), deepcopy(self.header))
     
     @classmethod
     def load(cls, filename: str) -> Cube:
@@ -140,7 +149,7 @@ class Cube(FitsFile):
         Returns
         -------
         Self
-            Cube with the newly axis-flipped Data_cube.
+            Cube with the newly axis-flipped data.
         """
         return self.__class__(np.flip(self.data, axis=axis), self.header.invert_axis(axis))
 
@@ -203,3 +212,65 @@ class Cube(FitsFile):
             self.data * mask,
             self.header
         )
+
+    def find_peaks_gaussian_estimates(self, **kwargs) -> Self:
+        """
+        Finds gaussian initial guesses using a find_peaks algorithm. These initial guesses can then be used to fit
+        gaussian functions to the data.
+
+        Parameters
+        ----------
+        kwargs : Any
+            Arguments to pass to the scipy.signal.find_peaks function. Useful parameters include:
+            - `height`: Required height of the peaks.
+            - `threshold`: Required threshold of peaks, the vertical distance to its neighboring samples.
+            - `distance`: Required minimal horizontal distance (>= 1) in samples between neighbouring peaks.
+            - `prominence`: Required prominence of peaks.
+            - `width`: Required width of peaks in samples.
+            See the documentation of `scipy.signal.find_peaks` for more details.
+
+        Returns
+        -------
+        Self
+            Cube with the initial guesses for the Gaussian model. The guesses are stored along the first axis, ordered
+            as: amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the first three values are the
+            parameters of the first Gaussian model, the next three are the parameters of the second Gaussian model, and
+            so on.
+        """
+        transposed_data = self.data.T.reshape(self.data.shape[2] * self.data.shape[1], self.data.shape[0])
+        peak_means = [sp.signal.find_peaks(spectrum, **kwargs)[0] for spectrum in transposed_data]
+        peak_amplitudes = [spectrum[peaks] for spectrum, peaks in zip(transposed_data, peak_means)]
+        peak_means = list_to_array(peak_means)
+        peak_amplitudes = list_to_array(peak_amplitudes)
+        assert peak_means.size > 0, \
+            "No peaks were detected in the data. Please check the parameters passed to find_peaks."
+
+        # Estimate stddevs
+        peak_stddevs = []
+        for means, amplitude in zip(peak_means.T, peak_amplitudes.T):    # iterate over each detected peak
+            half_max_difference = transposed_data - amplitude[:,None] / 2
+            half_max_intersect_mask = np.abs(np.diff(np.sign(half_max_difference))).astype(bool)
+            intersects_x = [np.where(mask)[0] + 1 for mask in half_max_intersect_mask]
+
+            current_stddevs = []
+            for intersect, mean in zip(intersects_x, means):
+                if np.isnan(mean):
+                    current_stddevs.append(np.nan)
+                else:
+                    lower_bound_candidates = intersect[intersect < mean]
+                    lower_bound = lower_bound_candidates.max() if len(lower_bound_candidates) > 0 else 0
+                    upper_bound_candidates = intersect[intersect > mean]
+                    upper_bound = upper_bound_candidates.min() if len(upper_bound_candidates) > 0 else 0
+                    current_stddevs.append((upper_bound - lower_bound) / (2*np.sqrt(2*np.log(2))))
+
+            peak_stddevs.append(current_stddevs)
+
+        peak_stddevs = np.array(peak_stddevs).T
+        peak_means += 1     # correct for the 0-based indexing in numpy but 1-based indexing in the data
+
+        # Combine the results into a single array and reshape it
+        guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs))        # shape is (n_data, n_models, 3)
+        guesses = guesses.reshape(self.data.shape[2], self.data.shape[1], -1)
+        guesses = guesses.T
+
+        return self.__class__(guesses, self.header)
