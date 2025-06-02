@@ -1,5 +1,5 @@
 from asyncio import run as asyncio_run
-from telegram_send import send as telegram_send
+from telegram_send import send as _telegram_send
 from time import time
 
 from src.tools.utilities import format_time
@@ -17,7 +17,7 @@ def telegram_send_message(message: str):
         The message to be sent.
     """
     try:
-        asyncio_run(telegram_send(messages=[message]))
+        asyncio_run(_telegram_send(messages=[message]))
     except:
         print("No telegram bot configuration was available.")
 
