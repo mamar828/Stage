@@ -8,7 +8,7 @@ from src.tools.utilities import format_time
 def telegram_send_message(message: str):
     """
     Sends a notification message via Telegram. This function is called by the notify function.
-    Note: messages can also be sent directly with a terminal command at the end of the execution 
+    Note: messages can also be sent directly with a terminal command at the end of the execution
     e.g. : {cmd} ; telegram-send "{message}"
 
     Parameters
@@ -30,5 +30,5 @@ def notify_function_end(func):
         result = func(*args, **kwargs)
         telegram_send_message(f"{func.__name__} has finished running in {format_time(time()-start_time)}.")
         return result
-    
+
     return inner_func

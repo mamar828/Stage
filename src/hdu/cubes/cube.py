@@ -58,11 +58,11 @@ class Cube(FitsFile):
             return self.data[slices]
         else:
             return self.__class__(self.data[slices], self.header.crop_axes(slices))
-    
+
     def __iter__(self) -> Self:
         self.iter_n = -1
         return self
-    
+
     def __next__(self) -> Self:
         self.iter_n += 1
         if self.iter_n >= self.data.shape[1]:
@@ -76,7 +76,7 @@ class Cube(FitsFile):
 
     def copy(self) -> Self:
         return deepcopy(self)
-    
+
     @classmethod
     def load(cls, filename: str) -> Cube:
         """
@@ -86,7 +86,7 @@ class Cube(FitsFile):
         ----------
         filename : str
             Name of the file to load.
-        
+
         Returns
         -------
         Cube
@@ -153,14 +153,14 @@ class Cube(FitsFile):
     def swap_axes(self, axis_1: int, axis_2: int) -> Self:
         """
         Swaps a Cube's axes.
-        
+
         Parameters
         ----------
         axis_1: int
             Source axis.
         axis_2: int
             Destination axis.
-        
+
         Returns
         -------
         Self
@@ -190,7 +190,7 @@ class Cube(FitsFile):
         ----------
         region : pyregion.core.ShapeList
             Region that will be kept in the final Cube. If None, the whole cube is returned.
-        
+
         Returns
         -------
         Self

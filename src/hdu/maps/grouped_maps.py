@@ -93,13 +93,13 @@ class GroupedMaps(FitsFile):
         data = []
         uncertainties = []
         map_occurences = {}     # Tracks the number of maps per name
-        
+
         for name in self.names:
             for map_ in getattr(self, name):
                 data.append(map_.data)
                 uncertainties.append(map_.uncertainties)
                 map_occurences[name] = map_occurences.get(name, 0) + 1
-        
+
         header = getattr(self, self.names[0])[0].header.copy()
         header["EXT0"] = "Data"
         if not np.all(np.isnan(uncertainties)):

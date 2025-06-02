@@ -58,7 +58,7 @@ class Tesseract(FitsFile):
             The values of the Tesseract.
         header : Header
             The header of the Tesseract.
-        
+
         Returns
         -------
         Tesseract
@@ -116,7 +116,7 @@ class Tesseract(FitsFile):
         if len(tesseract.data.shape) != 4:
             raise TypeError(C.RED+"The provided file is not a Tesseract."+C.OFF)
         return tesseract
-    
+
     @staticmethod
     def rectangularize(array: ak.Array) -> np.ndarray:
         """
@@ -126,7 +126,7 @@ class Tesseract(FitsFile):
         ----------
         array : ak.Array
             Inhomogeneous array to rectangularize.
-        
+
         Returns
         -------
         np.ndarray
@@ -150,7 +150,7 @@ class Tesseract(FitsFile):
         ----------
         array : np.ndarray
             Initial array to swap.
-        
+
         Returns
         -------
         np.ndarray
@@ -158,7 +158,7 @@ class Tesseract(FitsFile):
         """
         swapped_array = array.swapaxes(0, 2).swapaxes(1, 3).swapaxes(0, 1)
         return swapped_array
-    
+
     def save(self, filename: str, overwrite: bool = False):
         """
         Saves a Tesseract to a file.
@@ -237,7 +237,7 @@ class Tesseract(FitsFile):
         """
         i = 2
         # Make a boolean filter to determine the axes that fulfill the condition
-        filter_3d = (((slice.start if slice.start else 0) <= self.data[i,:,:,:]) & 
+        filter_3d = (((slice.start if slice.start else 0) <= self.data[i,:,:,:]) &
                      (self.data[i,:,:,:] < (slice.stop if slice.stop else 1e5)))
         filter_4d = np.tile(filter_3d, (6, 1, 1, 1))
         # Convert boolean filter to True/np.nan
@@ -252,7 +252,7 @@ class Tesseract(FitsFile):
         ----------
         names : list[str], default=["amplitude", "mean", "stddev"]
             Names of the maps to be created from the Tesseract, in the order the parameters are stored in the Tesseract.
-        
+
         Returns
         -------
         GroupedMaps
@@ -289,7 +289,7 @@ class Tesseract(FitsFile):
     def split(self, indice: int, axis: int) -> list[Self, Self]:
         """
         Splits a Tesseract into two smaller Tesseracts along a certain axis at a given indice.
-        
+
         Parameters
         ----------
         indice : int
@@ -308,7 +308,7 @@ class Tesseract(FitsFile):
         slices = [slice(None, indice), slice(indice, None)]
         header_slices = [[0, 0, 0] for _ in slices]
         [header_slices[i].insert(axis, slice_) for i, slice_ in enumerate(slices)]
-        
+
         tess = [self.__class__(data, self.header.crop_axes(h_slice)) for data, h_slice in zip(splitted, header_slices)]
         return tess
 
@@ -353,7 +353,7 @@ class Tesseract(FitsFile):
                 constant_values=np.nan
             )
             return padded
-        
+
         # Collapse the non nan elements at the first indices
         collapsed_array = np.apply_along_axis(collapse, axis=1, arr=self.data)
         # collapsed_array is now an array with the same shape as before, but with every gaussian function shifted to the
@@ -365,5 +365,5 @@ class Tesseract(FitsFile):
 
         # Filter the rows to keep only the data where there is not always nan parameters for all the slice
         filtered_rows = collapsed_array[:,~nan_indexes,:,:]
-        
+
         return self.__class__(filtered_rows, self.header)

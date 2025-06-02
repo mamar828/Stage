@@ -10,13 +10,13 @@ from src.hdu.fits_file import FitsFile
 
 
 class Header(fits.Header):
-    """ 
+    """
     Encapsulates methods specific to the astropy.io.fits.Header class.
     Note : for all methods, the axes are always given in their numpy array format, not in the fits header format. For
     example, axis=0 targets the first numpy array axis, and therefore the last header axis (e.g. 3 for a cube). Values
     of 0, 1 and 2 target respectively z, y and x.
     """
-    
+
     def __str__(self) -> str:
         return self.__repr__()
 
@@ -80,7 +80,7 @@ class Header(fits.Header):
         """
         assert list(bins) == list(filter(lambda val: val >= 1 and isinstance(val, int), bins)), \
             f"{C.RED}All values in bins must be greater than or equal to 1 and must be integers.{C.OFF}"
-        
+
         header_copy = self.copy()
         for ax, bin_ in enumerate(bins):
             h_ax = self._h_axis(ax)
@@ -90,7 +90,7 @@ class Header(fits.Header):
                 header_copy[f"CRPIX{h_ax}"] = (self[f"CRPIX{h_ax}"] - 0.5) / bin_ + 0.5
             if f"NAXIS{h_ax}" in list(self.keys()):
                 header_copy[f"NAXIS{h_ax}"] = self[f"NAXIS{h_ax}"] // bin_
-        
+
         return header_copy
 
     def flatten(self, axis: int) -> Self:
@@ -138,7 +138,7 @@ class Header(fits.Header):
         for key in deepcopy(list(new_header.keys())):
             if key and key[-1] == h_axis:
                 new_header.pop(key)
-        
+
         new_header["NAXIS"] -= 1
 
         return new_header
@@ -147,14 +147,14 @@ class Header(fits.Header):
     def swap_axes(self, axis_1: int, axis_2: int) -> Self:
         """
         Switches a Header's axes to fit a FitsFile object with swapped axes.
-        
+
         Parameters
         ----------
         axis_1 : int
             Source axis.
         axis_2 : int
             Destination axis.
-        
+
         Returns
         -------
         Self
@@ -170,7 +170,7 @@ class Header(fits.Header):
                     new_header[f"{key[:-1]}{h_axis_2}-"] = new_header.pop(key)
                 elif key[-1] == str(h_axis_2):
                     new_header[f"{key[:-1]}{h_axis_1}-"] = new_header.pop(key)
-        
+
         # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the
         # process
         # After the process is done, the suffix is removed
@@ -199,7 +199,7 @@ class Header(fits.Header):
         new_header[f"CDELT{h_axis}"] *= -1
         new_header[f"CRPIX{h_axis}"] = self[f"NAXIS{h_axis}"] - self[f"CRPIX{h_axis}"] + 1
         return new_header
-    
+
     def crop_axes(self, slices: tuple[slice | int]) -> Self:
         """
         Crops the Header to account for a cropped FitsFile.
@@ -208,7 +208,7 @@ class Header(fits.Header):
         ----------
         slices : tuple[slice | int]
             Slices to crop each axis. An integer slice will not crop the axis.
-        
+
         Returns
         -------
         Self
@@ -224,7 +224,7 @@ class Header(fits.Header):
                 new_header[f"NAXIS{h_axis}"] = stop - start
 
         return new_header
-    
+
     def concatenate(self, other: Header, axis: int) -> Self:
         """
         Concatenates two headers along an axis. The Header closest to the origin should be the one to call this method.
@@ -237,7 +237,7 @@ class Header(fits.Header):
             Second Header to merge the current Header with.
         axis : int
             Index of the axis on which to execute the merge.
-        
+
         Returns
         -------
         Self
@@ -252,7 +252,7 @@ class Header(fits.Header):
         """
         Gives the coordinate closest to the specified value, along the given axis. Currently supported projections are
         the Global Sinusoidal projection (GLS) and the cartesian projection (CAR).
-        
+
         Parameters
         ----------
         value : float
@@ -283,7 +283,7 @@ class Header(fits.Header):
         """
         Gives the value associated with the specified coordinate, along the given axis. Currently supported projections
         are the Global Sinusoidal projection (GLS) and the cartesian projection (CAR).
-        
+
         Parameters
         ----------
         coordinate : int

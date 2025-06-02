@@ -20,12 +20,12 @@ def list_to_array(lst: list, padding_value: float=np.nan) -> np.ndarray:
     max_length = max(len(sub_lst) for sub_lst in lst)
     if isinstance(lst[0], (list, tuple)):
         array = np.array(
-            [np.pad(np.array(sub_lst).astype(float), (0, max_length - len(sub_lst)), constant_values=padding_value) 
+            [np.pad(np.array(sub_lst).astype(float), (0, max_length - len(sub_lst)), constant_values=padding_value)
             for sub_lst in lst]
         )
     elif isinstance(lst[0], np.ndarray):
         array = np.array(
-            [np.pad(sub_lst.astype(float), (0, max_length - len(sub_lst)), constant_values=padding_value) 
+            [np.pad(sub_lst.astype(float), (0, max_length - len(sub_lst)), constant_values=padding_value)
             for sub_lst in lst]
         )
     else:

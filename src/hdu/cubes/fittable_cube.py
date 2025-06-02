@@ -28,7 +28,7 @@ class FittableCube(Cube):
         Parameters
         ----------
         voigt : bool, default=False
-            If True, the initial guesses will be made for a Voigt profile instead of a Gaussian profile. This very 
+            If True, the initial guesses will be made for a Voigt profile instead of a Gaussian profile. This very
             simple option simply duplicates the stddev parameter to give four parameters for the Voigt profile.
 
             .. note::
@@ -89,7 +89,7 @@ class FittableCube(Cube):
             guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs, peak_stddevs))
         else:
             guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs))        # shape is (n_data, n_models, 3)
-            
+
         guesses = guesses.reshape(self.data.shape[2], self.data.shape[1], -1)
         guesses = guesses.T
 
@@ -98,7 +98,7 @@ class FittableCube(Cube):
     @notify_function_end
     def fit(self, model, guesses: Cube | Array3D, number_of_tasks: int | Literal["auto"] = "auto", **kwargs) -> Self:
         """
-        Fits a model to the Cube data. This function wraps the `scipy.optimize.curve_fit` function and for an entire 
+        Fits a model to the Cube data. This function wraps the `scipy.optimize.curve_fit` function and for an entire
         Cube, and uses multiprocessing to speed up the fitting process.
 
 
@@ -108,7 +108,7 @@ class FittableCube(Cube):
             The model to fit to the data. This must be a callable function with the signature:
             `model(x, *params)`, where `x` is the independent variable and `params` are the parameters to fit. The
             number of parameters must match number of parameters given in `guesses`.
-            
+
             .. warning::
                 For now, this function only supports fitting a single model to the entire Cube. The resulting Tesseract
                 will therefore always have a single model index.
@@ -164,7 +164,7 @@ class FittableCube(Cube):
         data_2d, guesses_2d = self.flatten_3d_array(self.data), self.flatten_3d_array(guesses_array)
         splitted_data = np.array_split(data_2d, number_of_tasks)
         splitted_guesses = np.array_split(guesses_2d, number_of_tasks)
-        packed_arguments = [(chunk_data, chunk_guesses) 
+        packed_arguments = [(chunk_data, chunk_guesses)
                             for chunk_data, chunk_guesses in zip(splitted_data, splitted_guesses)]
 
         fit_params_chunks = []

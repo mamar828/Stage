@@ -23,7 +23,7 @@ class Array(np.ndarray):
         ----------
         header : Header
             Header of the Array.
-        
+
         Returns
         -------
         fits.PrimaryHDU
@@ -39,7 +39,7 @@ class Array(np.ndarray):
         ----------
         header : Header
             Header of the Array.
-        
+
         Returns
         -------
         fits.ImageHDU
@@ -76,7 +76,7 @@ class Array(np.ndarray):
 
         cropped_pixels = np.array(self.shape) % np.array(bins)
 
-        new_data = self[*[slice(None, shape - cropped_pixel) 
+        new_data = self[*[slice(None, shape - cropped_pixel)
                           for shape, cropped_pixel in zip(self.shape, cropped_pixels)]]
 
         for ax, b in enumerate(bins):

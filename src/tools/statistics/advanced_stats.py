@@ -215,7 +215,7 @@ def get_autocorrelation_function_2d_contour(autocorrelation_function_2d_data: np
     x_lim = np.min(data[:,0]), np.max(data[:,0])
     y_lim = np.min(data[:,1]), np.max(data[:,1])
 
-    x_grid, y_grid = np.meshgrid(np.arange(x_lim[0], x_lim[1] + 1), 
+    x_grid, y_grid = np.meshgrid(np.arange(x_lim[0], x_lim[1] + 1),
                                  np.arange(y_lim[0], y_lim[1] + 1))
 
     z_data = np.zeros_like(x_grid)
@@ -235,7 +235,7 @@ def get_autocorrelation_function_2d_contour(autocorrelation_function_2d_data: np
     return contour
 
 def get_fitted_structure_function_figure(
-        data: np.ndarray, 
+        data: np.ndarray,
         fit_bounds: tuple[float, float],
         number_of_iterations: int=10000
 ) -> gl.Figure:

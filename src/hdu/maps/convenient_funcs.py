@@ -11,7 +11,7 @@ def get_FWHM(
         stddev_map: Map,
         src_cube: Cube
 ) -> Map:
-    """ 
+    """
     Converts a stddev map into a FWHM map.
     """
     fwhm = stddev_map * (2 * np.sqrt(2*np.log(2)) * np.abs(src_cube.header["CDELT3"]) / 1000)
@@ -84,7 +84,7 @@ def get_13co_column_density(
     column_density = integrate_gaussian(
         amplitude_map=antenna_temperature_13co,
         stddev_map=stddev_13co
-    ) * (0.8 * (g_0/(g_1*A_10)) * ((c.pi*c.k*nu**2)/(c.h*c.c**3)) * 
+    ) * (0.8 * (g_0/(g_1*A_10)) * ((c.pi*c.k*nu**2)/(c.h*c.c**3)) *
         1 / (
             (1 / (np.exp((c.h*nu)/(c.k*T_x))-1)
            - 1 / (np.exp((c.h*nu)/(c.k*T_rad))-1))

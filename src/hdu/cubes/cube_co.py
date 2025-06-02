@@ -21,7 +21,7 @@ class CubeCO(Cube):
     def fit(self, spectrum_parameters: dict = None) -> tuple[Map, Tesseract]:
         """
         Fits the CubeCO with a variable number of peaks.
-        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a 
+        WARNING: Due to the use of the multiprocessing library, calls to this function NEED to be made inside a
         condition state with the following phrasing:
         if __name__ == "__main__":
         This prevents the code to recursively create instances of itself that would eventually overload the CPUs.
@@ -29,11 +29,11 @@ class CubeCO(Cube):
         Parameters
         ----------
         spectrum_parameters : dict, default=None
-            Parameters for initialization of the SpectrumCO objects. Supported parameters are "peak_prominence", 
+            Parameters for initialization of the SpectrumCO objects. Supported parameters are "peak_prominence",
             "peak_minimum_height_sigmas", "peak_minimum_distance", "peak_width", "noise_channels",
             "initial_guesses_binning" and "max_residue_sigmas" (See the SpectrumCO constructor for a definition of each
             parameter). If None, or if keys are not specified, the parameters will take the default values given in the
-            SpectrumCO constructor. 
+            SpectrumCO constructor.
 
         Returns
         -------
@@ -113,7 +113,7 @@ class CubeCO(Cube):
                     spectrum.setattrs(self.spectrum_parameters)
 
                 spectrum.fit()
-                
+
                 # When a fit has already happened, the spectrum receives additional initial guesses based on the residue
                 # The loop allows to iteratively increase the fit's quality if seen necessary (based on the max residue)
                 while not spectrum.is_well_fitted and spectrum.fitted_function is not None:

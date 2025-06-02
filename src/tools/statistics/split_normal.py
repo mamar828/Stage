@@ -22,7 +22,7 @@ class SplitNormal:
         self.loc = loc
         self.scale_left = scale_left
         self.scale_right = scale_right
-    
+
     def random(self, size: int) -> np.ndarray:
         """
         Samples the distribution randomly for a certain number of values.
@@ -39,7 +39,7 @@ class SplitNormal:
         """
         mask = np.random.randint(0, 2, size) == 1
         mask_sum = mask.sum()
-        # The two distributions are sampled using a mean of 0 which allows to fold them to half a distribution and 
+        # The two distributions are sampled using a mean of 0 which allows to fold them to half a distribution and
         # to offset them to self.loc
         left_samples = self.loc - np.abs(np.random.normal(0, self.scale_left, size=(size-mask_sum)))
         right_samples = self.loc + np.abs(np.random.normal(0, self.scale_right, size=mask_sum))

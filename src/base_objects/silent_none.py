@@ -9,28 +9,28 @@ class SilentNone(MathematicalObject):
     """
     def __getattr__(self, _):
         return self
-    
+
     def __getattribute__(self, _):
         return self
-    
+
     def __call__(self, *args, **kwargs):
         return self
-    
+
     def __getitem__(self, _):
         return self
-    
+
     def __setitem__(self, _, value):
         return self
-    
+
     def __repr__(self):
         return "SilentNone()"
-    
+
     def __str__(self):
         return "SilentNone"
 
     def __bool__(self):
         return False
-    
+
     def __eq__(self, other):
         return other is None or isinstance(other, SilentNone)
 

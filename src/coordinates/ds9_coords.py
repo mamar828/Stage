@@ -9,7 +9,7 @@ class DS9Coords:
     spectrum = Cube[:,*DS9Coords(5,10)]
     will correctly slice the Cube at the specified coordinates, which returns a Spectrum.
 
-    The following lines show how useful this class is for precisely slicing a FitsFile object. To get the value at the 
+    The following lines show how useful this class is for precisely slicing a FitsFile object. To get the value at the
     (x, y, z) = (8, 17, 225) on SAOImage ds9, the following code is equivalent :
     using DS9Coords :   print(Cube[*DS9Coords(8, 17, 225)])
     without DS9Coords : print(Cube[224, 16, 7])
@@ -27,7 +27,7 @@ class DS9Coords:
             Coordinates to initialize the object with. These are given in the same order as in DS9.
         """
         self.data = list(coordinates)
-    
+
     def __len__(self):
         return len(self.data)
 

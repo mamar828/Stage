@@ -54,7 +54,7 @@ class Array3D(Array):
             "discrete_colormap" : bool, default=False. Specify if the colormap should be discrete.
             "cbar_limits" : tuple, default=None. Specify the limits of the colorbar. Essential for a discrete_colormap.
             "time_interval" : int, default=100. Specify the time interval between frames, in milliseconds.
-        
+
         Returns
         -------
         animation : FuncAnimation
@@ -89,14 +89,14 @@ class Array3D(Array):
             ax.set_xlim(*kwargs.get("xlim"))
         if kwargs.get("ylim"):
             ax.set_ylim(*kwargs.get("ylim"))
-        
+
         ax.tick_params(axis='both', direction='in')
 
         def next_slice(frame_number):
             imshow.set_array(self[frame_number,:,:])
             cbar.update_normal(imshow)
-        
-        animation = FuncAnimation(fig, next_slice, frames=range(*zlim), interval=kwargs.get("time_interval", 
+
+        animation = FuncAnimation(fig, next_slice, frames=range(*zlim), interval=kwargs.get("time_interval",
                                                                                             DEFAULT_TIME_INTERVAL))
 
         return animation

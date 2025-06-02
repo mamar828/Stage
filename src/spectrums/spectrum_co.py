@@ -49,7 +49,7 @@ class SpectrumCO(Spectrum):
         peak_width : int, default=3
             Minimum width acceptable to detect a peak. This is used in the scipy.signal.find_peak function.
         noise_channels : slice, default=slice(0,100)
-            Channels used to measure the noise's stddev. No peaks should be found in this region. 
+            Channels used to measure the noise's stddev. No peaks should be found in this region.
         initial_guesses_binning : int, default=1
             Factor by which to bin the data to find the initial guesses. If kept at 1, the initial guesses are found
             with the raw data.
@@ -91,13 +91,13 @@ class SpectrumCO(Spectrum):
         Parameters
         ----------
         parameter_bounds : dict, default={}
-            Bounds of every parameter for every gaussian. 
+            Bounds of every parameter for every gaussian.
             Example : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}.
         """
         default_parameter_bounds = {
             "amplitude" : (0, 100)*u.Jy,
             "stddev" : (1e-5, 100)*u.um,     # Prevent division by zero
-            "mean" : (0, len(self))*u.um    
+            "mean" : (0, len(self))*u.um
         }
 
         super().fit(default_parameter_bounds | parameter_bounds)
@@ -157,7 +157,7 @@ class SpectrumCO(Spectrum):
                     "amplitude" : peaks[1]["peak_heights"][i],
                     "stddev" : min(max_ig, max(min_ig, stddev))
                 }
-            
+
             return self.initial_guesses
         else:
             return {}
@@ -181,7 +181,7 @@ class SpectrumCO(Spectrum):
         # Get the axis index that represents the velocity by searching for the keyword "VELO-LSR"
         h_axis_velocity = list(self.header.keys())[list(self.header.values()).index("VELO-LSR")][-1]
         return np.abs(channels_FWHM * self.header[f"CDELT{h_axis_velocity}"] / 1000)
-    
+
     @property
     @Spectrum.fit_needed
     def is_well_fitted(self) -> bool:

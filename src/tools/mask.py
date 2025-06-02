@@ -22,7 +22,7 @@ class Mask:
             Shape (x, y) of the image for which the mask will be used.
         """
         self.image_shape = image_shape
-    
+
     def open_as_image_coord(self, filename: str, header: Header) -> np.ndarray:
         """
         Opens a .reg file as an image coordinate mask.
@@ -62,7 +62,7 @@ class Mask:
         region_id = f"image;circle({center[0]},{center[1]},{radius})"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
-    
+
     def ellipse(
             self,
             center: tuple[float, float],
@@ -140,7 +140,7 @@ class Mask:
         region_id = f"image;polygon{sum(vertices, ())}"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
-    
+
     def ring(self, center: tuple[float, float], inner_radius: float, outer_radius: float) -> np.ndarray:
         """
         Creates a ring mask. The outputted ring has a width of (outer_radius - inner_radius).
@@ -166,7 +166,7 @@ class Mask:
     def _get_numpy_mask(self, region: pyregion.core.ShapeList) -> np.ndarray:
         """
         Gives the numpy mask of the provided region.
-        
+
         Parameters
         ----------
         region : pyregion.core.ShapeList

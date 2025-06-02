@@ -28,7 +28,7 @@ class Array2D(Array):
             origin_position="lower"
         )
         return heatmap
-    
+
     def get_statistics(self) -> dict:
         """
         Gives the statistics of the array. Supported statistic measures are: median, mean, nbpixels stddev, skewness and

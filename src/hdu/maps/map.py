@@ -81,7 +81,7 @@ class Map(FitsFile, MathematicalObject):
         else:
             raise NotImplementedError(
                 f"{C.RED}unsupported operand type(s) for -: 'Map' and '{type(other).__name__}'{C.OFF}")
-    
+
     def __mul__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
             self.assert_shapes(other)
@@ -117,20 +117,20 @@ class Map(FitsFile, MathematicalObject):
         else:
             raise NotImplementedError(
                 f"{C.RED}unsupported operand type(s) for /: 'Map' and '{type(other).__name__}'{C.OFF}")
-    
+
     def __pow__(self, power: int | float | np.ndarray) -> Self:
         if isinstance(power, (int, float)) or (isinstance(power, np.ndarray) and power.size == 1):
             # cast to float type to solve the integers to negative integer powers ValueError
             pow_data = self.data.astype(float)**power
             return self.__class__(
-                pow_data, 
+                pow_data,
                 pow_data * np.abs(power * self.uncertainties / self.data),
                 self.header
             )
         else:
             raise NotImplementedError(
                 f"{C.RED}unsupported operand type(s) for **: 'Map' and '{type(power).__name__}'{C.OFF}")
-        
+
     def __abs__(self) -> Self:
         return self.__class__(
             np.abs(self.data),
@@ -155,7 +155,7 @@ class Map(FitsFile, MathematicalObject):
     def __iter__(self) -> Self:
         self.iter_n = -1
         return self
-    
+
     def __next__(self) -> Self:
         self.iter_n += 1
         if self.iter_n >= self.data.shape[1]:
@@ -184,7 +184,7 @@ class Map(FitsFile, MathematicalObject):
         ----------
         filename : str
             Filename from which to load the Map.
-        
+
         Returns
         -------
         Map
@@ -201,12 +201,12 @@ class Map(FitsFile, MathematicalObject):
         if len(data.shape) != 2:
             raise TypeError("The provided data is not two-dimensional.")
         return cls(data, uncertainties, Header(hdu_list[0].header))
-    
+
     @property
     def hdu_list(self) -> fits.HDUList:
         """
         Gives the Map's HDUList.
-        
+
         Returns
         -------
         fits.HDUList
@@ -242,7 +242,7 @@ class Map(FitsFile, MathematicalObject):
         """
         assert self.shape == other.shape, \
             f"{C.RED}Both Maps should have the same shapes. Current are {self.shape} and {other.shape}.{C.OFF}"
-        
+
     def bin(self, bins: tuple[int, int], ignore_nans: bool = False) -> Self:
         """
         Bins a Map.
@@ -294,7 +294,7 @@ class Map(FitsFile, MathematicalObject):
             self.uncertainties / self.data,
             self.header
         )
-    
+
     def exp(self) -> Self:
         """
         Computes the exponent of the Map.
@@ -310,7 +310,7 @@ class Map(FitsFile, MathematicalObject):
             exp_data * self.uncertainties,
             self.header
         )
-    
+
     def num_to_nan(self, num: float = 0) -> Self:
         """
         Converts a number to np.NAN and changes the uncertainties accordingly.
@@ -342,7 +342,7 @@ class Map(FitsFile, MathematicalObject):
         ----------
         region : pyregion.core.ShapeList
             Region that will be kept in the final Map. If None, the whole map is returned.
-        
+
         Returns
         -------
         Self
@@ -379,7 +379,7 @@ class Map(FitsFile, MathematicalObject):
             Statistic of the region. Every key is a statistic measure.
         """
         reg_map = self.get_masked_region(region)
-        
+
         uncertainties_array = np.vectorize(lambda data, unc: ufloat(data, unc))(reg_map.data, reg_map.uncertainties)
 
         stats =  {
@@ -398,12 +398,12 @@ class Map(FitsFile, MathematicalObject):
         """
         Gives the reprojection of the Map on another Map's coordinate system. This coordinate matching allows for
         operations between differently sized/aligned Maps.
-        
+
         Parameters
         ----------
         other : Map
             Reference Map to project on.
-            
+
         Returns
         -------
         Self

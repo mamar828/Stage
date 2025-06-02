@@ -36,10 +36,10 @@ class Spectrum:
 
     def __len__(self) -> int:
         return len(self.data)
-    
+
     def copy(self) -> Spectrum:
         return deepcopy(self)
-    
+
     @property
     def isnan(self) -> bool:
         return np.all(np.isnan(self.data))
@@ -50,7 +50,7 @@ class Spectrum:
 
     @staticmethod
     def fit_needed(func):
-        # Decorator to handle exceptions when a fit has not been made 
+        # Decorator to handle exceptions when a fit has not been made
         def inner_func(self, *args, **kwargs):
             if self.fitted_function:
                 return func(self, *args, **kwargs)
@@ -62,7 +62,7 @@ class Spectrum:
     def x_values(self) -> np.ndarray:
         """
         Gives the x values associated with the Spectrum's data.
-        
+
         Returns
         -------
         np.ndarray
@@ -76,19 +76,19 @@ class Spectrum:
     def predicted_data(self) -> np.ndarray:
         """
         Gives the y values predicted by the fit in the form of data points.
-        
+
         Returns
         -------
         np.ndarray
             Array representing the predicted intensity at every channel. The first element corresponds to channel 1.
         """
         return self.fitted_function(self.x_values * u.um) / u.Jy
-    
+
     @property
     def is_successfully_fitted(self) -> bool:
         """
         Outputs whether the fit succeeded.
-        
+
         Returns
         -------
         bool
@@ -214,7 +214,7 @@ class Spectrum:
             )
             figure_2.add_elements(self.residue_plot)
             multi_figure.add_figure(figure_2, 1, 0, 1, 1)
-        
+
         figure_1 = Figure(
             x_label="Channels",
             y_label="Intensity"
@@ -253,7 +253,7 @@ class Spectrum:
         Parameters
         ----------
         parameter_bounds : dict
-            Bounds of every parameter for every gaussian. 
+            Bounds of every parameter for every gaussian.
             Example : {"amplitude": (0, 8)*u.Jy, "stddev": (0, 1)*u.um, "mean": (20, 30)*u.um}.
         """
         initial_guesses = self.get_initial_guesses()
@@ -275,7 +275,7 @@ class Spectrum:
                 maxiter=int(1e4)
             )
             self._store_fit_results()
-    
+
     def polyfit(self, degree: int=3) -> FitFromPolynomial:
         """
         Fits the spectrum using a polynomial of a given degree. This method is used for correcting continuum shifts.
@@ -305,7 +305,7 @@ class Spectrum:
         df.set_index(["title", "subtitle"], inplace=True)
 
         self.fit_results = pd.DataFrame(data=data, columns=pd.MultiIndex.from_tuples(zip(title, subtitle)))
-    
+
     def _get_cleaned_fitted_function_data(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Gives the values and uncertainties of each parameter of self.fitted_function for every non zero gaussian. This
@@ -320,7 +320,7 @@ class Spectrum:
         values = self.fitted_function.parameters.reshape((n_submodels, 3))
         uncertainties = np.sqrt(np.diag(self.fitted_function.meta["fit_info"]["param_cov"])).reshape((n_submodels, 3))
         mask = np.ones_like(values, dtype=bool)
-        
+
         for i, model in enumerate(values):
             amplitude, mean, stddev = model
             if amplitude < 1e-4 or stddev < 1e-4:
@@ -391,7 +391,7 @@ class Spectrum:
         """
         Gives the signal to noise ratio of a peak. This is calculated as the amplitude of the peak divided by the
         residue's standard deviation.
-    
+
         Parameters
         ----------
         gaussian_function_index : str
@@ -404,7 +404,7 @@ class Spectrum:
         """
         return self.fit_results.amplitude.value[gaussian_function_index] / self.get_residue_stddev()
 
-    @fit_needed    
+    @fit_needed
     def get_fit_chi2(self) -> float:
         """
         Gives the chi-square of the fit.
