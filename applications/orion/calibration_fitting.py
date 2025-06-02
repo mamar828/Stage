@@ -2,25 +2,43 @@ import src.graphinglib as gl
 import numpy as np
 from astropy.modeling import models
 
-from src.hdu.cubes.cube import Cube
+from src.hdu.cubes.fittable_cube import FittableCube
 from src.hdu.maps.map import Map
+from src.hdu.tesseract import Tesseract
+from src.coordinates.ds9_coords import DS9Coords
 
 
-cube = Cube.load("data/orion/data_cubes/calibration.fits")
+cube = FittableCube.load("data/orion/data_cubes/calibration.fits")
+def voigt_model(x: float, A: float, x_0: float, fwhm_L: float, fwhm_G: float) -> float:
+    return (
+        models.Voigt1D().evaluate(x, amplitude_L=A, x_0=x_0, fwhm_L=fwhm_L, fwhm_G=fwhm_G)
+        + models.Voigt1D().evaluate(x-cube.shape[0], amplitude_L=A, x_0=x_0, fwhm_L=fwhm_L, fwhm_G=fwhm_G)
+    )
 
+# Fit the data
+# ------------
+# guesses = cube.find_peaks_gaussian_estimates(voigt=True, prominence=1, distance=200)
+# calibration_fits = cube.fit(voigt_model, guesses, number_of_tasks=500)
+# calibration_fits.save("data/orion/calibration_fits_3.fits")
 
-guesses = cube.find_peaks_gaussian_estimates(voigt=True, prominence=10, distance=200)
-voigt_model = lambda x, A, x_0, fwhm_L, fwhm_G: models.Voigt1D().evaluate(x, amplitude_L=A, x_0=x_0,
-                                                                          fwhm_L=fwhm_L, fwhm_G=fwhm_G)
-fits = cube.fit(voigt_model, guesses)#, number_of_tasks=100)
+# See results
+# -----------
+# coords = DS9Coords(118, 78)
+# calibration_fits = Tesseract.load("data/orion/calibration_fits.fits")
+# print(calibration_fits.data[:,:,*coords])
+# plot = calibration_fits.get_spectrum_plot(cube, coords, voigt_model)
+# gl.SmartFigure(elements=[*plot]).show()
 
-fwhm = Map(
-    data=(0.5343 * fits.data[2, :, :] + np.sqrt(0.2169 * fits.data[2, :, :]**2 + fits.data[3, :, :]**2)),
-    header=cube.header.flatten(0),
-)
-fwhm.save("data/orion/calibration_fwhm.fits")
+# Calculate FWHM
+# --------------
+# calibration_fits = Tesseract.load("data/orion/calibration_fits.fits")
+# fit_maps = calibration_fits.to_grouped_maps(["amplitude_L", "x_0", "fwhm_L", "fwhm_G"])
+# fwhm_L, fwhm_G = fit_maps.fwhm_L[0], fit_maps.fwhm_G[0]
+# fwhm = 0.5343 * fwhm_L + (0.2169 * fwhm_L**2 + fwhm_G**2)**0.5
+# fwhm.save("data/orion/calibration_fwhm.fits")
 
-
+# Early testing
+# -------------
 # for j in range(cube.data.shape[1]):
 #     for i in range(cube.data.shape[2]):
 #         spec = cube[:, j, i]

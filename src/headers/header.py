@@ -24,7 +24,7 @@ class Header(fits.Header):
         keys_equal = list(self.keys()) == list(other.keys())
 
         for key, value in self.items():
-            if value != other[key] and key != "COMMENT":
+            if value != other[key] and key not in ["", "COMMENT"]:
                 values_equal = False
                 break
         else:

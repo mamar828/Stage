@@ -3,12 +3,9 @@ import numpy as np
 import scipy as sp
 import pyregion
 from astropy.io import fits
-from typing import Self, Any, Literal
+from typing import Self, Any
 from colorist import BrightColor as C
-from pathos.pools import ProcessPool
-from pathos.helpers import cpu_count
 from copy import deepcopy
-from tqdm import tqdm
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
@@ -18,8 +15,6 @@ from src.spectrums.spectrum import Spectrum
 from src.spectrums.spectrum_co import SpectrumCO
 from src.headers.header import Header
 from src.base_objects.silent_none import SilentNone
-from src.tools.array_functions import list_to_array
-from src.tools.messaging import notify_function_end
 
 
 class Cube(FitsFile):
@@ -80,7 +75,7 @@ class Cube(FitsFile):
         return self.data.shape
 
     def copy(self) -> Self:
-        return self.__class__(deepcopy(self.data), deepcopy(self.header))
+        return deepcopy(self)
     
     @classmethod
     def load(cls, filename: str) -> Cube:
@@ -214,160 +209,6 @@ class Cube(FitsFile):
             self.data * mask,
             self.header
         )
-
-    def find_peaks_gaussian_estimates(self, voigt: bool = False, **kwargs) -> Self:
-        """
-        Finds gaussian initial guesses using a find_peaks algorithm. These initial guesses can then be used to fit
-        gaussian functions to the data.
-
-        Parameters
-        ----------
-        voigt : bool, default=False
-            If True, the initial guesses will be made for a Voigt profile instead of a Gaussian profile. This very 
-            simple option simply duplicates the stddev parameter to give four parameters for the Voigt profile.
-
-            .. note::
-                Voigt profiles are typically defined by the FWHM of the Lorentzian and Gaussian components, but this
-                method uses the standard deviation of the Gaussian component as a proxy for both components. This is a
-                very rough approximation and may not yield accurate results for all data.
-
-        kwargs : Any
-            Arguments to pass to the scipy.signal.find_peaks function. Useful parameters include:
-            - `height`: Required height of the peaks.
-            - `threshold`: Required threshold of peaks, the vertical distance to its neighboring samples.
-            - `distance`: Required minimal horizontal distance (>= 1) in samples between neighbouring peaks.
-            - `prominence`: Required prominence of peaks.
-            - `width`: Required width of peaks in samples.
-            See the documentation of `scipy.signal.find_peaks` for more details.
-
-        Returns
-        -------
-        Self
-            Cube with the initial guesses for the Gaussian model. The guesses are stored along the first axis, ordered
-            as: amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the first three values are the
-            parameters of the first Gaussian model, the next three are the parameters of the second Gaussian model, and
-            so on.
-        """
-        transposed_data = Cube.flatten_3d_array(self.data)
-        peak_means = [sp.signal.find_peaks(spectrum, **kwargs)[0] for spectrum in transposed_data]
-        peak_amplitudes = [spectrum[peaks] for spectrum, peaks in zip(transposed_data, peak_means)]
-        peak_means = list_to_array(peak_means)
-        peak_amplitudes = list_to_array(peak_amplitudes)
-        assert peak_means.size > 0, \
-            "No peaks were detected in the data. Please check the parameters passed to find_peaks."
-
-        # Estimate stddevs
-        peak_stddevs = []
-        for means, amplitude in zip(peak_means.T, peak_amplitudes.T):    # iterate over each detected peak
-            half_max_difference = transposed_data - amplitude[:,None] / 2
-            half_max_intersect_mask = np.abs(np.diff(np.sign(half_max_difference))).astype(bool)
-            intersects_x = [np.where(mask)[0] + 1 for mask in half_max_intersect_mask]
-
-            current_stddevs = []
-            for intersect, mean in zip(intersects_x, means):
-                if np.isnan(mean):
-                    current_stddevs.append(np.nan)
-                else:
-                    lower_bound_candidates = intersect[intersect < mean]
-                    lower_bound = lower_bound_candidates.max() if len(lower_bound_candidates) > 0 else 0
-                    upper_bound_candidates = intersect[intersect > mean]
-                    upper_bound = upper_bound_candidates.min() if len(upper_bound_candidates) > 0 else 0
-                    current_stddevs.append((upper_bound - lower_bound) / (2*np.sqrt(2*np.log(2))))
-
-            peak_stddevs.append(current_stddevs)
-
-        peak_stddevs = np.array(peak_stddevs).T
-        peak_means += 1     # correct for the 0-based indexing in numpy but 1-based indexing in the data
-
-        # Combine the results into a single array and reshape it
-        if voigt:
-            guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs, peak_stddevs))
-        else:
-            guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs))        # shape is (n_data, n_models, 3)
-            
-        guesses = guesses.reshape(self.data.shape[2], self.data.shape[1], -1)
-        guesses = guesses.T
-
-        return self.__class__(guesses, self.header)
-
-    @notify_function_end
-    def fit(self, model, guesses: Cube | Array3D, number_of_tasks: int | Literal["auto"] = "auto", **kwargs) -> Self:
-        """
-        Fits a model to the Cube data. This function wraps the `scipy.optimize.curve_fit` function and for an entire 
-        Cube, and uses multiprocessing to speed up the fitting process.
-
-        Parameters
-        ----------
-        model : callable
-            The model to fit to the data. This must be a callable function with the signature:
-            `model(x, *params)`, where `x` is the independent variable and `params` are the parameters to fit. The
-            number of parameters must match number of parameters given in `guesses`.
-        guesses : Cube | Array3D
-            Initial guesses for the parameters of the model. If None, the function will try to find initial guesses. The
-            guesses must be given along the first axis, ordered as:
-            amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the first three values are the
-            parameters of the first Gaussian model, the next three are the parameters of the second Gaussian model, and
-            so on. The output of the `find_peaks_gaussian_estimates` method can be used as is.
-        number_of_tasks : int | Literal["auto"], default="auto"
-            Number of tasks to split the fitting process into. If "auto", it will be set to the number of CPU cores
-            available on the system.
-        kwargs : Any
-            Additional arguments to pass to the fitting function.
-
-        Returns
-        -------
-        Self
-            Cube with fitted models. The fitted parameters are stored identically to the guesses, i.e. every group of
-            three parameters along the first axis corresponds to a single model, ordered as amplitude, mean and stddev.
-        """
-        guesses_array = guesses.data if isinstance(guesses, Cube) else guesses
-        if number_of_tasks == "auto":
-            number_of_tasks = cpu_count()
-        x_values = np.arange(self.shape[0]) + 1
-
-        @FitsFile.silence_function
-        def worker_fit_spectrums(spectrums, guesses):
-            results = []
-            for spectrum_i, guesses_i in zip(spectrums, guesses):
-                # Filter out invalid guesses (rows with np.nan)
-                valid_guesses = guesses_i[~np.isnan(guesses_i)]
-                if valid_guesses.size == 0:
-                    params = np.full(guesses_i.size, np.nan)
-                else:
-                    # Flatten valid guesses and fit
-                    try:
-                        params = sp.optimize.curve_fit(
-                            f=model,
-                            xdata=x_values,
-                            ydata=spectrum_i,
-                            p0=valid_guesses.flatten(),
-                            maxfev=kwargs.get("maxfev", 10000),
-                        )[0]
-                    except RuntimeError:
-                        params = np.full(guesses_i.size, np.nan)
-
-                # Reshape to match the original guesses' shape
-                result = np.full(guesses_i.size, np.nan)
-                result[:params.size] = params
-                results.append(result)
-            return results
-
-        data_2d, guesses_2d = self.flatten_3d_array(self.data), self.flatten_3d_array(guesses_array)
-        splitted_data = np.array_split(data_2d, number_of_tasks)
-        splitted_guesses = np.array_split(guesses_2d, number_of_tasks)
-        packed_arguments = [(chunk_data, chunk_guesses) 
-                            for chunk_data, chunk_guesses in zip(splitted_data, splitted_guesses)]
-
-        fit_params_chunks = []
-        pbar = tqdm(total=len(packed_arguments), desc="Fitting", unit="chunk", colour="blue", miniters=1)
-        with ProcessPool() as pool:
-            for result in pool.imap(lambda args: worker_fit_spectrums(*args), packed_arguments):
-                fit_params_chunks.append(result)
-                pbar.update(1)
-
-        fit_params = np.concatenate(fit_params_chunks, axis=0).reshape(self.data.shape[2], self.data.shape[1], -1).T
-
-        return self.__class__(fit_params, self.header)
 
     @staticmethod
     def flatten_3d_array(array_3d: Array3D) -> Array2D:

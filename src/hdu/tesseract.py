@@ -3,7 +3,7 @@ import numpy as np
 import awkward as ak
 import astropy.units as u
 from src.graphinglib import Curve
-from typing import Self
+from typing import Self, Callable
 from collections import namedtuple
 from astropy.io import fits
 from astropy.modeling.models import Gaussian1D
@@ -19,7 +19,12 @@ from src.hdu.cubes.cube import Cube
 
 class Tesseract(FitsFile):
     """
-    Encapsulates the methods specific to four dimensional inhomogeneous data management.
+    This class implements a fit results manager and encapsulates methods specific to four dimensional inhomogeneous data
+    management.
+
+    .. note::
+        In the following documentation, the models are assumed to be gaussian for simplicity, but this class can be
+        used with any model and number of parameters.
     """
 
     def __init__(self, data: np.ndarray, header: Header):
@@ -64,7 +69,7 @@ class Tesseract(FitsFile):
     def __setitem__(self, slice_: tuple[slice | int], value: float | np.ndarray):
         """
         Sets the parameters of a certain fitted gaussian at a specified pixel. Can also be used to remove entirely a
-        gaussian by setting it to np.NAN.
+        gaussian by setting it to np.nan.
 
         Parameters
         ----------
@@ -82,7 +87,7 @@ class Tesseract(FitsFile):
         """
         assert len(slice_) == 3, f"{C.RED}slice_ must have 3 elements; current length is {len(slice_)}.{C.OFF}"
         assert (isinstance(value, float) and np.isnan(value)) or value.shape == (6,), \
-            f"{C.RED}value must be np.NAN or a six elements array.{C.OFF}"
+            f"{C.RED}value must be np.nan or a six elements array.{C.OFF}"
         if isinstance(value, float):
             self.data.__setitem__((slice(None,None),*slice_), np.full(6, value))
         else:
@@ -115,7 +120,7 @@ class Tesseract(FitsFile):
     @staticmethod
     def rectangularize(array: ak.Array) -> np.ndarray:
         """
-        Rectangularizes the Tesseract object by padding the data along every inhomogeneous axis with np.NAN.
+        Rectangularizes the Tesseract object by padding the data along every inhomogeneous axis with np.nan.
 
         Parameters
         ----------
@@ -127,23 +132,23 @@ class Tesseract(FitsFile):
         np.ndarray
             Rectangularized array.
         """
-        for i, value in zip(range(1,4), [[], [], np.NAN]):
+        for i, value in zip(range(1,4), [[], [], np.nan]):
             len_ = ak.max(ak.num(array, axis=i))
+            # Nones are replaced by lists so further padding can take place (along the axis=1)
             array = ak.pad_none(array, len_, axis=i)
+            # The following Nones are replaced with np.nans
             array = ak.fill_none(array, value, axis=None)
 
-        # Nones are replaced by lists so further padding can take place (along the axis=1)
-        # The following Nones are replaced with np.NANs
         return array.to_numpy()
 
     @staticmethod
     def swapaxes(array: np.ndarray) -> np.ndarray:
         """
-        Swaps the axes of the Tesseract object as such : (y, x, gaussians, parameters) -> (parameters, gaussians, y, x).
+        Swaps the axes of an array as such : (y, x, gaussians, parameters) -> (parameters, gaussians, y, x).
 
         Parameters
         ----------
-        array : ak.Array
+        array : np.ndarray
             Initial array to swap.
         
         Returns
@@ -168,7 +173,7 @@ class Tesseract(FitsFile):
         hdu_list = fits.HDUList([fits.PrimaryHDU(self.data, self.header)])
         super().save(filename, hdu_list, overwrite)
 
-    def get_spectrum_plot(self, cube: Cube, coords: tuple[int, int]) -> tuple[Curve]:
+    def get_spectrum_plot(self, cube: Cube, coords: tuple[int, int], model: Callable = None) -> tuple[Curve]:
         """
         Gives the spectrum and its fit at the given coordinates with two Curves.
 
@@ -178,6 +183,9 @@ class Tesseract(FitsFile):
             Cube from which to get the spectrum data. This must be the cube with which the Tesseract was constructed.
         coords : tuple[int, int]
             Coordinates at which the Spectrum needs to be given.
+        model : Callable, optional
+            Model to be used for the fit. This must be a callable function that takes n + 1 parameters, where n is the
+            number of parameters of the model. If None, the model will be assumed to be a Gaussian.
 
         Returns
         -------
@@ -186,27 +194,29 @@ class Tesseract(FitsFile):
             The middle elements are every individual gaussian fitted. If a single Gaussian was fitted, the y_data of the
             middle and last Curves will be identical.
         """
+        if model is None:
+            model = lambda x, *params: Gaussian1D(*params)(x)
         spectrum = cube[:, *coords]
         spectrum_plot = spectrum.plot
 
         # Isolate amplitudes, means and stddevs at the given coords
-        gaussian_params = self.data[::2,:,coords[0],coords[1]].transpose()
-        spectrum_individual_gaussians = []
-        for i, gauss_fct in enumerate(gaussian_params):
-            if not np.all(np.isnan(gauss_fct)):
-                spectrum_individual_gaussians.append(
+        params = self.data[::2,:,coords[0],coords[1]].transpose()
+        spectrum_individual_models = []
+        for i, params_i in enumerate(params):
+            if not np.all(np.isnan(params_i)):
+                spectrum_individual_models.append(
                     Curve(
                         spectrum.x_values,
-                        Gaussian1D(gauss_fct[0], gauss_fct[1], gauss_fct[2])(spectrum.x_values),
+                        model(spectrum.x_values, *params_i),
                         label=f"Gaussian {i}"
                     )
                 )
 
-        if not spectrum_individual_gaussians:
+        if not spectrum_individual_models:
             raise KeyError(f"There is no successful fit at the given coordinates.")
-        spectrum_total = sum(spectrum_individual_gaussians)
+        spectrum_total = sum(spectrum_individual_models)
         spectrum_total.label = "Sum"
-        return spectrum_plot, *spectrum_individual_gaussians, spectrum_total
+        return spectrum_plot, *spectrum_individual_models, spectrum_total
 
     def filter(self, slice: slice) -> Self:
         """
@@ -230,30 +240,39 @@ class Tesseract(FitsFile):
         filter_3d = (((slice.start if slice.start else 0) <= self.data[i,:,:,:]) & 
                      (self.data[i,:,:,:] < (slice.stop if slice.stop else 1e5)))
         filter_4d = np.tile(filter_3d, (6, 1, 1, 1))
-        # Convert boolean filter to True/np.NAN
-        filter_4d = np.where(filter_4d, filter_4d, np.NAN)
+        # Convert boolean filter to True/np.nan
+        filter_4d = np.where(filter_4d, filter_4d, np.nan)
         return self.__class__(self.data * filter_4d, self.header)
 
-    def to_grouped_maps(self) -> GroupedMaps:
+    def to_grouped_maps(self, names: list[str] = ["amplitude", "mean", "stddev"]) -> GroupedMaps:
         """
         Converts the Tesseract object into a GroupedMaps object.
 
+        Parameters
+        ----------
+        names : list[str], default=["amplitude", "mean", "stddev"]
+            Names of the maps to be created from the Tesseract, in the order the parameters are stored in the Tesseract.
+        
         Returns
         -------
         GroupedMaps
-            A GroupedMaps object containing the amplitude, mean, and standard deviation maps extracted from the
-            Tesseract.
+            A GroupedMaps object containing the Tesseract's parameters as Maps. If the Tesseract contains gaussian data,
+            the object gives the amplitude, mean, and standard deviation maps extracted from the Tesseract.
         """
-        names = ["amplitude", "mean", "stddev"]
+        if len(names) != int(self.data.shape[0] / 2):
+            raise ValueError(
+                f"{C.RED}The number of names ({len(names)}) must be equal to half the number of parameters in the "
+                f"Tesseract ({self.data.shape[0]}).{C.OFF}"
+            )
         maps = namedtuple("maps", names)
-        maps = maps([], [], [])
+        maps = maps(*[[] for _ in names])
 
         new_header = self.header.copy()
         for i in range(self.header["NAXIS"] - 2):
             new_header = new_header.flatten(axis=0)
 
-        for i, name in zip(range(0, 6, 2), names):
-            for j in range(np.shape(self.data)[1]):
+        for i, name in zip(range(0, self.data.shape[0], 2), names):
+            for j in range(self.data.shape[1]):
                 getattr(maps, name).append(
                     Map(
                         data=Array2D(self.data[i,j,:,:]),
@@ -331,7 +350,7 @@ class Tesseract(FitsFile):
                 elements,
                 pad_width=(0, row.shape[0] - elements.shape[0]),
                 mode="constant",
-                constant_values=np.NAN
+                constant_values=np.nan
             )
             return padded
         
