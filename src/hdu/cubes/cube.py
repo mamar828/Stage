@@ -132,7 +132,7 @@ class Cube(FitsFile):
         Self
             Binned Cube.
         """
-        return self.__class__(self.data.bin(bins, ignore_nans), self.header.bin(bins, ignore_nans))
+        return self.__class__(self.data.bin(bins, ignore_nans), self.header.bin(bins))
 
     def invert_axis(self, axis: int) -> Self:
         """

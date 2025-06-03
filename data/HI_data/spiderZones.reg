@@ -1,0 +1,8 @@
+# Region file format: DS9 version 4.1
+global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
+galactic
+box(+133:35:02.822,+38:47:16.224,18232.903",8613.475",221.56207) # color=blue width=4
+box(+136:28:45.344,+41:23:33.704,15718.020",8173.370",221.56207) # color=red width=4
+box(+134:48:09.774,+40:14:52.923,3298.709",3548.626",221.56207) # color=cyan width=4
+box(+132:58:09.511,+41:28:22.382,9647.029",3598.735",221.56207) # color=yellow width=4
+box(+137:01:35.481,+38:43:06.230,12882.866",3568.493",221.56207) # color=magenta width=4
