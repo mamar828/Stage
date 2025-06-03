@@ -7,6 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 
 from src.hdu.arrays.array import Array
+from src.hdu.arrays.array_2d import Array2D
 
 
 class Array3D(Array):
@@ -110,9 +111,6 @@ class Array3D(Array):
         tuple[slice, slice]
             Slice that must be applied on the Array3D for cropping, i.e. (valid columns, valid rows).
         """
-        non_nan_cols = np.any(~np.isnan(self), axis=1)
-        non_nan_rows = np.any(~np.isnan(self), axis=2)
-
-        cols = slice(np.argmax(non_nan_rows), non_nan_rows.size - np.argmax(non_nan_rows[::-1]))
-        rows = slice(np.argmax(non_nan_cols), non_nan_cols.size - np.argmax(non_nan_cols[::-1]))
-        return slice(None, None), cols, rows
+        arr_2d = Array2D(self[0,:,:])
+        arr_2d_slices = arr_2d.get_nan_cropping_slices()
+        return slice(None, None), *arr_2d_slices

@@ -3,10 +3,9 @@ import numpy as np
 import pyregion
 from astropy.io import fits
 import scipy
-import scipy.special
 from uncertainties import ufloat
 from reproject import reproject_interp
-from typing import Self, Any
+from typing import Self
 from colorist import BrightColor as C
 
 from src.hdu.fits_file import FitsFile
@@ -394,15 +393,15 @@ class Map(FitsFile, MathematicalObject):
         return stats
 
     @FitsFile.silence_function
-    def get_reprojection_on(self, other: Map) -> Self:
+    def get_reprojection_on(self, header: Header) -> Self:
         """
         Gives the reprojection of the Map on another Map's coordinate system. This coordinate matching allows for
         operations between differently sized/aligned Maps.
 
         Parameters
         ----------
-        other : Map
-            Reference Map to project on.
+        header : Header
+            Reference header to which the Map will be reprojected.
 
         Returns
         -------
@@ -411,14 +410,14 @@ class Map(FitsFile, MathematicalObject):
         """
         data_reprojection = Array2D(reproject_interp(
             input_data=self.data.get_PrimaryHDU(self.header),
-            output_projection=other.header,
+            output_projection=header,
             return_footprint=False,
             order="nearest-neighbor"
         ))
         if self.has_uncertainties:
             uncertainties_reprojection = Array2D(reproject_interp(
                 input_data=self.uncertainties.get_PrimaryHDU(self.header),
-                output_projection=other.header,
+                output_projection=header,
                 return_footprint=False,
                 order="nearest-neighbor"
             ))
@@ -427,7 +426,7 @@ class Map(FitsFile, MathematicalObject):
         return self.__class__(
             data_reprojection,
             uncertainties_reprojection,
-            header=other.header
+            header=header.copy()
         )
 
 

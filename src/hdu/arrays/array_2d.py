@@ -62,6 +62,6 @@ class Array2D(Array):
         non_nan_cols = np.any(~np.isnan(self), axis=0)
         non_nan_rows = np.any(~np.isnan(self), axis=1)
 
-        cols = slice(np.argmax(non_nan_rows), non_nan_rows.size - np.argmax(non_nan_rows[::-1]))
-        rows = slice(np.argmax(non_nan_cols), non_nan_cols.size - np.argmax(non_nan_cols[::-1]))
+        cols = slice(np.argmax(non_nan_rows), non_nan_rows.shape[0] - np.argmax(non_nan_rows[::-1]))
+        rows = slice(np.argmax(non_nan_cols), non_nan_cols.shape[0] - np.argmax(non_nan_cols[::-1]))
         return cols, rows

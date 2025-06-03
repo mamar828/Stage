@@ -163,6 +163,7 @@ cython_debug/
 
 # FILES TO IGNORE
 *.fits
+*.fit
 *.pkl
 *.dat
 *.gz
