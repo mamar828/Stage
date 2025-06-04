@@ -27,7 +27,11 @@ def notify_function_end(func):
     """
     def inner_func(*args, **kwargs):
         start_time = time()
-        result = func(*args, **kwargs)
+        try:
+            result = func(*args, **kwargs)
+        except Exception as e:
+            telegram_send_message(f"{func.__name__} has failed after {format_time(time()-start_time)} with error: {e}.")
+            raise e
         telegram_send_message(f"{func.__name__} has finished running in {format_time(time()-start_time)}.")
         return result
 

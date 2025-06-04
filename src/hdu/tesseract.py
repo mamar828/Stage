@@ -40,6 +40,14 @@ class Tesseract(FitsFile):
             The values of the Tesseract.
         header : Header
             The header of the Tesseract.
+
+        Notes
+        -----
+        This means that the parameters at index [0,...] should be the amplitudes of each fitted gaussian, at index
+        [1,...] the amplitude uncertainties, at index [2,...] the mean value of the gaussians, etc. The elements at
+        index [:,0,...] are the amplitudes of the first gaussian, at index [:,1,...] the amplitudes of the second
+        gaussian, etc. The final two axes (y and x) represent the image itself, so the data at index [:,:,y,x] is the
+        parameters of all gaussians at pixel (y,x).
         """
         self.data = data
         self.header = header
@@ -50,7 +58,9 @@ class Tesseract(FitsFile):
         Initializes a Tesseract object. The given data is assumed as such : the first two axes represent the image
         itself (y and x respectively), along the third axis (axis=2) is the data of each gaussian that was used for
         fitting a specific pixel and along the fourth axis (axis=3) is the parameters of each gaussian used for fitting.
-        Warning : the format of the given data is not the same as in the constructor.
+
+        .. warning:
+            The format of the given data is not the same as in the constructor.
 
         Parameters
         ----------
@@ -66,14 +76,14 @@ class Tesseract(FitsFile):
         """
         return cls(cls.swapaxes(cls.rectangularize(data)), header)
 
-    def __setitem__(self, slice_: tuple[slice | int], value: float | np.ndarray):
+    def __setitem__(self, key: tuple[slice | int], value: float | np.ndarray):
         """
         Sets the parameters of a certain fitted gaussian at a specified pixel. Can also be used to remove entirely a
         gaussian by setting it to np.nan.
 
         Parameters
         ----------
-        slice_ : tuple[slice | int]
+        key : tuple[slice | int]
             Three element tuple specifying where the values should be placed. The three elements refer respectively to
             the gaussian function number [0,N[ where N is the number of fitted gaussians in the Tesseract, the y
             coordinate and the x coordinate.
@@ -85,13 +95,13 @@ class Tesseract(FitsFile):
             Note : the setting of an individual gaussian at a time is encouraged to facilitate manipulations of
             dimensions.
         """
-        assert len(slice_) == 3, f"{C.RED}slice_ must have 3 elements; current length is {len(slice_)}.{C.OFF}"
+        assert len(key) == 3, f"{C.RED}key must have 3 elements; current length is {len(key)}.{C.OFF}"
         assert (isinstance(value, float) and np.isnan(value)) or value.shape == (6,), \
             f"{C.RED}value must be np.nan or a six elements array.{C.OFF}"
         if isinstance(value, float):
-            self.data.__setitem__((slice(None,None),*slice_), np.full(6, value))
+            self.data.__setitem__((slice(None,None),*key), np.full(6, value))
         else:
-            self.data.__setitem__((slice(None,None),*slice_), value)
+            self.data.__setitem__((slice(None,None),*key), value)
 
     @classmethod
     def load(cls, filename: str) -> Tesseract:
@@ -197,7 +207,6 @@ class Tesseract(FitsFile):
         if model is None:
             model = lambda x, *params: Gaussian1D(*params)(x)
         spectrum = cube[:, *coords]
-        spectrum_plot = spectrum.plot
 
         # Isolate amplitudes, means and stddevs at the given coords
         params = self.data[::2,:,coords[0],coords[1]].transpose()
@@ -208,7 +217,7 @@ class Tesseract(FitsFile):
                     Curve(
                         spectrum.x_values,
                         model(spectrum.x_values, *params_i),
-                        label=f"Gaussian {i}"
+                        label=f"Model {i}"
                     )
                 )
 
@@ -216,7 +225,7 @@ class Tesseract(FitsFile):
             raise KeyError(f"There is no successful fit at the given coordinates.")
         spectrum_total = sum(spectrum_individual_models)
         spectrum_total.label = "Sum"
-        return spectrum_plot, *spectrum_individual_models, spectrum_total
+        return spectrum.plot, *spectrum_individual_models, spectrum_total
 
     def filter(self, slice: slice) -> Self:
         """

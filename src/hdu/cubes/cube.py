@@ -74,9 +74,6 @@ class Cube(FitsFile):
     def shape(self) -> tuple[int, int, int]:
         return self.data.shape
 
-    def copy(self) -> Self:
-        return deepcopy(self)
-
     @classmethod
     def load(cls, filename: str) -> Cube:
         """

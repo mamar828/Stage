@@ -33,8 +33,8 @@ class FittableCube(Cube):
 
             .. note::
                 Voigt profiles are typically defined by the FWHM of the Lorentzian and Gaussian components, but this
-                method uses the standard deviation of the Gaussian component as a proxy for both components. This is a
-                very rough approximation and may not yield accurate results for all data.
+                method uses twice the standard deviation of the Gaussian component as a proxy for the lorentzian FWHM.
+                This is a very rough approximation and may not always yield accurate results.
 
         kwargs : Any
             Arguments to pass to the scipy.signal.find_peaks function. Useful parameters include:
@@ -86,7 +86,7 @@ class FittableCube(Cube):
 
         # Combine the results into a single array and reshape it
         if voigt:
-            guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs, peak_stddevs))
+            guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs * 2, peak_stddevs))
         else:
             guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs))        # shape is (n_data, n_models, 3)
 
@@ -96,7 +96,14 @@ class FittableCube(Cube):
         return self.__class__(guesses, self.header)
 
     @notify_function_end
-    def fit(self, model, guesses: Cube | Array3D, number_of_tasks: int | Literal["auto"] = "auto", **kwargs) -> Self:
+    def fit(
+        self,
+        model,
+        guesses: Cube | Array3D,
+        number_of_parameters: int = 3,
+        number_of_tasks: int | Literal["auto"] = "auto",
+        **kwargs,
+    ) -> Tesseract:
         """
         Fits a model to the Cube data. This function wraps the `scipy.optimize.curve_fit` function and for an entire
         Cube, and uses multiprocessing to speed up the fitting process.
@@ -119,6 +126,9 @@ class FittableCube(Cube):
             amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the first three values are the
             parameters of the first Gaussian model, the next three are the parameters of the second Gaussian model, and
             so on. The output of the `find_peaks_gaussian_estimates` method can be used as is.
+        number_of_parameters : int, default=3
+            Number of parameters in the model. This is used to reshape the output of the fitting process. The default
+            value is 3, which corresponds to a Gaussian model with amplitude, mean, and standard deviation parameters.
         number_of_tasks : int | Literal["auto"], default="auto"
             Number of tasks to split the fitting process into. If "auto", it will be set to ten times the number of CPU
             cores available on the system.
@@ -136,12 +146,11 @@ class FittableCube(Cube):
         x_values = np.arange(self.shape[0]) + 1
         nan_array = np.full(guesses_array.shape[0] * 2, np.nan)
 
-        @FitsFile.silence_function
+        # @FitsFile.silence_function
         def worker_fit_spectrums(spectrums, guesses):
             results = []
             for spectrum_i, guesses_i in zip(spectrums, guesses):
-                # Filter out invalid guesses (rows with np.nan)
-                valid_guesses = guesses_i[~np.isnan(guesses_i)]
+                valid_guesses = guesses_i[~np.isnan(guesses_i)] # remove NaN values
                 if valid_guesses.size == 0:
                     results.append(nan_array)
                 else:
@@ -158,31 +167,43 @@ class FittableCube(Cube):
                         continue
 
                     perr = np.sqrt(np.diag(pcov))
-                    results.append(np.column_stack((params, perr)).flatten())
+                    results.append(np.pad(
+                        np.column_stack((params, perr)).flatten(),
+                        (0, nan_array.size - 2*params.size),
+                        mode='constant',
+                        constant_values=np.nan,
+                    ))
             return results
 
         data_2d, guesses_2d = self.flatten_3d_array(self.data), self.flatten_3d_array(guesses_array)
         splitted_data = np.array_split(data_2d, number_of_tasks)
         splitted_guesses = np.array_split(guesses_2d, number_of_tasks)
-        packed_arguments = [(chunk_data, chunk_guesses)
-                            for chunk_data, chunk_guesses in zip(splitted_data, splitted_guesses)]
+
+        packed_arguments = [
+            (chunk_data, chunk_guesses)
+            for chunk_data, chunk_guesses in zip(splitted_data, splitted_guesses)
+            if chunk_data.size > 0 and chunk_guesses.size > 0
+        ]
 
         fit_params_chunks = []
         pbar = tqdm(total=len(packed_arguments), desc="Fitting", unit="chunk", colour="blue", miniters=1)
         with ProcessPool() as pool:
             for result in pool.imap(lambda args: worker_fit_spectrums(*args), packed_arguments):
-                fit_params_chunks.append(result)
+                fit_params_chunks.extend(result)
                 pbar.update(1)
                 pbar.refresh()
 
-        fit_params = np.concatenate(fit_params_chunks, axis=0).reshape(self.data.shape[2], self.data.shape[1], -1).T
+        fit_params = np.array(fit_params_chunks)
+        fit_params = fit_params.reshape(self.data.shape[2], self.data.shape[1], -1).T
+        fit_params = fit_params.reshape(-1, 2 * number_of_parameters, self.data.shape[1], self.data.shape[2])
+        fit_params = fit_params.swapaxes(0, 1)
 
         tesseract_header = self.header.flatten(0)
         tesseract_header["CTYPE3"] = "model index"
         tesseract_header["CTYPE4"] = "param1 + unc., param2 + unc., param3 + unc., ..."
 
         fit_results = Tesseract(
-            data=fit_params[:,None,:,:],
+            data=fit_params,
             header=tesseract_header,
         )
 
