@@ -8,8 +8,8 @@ from src.hdu.maps.map import Map
 
 
 def get_FWHM(
-        stddev_map: Map,
-        src_cube: Cube
+    stddev_map: Map,
+    src_cube: Cube
 ) -> Map:
     """
     Converts a stddev map into a FWHM map.
@@ -18,8 +18,8 @@ def get_FWHM(
     return fwhm
 
 def get_speed(
-        channel_map: Map,
-        src_cube: Cube
+    channel_map: Map,
+    src_cube: Cube
 ) -> Map:
     """
     Converts a channel map into a speed map.
@@ -29,7 +29,7 @@ def get_speed(
     return speed_map
 
 def get_kinetic_temperature(
-        amplitude_map: Map
+    amplitude_map: Map
 ) -> Map:
     """
     Computes the kinetic temperature of a given amplitude map. Note that the kinetic temperature is assumed to be equal
@@ -39,8 +39,8 @@ def get_kinetic_temperature(
     return T_kin
 
 def integrate_gaussian(
-        amplitude_map: Map,
-        stddev_map: Map,
+    amplitude_map: Map,
+    stddev_map: Map,
 ) -> Map:
     """
     Calculates the gaussian's area under the curve from -∞ to ∞.
@@ -51,9 +51,9 @@ def integrate_gaussian(
     return area
 
 def get_13co_column_density(
-        stddev_13co: Map,
-        antenna_temperature_13co: Map,
-        antenna_temperature_12co: Map,
+    stddev_13co: Map,
+    antenna_temperature_13co: Map,
+    antenna_temperature_12co: Map,
 ) -> Map:
     """
     Computes the 13CO column density from the given FWHM and temperature maps.
@@ -63,7 +63,7 @@ def get_13co_column_density(
     stddev_13co : Map
         Map of the 13CO emission's standard deviation, in km/s.
     antenna_temperature_13co : Map
-        Map of the 13CO emission's amplitude, which corresponds to the antenna temperature, in K. Note that that the
+        Map of the 13CO emission's amplitude, which corresponds to the antenna temperature, in K. Note that the
         amplitude must first be divided by 0.43 for correction and that this method assumes this correction has already
         been applied.
     antenna_temperature_12co : Map
@@ -92,3 +92,39 @@ def get_13co_column_density(
         )
     )
     return column_density
+
+def get_13co_opacity(
+    stddev_13co: Map,
+    antenna_temperature_13co: Map,
+    antenna_temperature_12co: Map,
+) -> Map:
+    """
+    Computes the 13CO opacity from the given FWHM and temperature maps.
+
+    Parameters
+    ----------
+    stddev_13co : Map
+        Map of the 13CO emission's standard deviation, in km/s.
+    antenna_temperature_13co : Map
+        Map of the 13CO emission's amplitude, which corresponds to the antenna temperature, in K. Note that that the
+        amplitude must first be divided by 0.43 for correction and that this method assumes this correction has already
+        been applied.
+    antenna_temperature_12co : Map
+        Map of the 12CO emission's amplitude, which corresponds to the antenna temperature, in K., which is assumed to
+        be equal to the excitation temperature, in km/s.
+
+    Returns
+    -------
+    Map
+        Map of the calculated 13CO opacity.
+    """
+    nu = 110.20e9       # taken from https://tinyurl.com/23e45pj3
+    T_rad = 2.725
+    T_x = get_kinetic_temperature(antenna_temperature_12co)
+    opacity = integrate_gaussian(
+        amplitude_map=antenna_temperature_13co,
+        stddev_map=stddev_13co
+    ) * (c.k/(c.h*nu) *
+        1 / (1 / (np.exp((c.h*nu)/(c.k*T_x))-1) - 1 / (np.exp((c.h*nu)/(c.k*T_rad))-1))
+    )
+    return opacity
