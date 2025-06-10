@@ -9,7 +9,7 @@ from src.hdu.maps.grouped_maps import GroupedMaps
 
 
 if __name__ == "__main__":
-    cube = CubeCO.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
+    cube = CubeCO.load("data/Loop4/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
     cube.header["COMMENT"] = "Loop4N1_FinalJS was previously sliced at channel 500, all values of mean must then be " \
                            + "added to 500 to account for this shift."
     spectrum_parameters = {

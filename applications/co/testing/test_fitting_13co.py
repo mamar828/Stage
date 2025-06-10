@@ -8,9 +8,9 @@ from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.cubes.cube_co import CubeCO
 
 
-# cube = CubeCO.load("data/Loop4_co/N1/13co/Loop4N1_13co.fits")[500:800,:,:]
-# cube = CubeCO.load("data/Loop4_co/N2/13co/Loop4N2_13co.fits")[3200:4000,:,:]
-cube = CubeCO.load("data/Loop4_co/p/13co/Loop4p_13co.fits")[400:800,:,:]
+# cube = CubeCO.load("data/Loop4/N1/13co/Loop4N1_13co.fits")[500:800,:,:]
+# cube = CubeCO.load("data/Loop4/N2/13co/Loop4N2_13co.fits")[3200:4000,:,:]
+cube = CubeCO.load("data/Loop4/p/13co/Loop4p_13co.fits")[400:800,:,:]
 
 # for y, map_ in enumerate(cube):
 #     for x, spectrum in enumerate(map_):
@@ -46,7 +46,7 @@ for i in range(0, cube.data.size // 400):
         # 26 13
         # 21,18
         print(spectrum.initial_guesses)
-        
+
         fig1.add_elements(spectrum.plot)
         fig2 = gl.Figure()
 

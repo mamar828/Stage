@@ -5,8 +5,8 @@ from src.hdu.tesseract import Tesseract
 from src.coordinates.ds9_coords import DS9Coords
 
 
-p = CubeCO.load("data/Loop4_co/p/12co/Loop4p_wcs.fits")[500:850,:,:].bin((1,2,2))
-total_object_p = Tesseract.load(f"data/Loop4_co/p/12co/object_filtered_2.fits")
+p = CubeCO.load("data/Loop4/p/12co/Loop4p_wcs.fits")[500:850,:,:].bin((1,2,2))
+total_object_p = Tesseract.load(f"data/Loop4/p/12co/object_filtered_2.fits")
 
 # fig = gl.Figure(size=(10, 7))
 # spec = p[:,*DS9Coords(8,8)]

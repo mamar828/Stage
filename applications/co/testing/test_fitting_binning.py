@@ -9,10 +9,10 @@ from src.spectrums.spectrum_co import SpectrumCO
 from src.hdu.cubes.cube import Cube
 
 
-# c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:].bin((1,2,2))
-# c = Cube.load("data/Loop4_co/N2/Loop4N2_Conv_Med_FinalJS_wcs.fits")[500:800,:,:]
-c = Cube.load("data/Loop4_co/N4/Loop4N4_Conv_Med_FinalJS_wcs.fits")[500:850,:,:]#[:,:,30:]
-# c = Cube.load("data/Loop4_co/p/Loop4p_Conv_Med_FinalJS_wcs.fits")[500:850,:,:].bin((1,2,2))
+# c = Cube.load("data/Loop4/N1/Loop4N1_FinalJS.fits")[500:800,:,:].bin((1,2,2))
+# c = Cube.load("data/Loop4/N2/Loop4N2_Conv_Med_FinalJS_wcs.fits")[500:800,:,:]
+c = Cube.load("data/Loop4/N4/Loop4N4_Conv_Med_FinalJS_wcs.fits")[500:850,:,:]#[:,:,30:]
+# c = Cube.load("data/Loop4/p/Loop4p_Conv_Med_FinalJS_wcs.fits")[500:850,:,:].bin((1,2,2))
 
 for i in range(22*45+25, c.data.shape[1] * c.data.shape[2]):
 # for i in range(1458, c.data.shape[1] * c.data.shape[2]):
@@ -37,7 +37,7 @@ for i in range(22*45+25, c.data.shape[1] * c.data.shape[2]):
         print(s.fit_results)
         print(s.initial_guesses)
         a = False
-        
+
         while not s.is_well_fitted and s.fitted_function is not None:
             # s.auto_plot()
             print(f"{C.LIGHT_RED}REFITTING{C.END}")
@@ -53,7 +53,7 @@ for i in range(22*45+25, c.data.shape[1] * c.data.shape[2]):
             # else:
             #     break
             print(s.fit_results)
-       
+
         if a:
             input()
         fig1 = gl.Figure()

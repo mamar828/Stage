@@ -82,6 +82,10 @@ class MathematicalObject:
                 return self.exp()
             if ufunc is np.abs:
                 return self.__abs__()
+            if ufunc is np.power:
+                return self.__pow__(args[0])
+            if ufunc is np.sqrt:
+                return self.__pow__(0.5)
             else:
                 raise NotImplementedError(f"the ufunc {ufunc} is not implemented.")
                 # return ufunc(*args, **kwargs)

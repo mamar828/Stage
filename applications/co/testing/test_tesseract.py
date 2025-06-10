@@ -28,31 +28,31 @@ from src.hdu.maps.grouped_maps import GroupedMaps
 
 
 # if __name__ == "__main__":
-    # cube = CubeCO.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
+    # cube = CubeCO.load("data/Loop4/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
     # print(500 + cube.header.get_frame(-4000, axis=0))
     # cube.header["COMMENT"] = "Loop4N1_FinalJS was previously sliced at channel 500, all values of mean must then be " \
     #                        + "added to 500 to account for this shift."
     # chi2, fit_results = cube.fit()
-    # # chi2.save("data/Loop4_co/N1/fit_chi2.fits")
-    # fit_results.save("data/Loop4_co/N1/fit_tesseract_2.fits")
+    # # chi2.save("data/Loop4/N1/fit_chi2.fits")
+    # fit_results.save("data/Loop4/N1/fit_tesseract_2.fits")
 
     # results = fit_results.to_grouped_maps()
-    # results.save("data/Loop4_co/Loop4N1_fit.fits")
+    # results.save("data/Loop4/Loop4N1_fit.fits")
 
-    # results = GroupedMaps.load("data/Loop4_co/Loop4N1_fit.fits")
+    # results = GroupedMaps.load("data/Loop4/Loop4N1_fit.fits")
     # object_ray = results[195:230]
     # fig, axs = plt.subplots(1)
     # (cube[0,:,:].data*0).plot(axs, alpha=0.5, show_cbar=False)
     # object_ray.mean[0].data.plot(axs)
     # plt.show()
 
-    # t = Tesseract.load("data/Loop4_co/N1/fit_tesseract.fits")
+    # t = Tesseract.load("data/Loop4/N1/fit_tesseract.fits")
     # ts = t.split(10, 1)
 
     # ts[0].concatenate(ts[1], axis=1).save("tess_2.fits")
     # for i, tess in enumerate(ts):
     #     tess.save(f"tess_{i}.fits")
-    
+
 
     # input_array = Tesseract(np.array([
     #     [[1,      np.nan, 3,      np.NAN, 5],
@@ -70,6 +70,6 @@ from src.hdu.maps.grouped_maps import GroupedMaps
     # print(output_array.data)
 
 
-tess = Tesseract.load("data/Loop4_co/N1/object.fits")
+tess = Tesseract.load("data/Loop4/N1/object.fits")
 tess[1,11,12:14] = None
 tess.save("test_crop.fits")

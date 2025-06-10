@@ -408,6 +408,8 @@ class Map(FitsFile, MathematicalObject):
         Self
             Newly aligned Map.
         """
+        if not isinstance(header, fits.Header):
+            raise TypeError(f"{C.RED}Header must be an astropy.io.fits.Header object.{C.OFF}")
         data_reprojection = Array2D(reproject_interp(
             input_data=self.data.get_PrimaryHDU(self.header),
             output_projection=header,

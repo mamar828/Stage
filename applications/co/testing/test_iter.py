@@ -5,7 +5,7 @@ from src.hdu.cubes.cube import Cube
 from src.spectrums.spectrum_co import SpectrumCO
 
 
-c = Cube.load("data/Loop4_co/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
+c = Cube.load("data/Loop4/N1/Loop4N1_FinalJS.fits")[500:800,:,:]
 # c.bin((1,3,1)).save("t.fits")
 
 spec = c[:,25,25].upgrade(SpectrumCO)
