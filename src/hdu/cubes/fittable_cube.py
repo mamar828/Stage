@@ -50,14 +50,22 @@ class FittableCube(Cube):
             second Gaussian model, and so on. For `voigt=True`, the parameters are given in groups of four:
             lorenzian amplitude, mean, fwhm and gaussian fwhm.
         """
+        pbar = tqdm(total=8, desc="Finding estimates", unit="step", colour="blue", miniters=1)
         transposed_data = self.flatten_3d_array(self.data)
+        pbar.update(1)
         peak_means = [sp.signal.find_peaks(spectrum, **kwargs)[0] for spectrum in transposed_data]
+        pbar.update(1)
         peak_amplitudes = [spectrum[peaks] for spectrum, peaks in zip(transposed_data, peak_means)]
+        pbar.update(1)
         peak_widths = [sp.signal.peak_widths(spectrum, peaks)[0]
                        for spectrum, peaks in zip(transposed_data, peak_means)]
+        pbar.update(1)
         peak_means = list_to_array(peak_means)
+        pbar.update(1)
         peak_amplitudes = list_to_array(peak_amplitudes)
+        pbar.update(1)
         peak_widths = list_to_array(peak_widths)
+        pbar.update(1)
         assert peak_means.size > 0, \
             "No peaks were detected in the data. Please check the parameters passed to find_peaks."
 
@@ -81,6 +89,7 @@ class FittableCube(Cube):
         else:
             # reshape to (n_data, n_models, 3)
             guesses = np.dstack((peak_amplitudes, peak_means, peak_widths / (2*np.sqrt(2*np.log(2)))))
+        pbar.update(1)
 
         guesses = guesses.reshape(self.data.shape[2], self.data.shape[1], -1)
         guesses = guesses.T
@@ -99,7 +108,6 @@ class FittableCube(Cube):
         """
         Fits a model to the Cube data. This function wraps the `scipy.optimize.curve_fit` function and for an entire
         Cube, and uses multiprocessing to speed up the fitting process.
-
 
         Parameters
         ----------
@@ -121,6 +129,7 @@ class FittableCube(Cube):
         number_of_parameters : int, default=3
             Number of parameters in the model. This is used to reshape the output of the fitting process. The default
             value is 3, which corresponds to a Gaussian model with amplitude, mean, and standard deviation parameters.
+            For a Voigt model, this should be set to 4.
         number_of_tasks : int | Literal["auto"], default="auto"
             Number of tasks to split the fitting process into. If "auto", it will be set to ten times the number of CPU
             cores available on the system.
@@ -138,7 +147,7 @@ class FittableCube(Cube):
         x_values = np.arange(self.shape[0]) + 1
         nan_array = np.full(guesses_array.shape[0] * 2, np.nan)
 
-        # @FitsFile.silence_function
+        @FitsFile.silence_function
         def worker_fit_spectrums(spectrums, guesses):
             results = []
             for spectrum_i, guesses_i in zip(spectrums, guesses):
