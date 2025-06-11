@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 class DS9Coords:
     """
     Encapsulates the methods specific to SAOImage ds9 coordinates and their conversion.
@@ -46,3 +49,25 @@ class DS9Coords:
         else:
             # Allows the use of the unpacking operator
             raise IndexError
+
+    def __str__(self):
+        return f"DS9Coords({', '.join(map(str, self.data))})"
+
+    @classmethod
+    def from_python(cls, *coordinates: tuple[int]) -> DS9Coords:
+        """
+        Create a DS9Coords object from Python coordinates.
+
+        Parameters
+        ----------
+        coordinates : tuple[int]
+            Coordinates to initialize the object with. These are given in the same order as in Python.
+
+        Returns
+        -------
+        DS9Coords
+            A new DS9Coords object initialized with the provided coordinates.
+        """
+        coords = coordinates[::-1]
+        coords = [c + 1 for c in coords]
+        return cls(*coords)
