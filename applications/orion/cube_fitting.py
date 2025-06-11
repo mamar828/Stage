@@ -8,10 +8,10 @@ from src.hdu.tesseract import Tesseract
 from src.coordinates.ds9_coords import DS9Coords
 
 
-cube = FittableCube.load("data/orion/data_cubes/ha_1.fits")
+cube = FittableCube.load("data/orion/data_cubes/nii_1.fits")
 if cube.header.get("CRPIX3") is None and cube.header.comments["CRVAL3"] == "Velocity ref. of the 1st channel in km/s":
-    cube.header["CRPIX3"] = (1, "Reference pixel for the velocity (this keyword was added manually)")
-cube = cube[:, 250:260, 250:251]
+    cube.header["CRPIX3"] = (1, "Reference pixel for the velocity (manual fix)")
+cube = cube[:, 250:255, 250:255]
 def gaussian_model(x: float, *args):
     return sum([models.Gaussian1D.evaluate(x, amplitude=args[i], mean=args[i+1], stddev=args[i+2])
                 for i in range(0, len(args), 3)])
@@ -21,19 +21,33 @@ def voigt_model(x, * args):
 
 # Fit the data
 # ------------
-# guesses = cube.find_peaks_gaussian_estimates(prominence=2, voigt=True)
+guesses = cube.find_peaks_gaussian_estimates(prominence=2, voigt=True)
+# guesses.save("data/orion/nii/guesses_4.fits")
 # calibration_fits = cube.fit(voigt_model, guesses, number_of_parameters=4, maxfev=1000000)
-# calibration_fits.save("data/orion/ha_1_fits_tests.fits")
+# calibration_fits.save("data/orion/nii_1_fits_tests.fits")
+
+# See initial guesses
+# -------------------
+# guesses = FittableCube.load("data/orion/nii/guesses_4.fits")
+for i in range(cube.data.shape[1]):
+    for j in range(cube.data.shape[2]):
+# for i in range(130, 350):
+#     for j in range(130, 350):
+        coords = i, j
+        spec = cube[:, i, j]
+        guess = guesses[:, i, j].data.reshape(-1, 4)
+        voigt_guesses = [gl.Curve(spec.x_values, voigt_model(spec.x_values, *g)) for g in guess]
+        gl.SmartFigure(elements=[cube[:,*coords].plot, *voigt_guesses], show_legend=False).show()
 
 # See results
 # -----------
-for i in range(cube.data.shape[1]):
-    for j in range(cube.data.shape[2]):
-        coords = i, j #DS9Coords(2, 1)
-        fits = Tesseract.load("data/orion/ha_1_fits_tests.fits")
-        print(fits.data[:,:,*coords])
-        plot = fits.get_spectrum_plot(cube, coords, voigt_model)
-        gl.SmartFigure(elements=[*plot]).show()
+# for i in range(cube.data.shape[1]):
+#     for j in range(cube.data.shape[2]):
+#         coords = i, j #DS9Coords(2, 1)
+#         fits = Tesseract.load("data/orion/nii_1_fits_tests.fits")
+#         print(fits.data[:,:,*coords])
+#         plot = fits.get_spectrum_plot(cube, coords, voigt_model)
+#         gl.SmartFigure(elements=[*plot]).show()
 
 # Calculate FWHM
 # --------------

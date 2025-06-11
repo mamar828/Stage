@@ -5,6 +5,7 @@ from typing import Self, Literal
 from pathos.pools import ProcessPool
 from pathos.helpers import cpu_count
 from tqdm import tqdm
+from astropy.modeling import models
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_3d import Array3D
@@ -22,19 +23,14 @@ class FittableCube(Cube):
 
     def find_peaks_gaussian_estimates(self, voigt: bool = False, **kwargs) -> Self:
         """
-        Finds gaussian initial guesses using a find_peaks algorithm. These initial guesses can then be used to fit
-        gaussian functions to the data.
+        Finds gaussian initial guesses using scipy.signal's find_peaks algorithm as well as the peak_widths algorithm.
+        These initial guesses can then be used to fit gaussian or voigt functions to the data.
 
         Parameters
         ----------
         voigt : bool, default=False
-            If True, the initial guesses will be made for a Voigt profile instead of a Gaussian profile. This very
-            simple option simply duplicates the stddev parameter to give four parameters for the Voigt profile.
-
-            .. note::
-                Voigt profiles are typically defined by the FWHM of the Lorentzian and Gaussian components, but this
-                method uses twice the standard deviation of the Gaussian component as a proxy for the lorentzian FWHM.
-                This is a very rough approximation and may not always yield accurate results.
+            If True, the initial guesses will be made for a Voigt profile instead of a Gaussian profile. This results in
+            four parameters per model: amplitude_L, x_0, fwhm_L, fwhm_G.
 
         kwargs : Any
             Arguments to pass to the scipy.signal.find_peaks function. Useful parameters include:
@@ -48,47 +44,43 @@ class FittableCube(Cube):
         Returns
         -------
         Self
-            Cube with the initial guesses for the Gaussian model. The guesses are stored along the first axis, ordered
-            as: amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the first three values are the
-            parameters of the first Gaussian model, the next three are the parameters of the second Gaussian model, and
-            so on.
+            Cube with the initial guesses for the specified model. The guesses are stored along the first axis, ordered
+            as (in the case of `voigt=False`): amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the
+            first three values are the parameters of the first Gaussian model, the next three are the parameters of the
+            second Gaussian model, and so on. For `voigt=True`, the parameters are given in groups of four:
+            lorenzian amplitude, mean, fwhm and gaussian fwhm.
         """
         transposed_data = self.flatten_3d_array(self.data)
         peak_means = [sp.signal.find_peaks(spectrum, **kwargs)[0] for spectrum in transposed_data]
         peak_amplitudes = [spectrum[peaks] for spectrum, peaks in zip(transposed_data, peak_means)]
+        peak_widths = [sp.signal.peak_widths(spectrum, peaks)[0]
+                       for spectrum, peaks in zip(transposed_data, peak_means)]
         peak_means = list_to_array(peak_means)
         peak_amplitudes = list_to_array(peak_amplitudes)
+        peak_widths = list_to_array(peak_widths)
         assert peak_means.size > 0, \
             "No peaks were detected in the data. Please check the parameters passed to find_peaks."
 
-        # Estimate stddevs
-        peak_stddevs = []
-        for means, amplitude in zip(peak_means.T, peak_amplitudes.T):    # iterate over each detected peak
-            half_max_difference = transposed_data - amplitude[:,None] / 2
-            half_max_intersect_mask = np.abs(np.diff(np.sign(half_max_difference))).astype(bool)
-            intersects_x = [np.where(mask)[0] + 1 for mask in half_max_intersect_mask]
-
-            current_stddevs = []
-            for intersect, mean in zip(intersects_x, means):
-                if np.isnan(mean):
-                    current_stddevs.append(np.nan)
-                else:
-                    lower_bound_candidates = intersect[intersect < mean]
-                    lower_bound = lower_bound_candidates.max() if len(lower_bound_candidates) > 0 else 0
-                    upper_bound_candidates = intersect[intersect > mean]
-                    upper_bound = upper_bound_candidates.min() if len(upper_bound_candidates) > 0 else 0
-                    current_stddevs.append((upper_bound - lower_bound) / (2*np.sqrt(2*np.log(2))))
-
-            peak_stddevs.append(current_stddevs)
-
-        peak_stddevs = np.array(peak_stddevs).T
         peak_means += 1     # correct for the 0-based indexing in numpy but 1-based indexing in the data
 
-        # Combine the results into a single array and reshape it
         if voigt:
-            guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs * 2, peak_stddevs))
+            fwhms_L = 0.7 * peak_widths
+            fwhms_G = 0.3 * peak_widths
+
+            # Find the amplitude correction factor to take into account the Voigt profile shape
+            non_nan_mask = ~np.isnan(peak_means)
+            amplitude_correction = peak_amplitudes[~np.isnan(peak_means)][0] / models.Voigt1D().evaluate(
+                peak_means[non_nan_mask][0],
+                peak_means[non_nan_mask][0],
+                peak_amplitudes[non_nan_mask][0],
+                fwhms_L[non_nan_mask][0],
+                fwhms_G[non_nan_mask][0],
+            )
+            # reshape to (n_data, n_models, 4)
+            guesses = np.dstack((peak_amplitudes * amplitude_correction, peak_means, fwhms_L, fwhms_G))
         else:
-            guesses = np.dstack((peak_amplitudes, peak_means, peak_stddevs))        # shape is (n_data, n_models, 3)
+            # reshape to (n_data, n_models, 3)
+            guesses = np.dstack((peak_amplitudes, peak_means, peak_widths / (2*np.sqrt(2*np.log(2)))))
 
         guesses = guesses.reshape(self.data.shape[2], self.data.shape[1], -1)
         guesses = guesses.T
