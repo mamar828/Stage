@@ -222,10 +222,12 @@ class Tesseract(FitsFile):
                 )
 
         if not spectrum_individual_models:
-            raise KeyError(f"There is no successful fit at the given coordinates.")
-        spectrum_total = sum(spectrum_individual_models)
-        spectrum_total.label = "Sum"
-        return spectrum.plot, *spectrum_individual_models, spectrum_total
+            print("There is no successful fit at the given coordinates.")
+            return spectrum.plot,
+        else:
+            spectrum_total = sum(spectrum_individual_models)
+            spectrum_total.label = "Sum"
+            return spectrum.plot, *spectrum_individual_models, spectrum_total
 
     def filter(self, slice: slice) -> Self:
         """

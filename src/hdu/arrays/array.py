@@ -4,6 +4,7 @@ from typing import Self
 from colorist import BrightColor as C
 
 from src.headers.header import Header
+from src.base_objects.silent_none import SilentNone
 
 
 class Array(np.ndarray):
@@ -29,7 +30,7 @@ class Array(np.ndarray):
         fits.PrimaryHDU
             PrimaryHDU object of the Array.
         """
-        return fits.PrimaryHDU(self.data, header if header != None else None)
+        return fits.PrimaryHDU(self.data, header if not isinstance(header, SilentNone) else None)
 
     def get_ImageHDU(self, header: Header) -> fits.ImageHDU:
         """

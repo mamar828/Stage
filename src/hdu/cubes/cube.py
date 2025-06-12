@@ -5,7 +5,6 @@ import pyregion
 from astropy.io import fits
 from typing import Self, Any
 from colorist import BrightColor as C
-from copy import deepcopy
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D

@@ -89,6 +89,7 @@ def smart_tqdm(iterable=None, desc=None, total=None, leave=True, file=None,
     })
     config = get_telegram_config()
     if config:
+        kwargs["colour"] = None  # Telegram does not support colors
         return tqdm_telegram(**kwargs, token=config.token, chat_id=config.chat_id)
     else:
         return tqdm(**kwargs)

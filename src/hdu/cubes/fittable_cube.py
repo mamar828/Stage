@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import scipy as sp
-from typing import Self, Literal
+from typing import Self, Literal, Callable
 from pathos.pools import ProcessPool
 from pathos.helpers import cpu_count
 from tqdm import tqdm
@@ -100,7 +100,7 @@ class FittableCube(Cube):
     @notify_function_end
     def fit(
         self,
-        model,
+        model: Callable,
         guesses: Cube | Array3D,
         number_of_parameters: int = 3,
         number_of_tasks: int | Literal["auto"] = "auto",
@@ -162,7 +162,8 @@ class FittableCube(Cube):
                             xdata=x_values,
                             ydata=spectrum_i,
                             p0=valid_guesses.flatten(),
-                            maxfev=kwargs.get("maxfev", 10000),
+                            bounds=(0, np.inf),
+                            **kwargs,
                         )
                     except RuntimeError:
                         results.append(nan_array)
