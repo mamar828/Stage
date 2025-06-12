@@ -7,6 +7,7 @@ from pathos.helpers import cpu_count
 from tqdm import tqdm
 from astropy.modeling import models
 
+from src.tools.messaging import smart_tqdm
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_3d import Array3D
 from src.hdu.cubes.cube import Cube
@@ -187,7 +188,7 @@ class FittableCube(Cube):
         ]
 
         fit_params_chunks = []
-        pbar = tqdm(total=len(packed_arguments), desc="Fitting", unit="chunk", colour="blue", miniters=1)
+        pbar = smart_tqdm(total=len(packed_arguments), desc="Fitting", unit="chunk", colour="blue", miniters=1)
         with ProcessPool() as pool:
             for result in pool.imap(lambda args: worker_fit_spectrums(*args), packed_arguments):
                 fit_params_chunks.extend(result)
