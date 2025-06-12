@@ -29,7 +29,7 @@ class Array(np.ndarray):
         fits.PrimaryHDU
             PrimaryHDU object of the Array.
         """
-        return fits.PrimaryHDU(self.data, header)
+        return fits.PrimaryHDU(self.data, header if header != None else None)
 
     def get_ImageHDU(self, header: Header) -> fits.ImageHDU:
         """

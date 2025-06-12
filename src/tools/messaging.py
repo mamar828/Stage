@@ -1,8 +1,7 @@
 from asyncio import run as asyncio_run
 from telegram_send import send as _telegram_send
 from time import time
-
-from src.tools.utilities import format_time
+from datetime import timedelta
 
 
 def telegram_send_message(message: str):
@@ -36,3 +35,21 @@ def notify_function_end(func):
         return result
 
     return inner_func
+
+def format_time(seconds: float) -> str:
+    """
+    Formats a time duration in seconds into a human-readable string.
+
+    Parameters
+    ----------
+    seconds : float
+        The time duration in seconds.
+
+    Returns
+    -------
+    str
+        The time duration formatted as a timedelta string, stripped of trailing zeros.
+    """
+    if seconds > 0.01:
+        seconds = round(seconds, 2)
+    return str(timedelta(seconds=seconds)).rstrip("0")
