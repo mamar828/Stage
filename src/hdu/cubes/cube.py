@@ -222,3 +222,17 @@ class Cube(FitsFile):
             The flattened 2D array, which kept the spectral axis intact and combined the spatial axes.
         """
         return Array2D(array_3d.T.reshape(array_3d.shape[2] * array_3d.shape[1], array_3d.shape[0]))
+
+    def get_deep_frame(self) -> Map:
+        """
+        Gives a Map created from summing the first axis of the Cube.
+
+        Returns
+        -------
+        Map
+            Flattened Cube by summing its first axis.
+        """
+        return self.map_type(
+            data=self.data.sum(axis=0),
+            header=self.header.flatten(0)
+        )
