@@ -140,3 +140,17 @@ parameters = {
 # fig[0][1].show_color_bar = False
 # fig[0][1].alpha_value = 0.2
 # fig.show()
+
+
+# Apply the new WCS to the data cubes
+# -----------------------------------
+# for file in os.listdir("data/orion/deep_frames_aligned"):
+#     if file.endswith(".fits") and not "SN3" in file:
+#         deep_frame = Map.load(f"data/orion/deep_frames_aligned/{file}")
+#         cube = Cube.load(f"data/orion/data_cubes/{file.split("_df")[0]}.fits")
+#         for kw in ["CRPIX1", "CRPIX2", "PC1_1", "PC1_2", "PC2_1", "PC2_2", "CRVAL1", "CRVAL2"]:
+#             if "PC" in kw:
+#                 cube.header[f"CD{kw[-3:]}"] = deep_frame.header[kw]
+#             else:
+#                 cube.header[kw] = deep_frame.header[kw]
+#         cube.save(f"data/orion/data_cubes_aligned/{file.split("_df")[0]}_al.fits", overwrite=True)
