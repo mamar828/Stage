@@ -162,7 +162,6 @@ class FittableCube(Cube):
                             xdata=x_values,
                             ydata=spectrum_i,
                             p0=valid_guesses.flatten(),
-                            bounds=(0, np.inf),
                             **kwargs,
                         )
                     except RuntimeError:

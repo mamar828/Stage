@@ -11,21 +11,25 @@ from src.coordinates.ds9_coords import DS9Coords
 cube = FittableCube.load("data/orion/data_cubes/nii_1.fits")
 if cube.header.get("CRPIX3") is None and cube.header.comments["CRVAL3"] == "Velocity ref. of the 1st channel in km/s":
     cube.header["CRPIX3"] = (1, "Reference pixel for the velocity (manual fix)")
+# cube = cube[:, 338:341, 143:146]
 # cube = cube[:, 250:300, 50:100]
-def gaussian_model(x: float, *args):
+def gaussian_model(x, *args):
     return sum([models.Gaussian1D.evaluate(x, amplitude=args[i], mean=args[i+1], stddev=args[i+2])
                 for i in range(0, len(args), 3)])
-def voigt_model(x, * args):
+def voigt_model(x, *args):
     return sum([models.Voigt1D().evaluate(x, amplitude_L=args[i], x_0=args[i+1], fwhm_L=args[i+2], fwhm_G=args[i+3])
                 for i in range(0, len(args), 4)])
 
-# # Fit the data
-# # ------------
-# guesses = cube.find_peaks_gaussian_estimates(prominence=2, height=3, distance=15, voigt=True)
-# # guesses.save("data/orion/nii/guesses.fits")
-# # guesses = FittableCube.load("data/orion/nii/guesses.fits")#[:, 250:300, 50:100]
-# fits = cube.fit(voigt_model, guesses, number_of_parameters=4, maxfev=10000)
-# fits.save("data/orion/nii/nii_complete_new_estimates.fits")
+# Fit the data
+# ------------
+guesses = cube.find_peaks_gaussian_estimates(prominence=2, height=3, distance=15, voigt=True)
+# guesses.save("data/orion/nii/guesses.fits")
+# guesses = FittableCube.load("data/orion/nii/guesses.fits")#[:, 250:300, 50:100]
+param_bounds = [0, 1, 0, 0], [np.inf, int(cube.header["NAXIS3"]), 10, 10]
+fits = cube.fit(voigt_model, guesses, number_of_parameters=4, maxfev=10000,
+                bounds=(guesses.shape[0]//4 * param_bounds[0], guesses.shape[0]//4 * param_bounds[1]))
+fits.save("data/orion/nii/nii_bounded.fits")
+
 
 # See initial guesses
 # -------------------
@@ -35,8 +39,7 @@ def voigt_model(x, * args):
 # guesses_num[0][0].set_color_bar_params(label="Number of Guesses [-]")
 # guesses_num.show()
 
-# coords = DS9Coords(248, 80)
-# coords = DS9Coords.from_python(79, 248)
+# coords = DS9Coords(334, 366)
 # spec = cube[:, *coords]
 # guess = guesses[:, *coords].data.reshape(-1, 4)
 # voigt_guesses = [gl.Curve(spec.x_values, voigt_model(spec.x_values, *g)) for g in guess]
@@ -44,16 +47,15 @@ def voigt_model(x, * args):
 
 # See results
 # -----------
-for i in range(200, 300):
-    for j in range(200, 300):
-
-        coords = i, j
-        # coords = DS9Coords(208, 348)
-        fits = Tesseract.load("data/orion/nii/nii_complete_new_estimates.fits")
-        print(fits.data[:,:,*coords])
-        # print(guesses.data[:,*coords])
-        plot = fits.get_spectrum_plot(cube, coords, voigt_model)
-        gl.SmartFigure(elements=[*plot]).show()
+# for i in range(200, 300):
+#     for j in range(200, 300):
+# coords = i, j
+# coords = DS9Coords(136, 457)
+# fits = Tesseract.load("data/orion/nii/nii_complete_new_estimates.fits")
+# print(fits.data[:,:,*coords])
+# # print(guesses.data[:,*coords])
+# plot = fits.get_spectrum_plot(cube, coords, voigt_model)
+# gl.SmartFigure(elements=[*plot]).show()
 
 # Calculate FWHM
 # --------------

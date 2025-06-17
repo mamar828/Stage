@@ -9,6 +9,9 @@ from src.coordinates.ds9_coords import DS9Coords
 
 
 cube = FittableCube.load("data/orion/data_cubes/calibration.fits")
+def gaussian_model(x, *args):
+    return sum([models.Gaussian1D.evaluate(x, amplitude=args[i], mean=args[i+1], stddev=args[i+2])
+                for i in range(0, len(args), 3)])
 def voigt_model(x: float, A: float, x_0: float, fwhm_L: float, fwhm_G: float) -> float:
     return (
         models.Voigt1D().evaluate(x, amplitude_L=A, x_0=x_0, fwhm_L=fwhm_L, fwhm_G=fwhm_G)
@@ -17,25 +20,34 @@ def voigt_model(x: float, A: float, x_0: float, fwhm_L: float, fwhm_G: float) ->
 
 # Fit the data
 # ------------
-# guesses = cube.find_peaks_gaussian_estimates(voigt=True, prominence=1, distance=200)
-# calibration_fits = cube.fit(voigt_model, guesses, number_of_tasks=500)
-# calibration_fits.save("data/orion/calibration_fits_3.fits")
+# guesses = cube.find_peaks_gaussian_estimates(voigt=False, prominence=1, distance=200)
+# calibration_fits = cube.fit(gaussian_model, guesses)
+# calibration_fits.save("data/orion/calibration/calibration_fits_gaussian.fits")
 
 # See results
 # -----------
-# coords = DS9Coords(118, 78)
-# calibration_fits = Tesseract.load("data/orion/calibration_fits.fits")
-# print(calibration_fits.data[:,:,*coords])
-# plot = calibration_fits.get_spectrum_plot(cube, coords, voigt_model)
-# gl.SmartFigure(elements=[*plot]).show()
+# coords = DS9Coords(174, 219)
+# calibration_fits = Tesseract.load("data/orion/calibration/calibration_fits_gaussian.fits")
+# plot = calibration_fits.get_spectrum_plot(cube, coords, gaussian_model)
+# calibration_fits = Tesseract.load("data/orion/calibration/calibration_fits.fits")
+# plot2 = calibration_fits.get_spectrum_plot(cube, coords, voigt_model)
+# plot[1].label = "Gaussian Fit"
+# plot2[1].label = "Voigt Fit"
+# plot[1].line_width = 1
+# plot2[1].line_width = 1
+# fig = gl.SmartFigure(elements=[*plot[:2], plot2[1]], size=(20,16),
+#                      x_label="Channel Number [-]", y_label="Intensity [arb. u.]")
+# fig.set_ticks(x_tick_spacing=10, y_tick_spacing=50, minor_x_tick_spacing=1, minor_y_tick_spacing=10)
+# fig.set_grid()
+# fig.save("figures/orion/calibration/voigt_vs_gaussian.pdf")
 
 # Calculate FWHM
 # --------------
-# calibration_fits = Tesseract.load("data/orion/calibration_fits.fits")
-# fit_maps = calibration_fits.to_grouped_maps(["amplitude_L", "x_0", "fwhm_L", "fwhm_G"])
-# fwhm_L, fwhm_G = fit_maps.fwhm_L[0], fit_maps.fwhm_G[0]
-# fwhm = 0.5343 * fwhm_L + (0.2169 * fwhm_L**2 + fwhm_G**2)**0.5
-# fwhm.save("data/orion/calibration_fwhm.fits")
+# calibration_fits = Tesseract.load("data/orion/calibration/calibration_fits_gaussian.fits")
+# fit_maps = calibration_fits.to_grouped_maps(["amplitude", "mean", "stddev"])
+
+# fwhm = 2 * np.sqrt(2 * np.log(2)) * fit_maps.stddev[0]
+# fwhm.save("data/orion/calibration/calibration_gaussian_fwhm.fits")
 
 # Early testing
 # -------------
@@ -59,3 +71,9 @@ def voigt_model(x: float, A: float, x_0: float, fwhm_L: float, fwhm_G: float) ->
 #             # gl.Curve(x_values, y_pred, label="Gaussian Estimates"),
 #             fit,
 #         ]).show()
+
+# Gaussian vs Voigt
+# -----------------
+# gaussian_fwhm = Map.load("data/orion/calibration/calibration_gaussian_fwhm.fits")
+# voigt_fwhm = Map.load("data/orion/calibration/calibration_fwhm.fits")
+# (abs(gaussian_fwhm - voigt_fwhm) / voigt_fwhm).save("data/orion/calibration/calibration_fwhm_relative_difference.fits")
