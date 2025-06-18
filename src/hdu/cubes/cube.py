@@ -225,7 +225,7 @@ class Cube(FitsFile):
 
     def get_deep_frame(self) -> Map:
         """
-        Gives a Map created from summing the first axis of the Cube.
+        Gives a Map created from summing the first axis of the Cube. Nans are ignored in the process.
 
         Returns
         -------
@@ -233,6 +233,6 @@ class Cube(FitsFile):
             Flattened Cube by summing its first axis.
         """
         return self.map_type(
-            data=self.data.sum(axis=0),
+            data=np.nansum(self.data, axis=0),
             header=self.header.flatten(0)
         )

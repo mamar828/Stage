@@ -1,6 +1,7 @@
 class Coord:
     """
-    This class defines a Coord object used for working with coordinates and their different representations.
+    This class defines a Coord object used for working with coordinates and their different representations. This class
+    is not meant to be instantiated directly, but rather serves as a base class for RA and DEC.
     """
     def __init__(self, degrees: float):
         """
@@ -24,7 +25,7 @@ class RA(Coord):
     @classmethod
     def from_sexagesimal(cls, value: str):
         """
-        Creates RA object from a sexagesimal string.
+        Creates a RA object from a sexagesimal string.
 
         Parameters
         ----------
@@ -64,7 +65,7 @@ class DEC(Coord):
     @classmethod
     def from_sexagesimal(cls, value: str):
         """
-        Creates a  DEC object from a sexagesimal string.
+        Creates a DEC object from a sexagesimal string.
 
         Parameters
         ----------

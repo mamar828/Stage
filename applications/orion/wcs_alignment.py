@@ -83,18 +83,18 @@ parameters = {
 
 # Link the star positions to their coordinates in field 1
 # -------------------------------------------------------
-# FILENAME = "sii_2_df.fits"
+# FILENAME = "ha_2_df.fits"
 
-# deep_frame = Map.load(f"data/orion/deep_frames/{FILENAME}")
+# deep_frame = Map.load(f"data/orion/astrometry/deep_frames/{FILENAME}")
 # star_detections = detect_stars(
-#     deep_frame.data,         # Cube.load("data/orion/data_cubes/ha_2.fits")[16,:,:].data # only for the ha_2 field
+#     Cube.load("data/orion/astrometry/data_cubes/ha_2.fits")[16,:,:].data, # only for the ha_2 field
 #     parameters[FILENAME]["threshold_factor"],
 #     parameters[FILENAME]["fwhm_pixels"],
 # )
 
 # # Create a slice for ordering the detections
-# pixel_i = [2, 3, 4, 6, 5, 1, 0]
-# wcs_i = [0, 1, 2, 3, 4, 5, 6]
+# pixel_i = parameters[FILENAME]["pixel_i"]
+# wcs_i = parameters[FILENAME]["wcs_i"]
 # pixel_coords = np.column_stack((star_detections["x_fit"], star_detections["y_fit"]))[pixel_i]
 # centroid_coords = np.column_stack((star_detections["xcentroid"], star_detections["ycentroid"]))[pixel_i]
 # fig = gl.SmartFigure(
@@ -105,7 +105,7 @@ parameters = {
 #     ],
 #     aspect_ratio="equal"
 # )
-# fig[0][0].color_map_range = 100, 900
+# fig[0][0].color_map_range = 200, 900
 # fig.show()
 
 # lines = open(f"data/orion/astrometry/list_star_ohp_field_{FILENAME.split('_')[1]}.txt", "r").readlines()
@@ -120,7 +120,7 @@ parameters = {
 # ).to_header()
 # deep_frame_aligned = deep_frame.copy()
 # deep_frame_aligned.header = new_header
-# deep_frame_aligned.save(f"data/orion/deep_frames_aligned/{FILENAME}", overwrite=True)
+# deep_frame_aligned.save(f"data/orion/deep_frames_aligned/{FILENAME}", overwrite=False)
 
 
 # sitelle = Map.load("data/orion/deep_frames_aligned/Orion-A_SN3.merged.cm1.1.0.deep_frame.fits")
@@ -147,10 +147,40 @@ parameters = {
 # for file in os.listdir("data/orion/deep_frames_aligned"):
 #     if file.endswith(".fits") and not "SN3" in file:
 #         deep_frame = Map.load(f"data/orion/deep_frames_aligned/{file}")
-#         cube = Cube.load(f"data/orion/data_cubes/{file.split("_df")[0]}.fits")
+#         cube = Cube.load(f"data/orion/astrometry/data_cubes/{file.split("_df")[0]}.fits")
 #         for kw in ["CRPIX1", "CRPIX2", "PC1_1", "PC1_2", "PC2_1", "PC2_2", "CRVAL1", "CRVAL2"]:
 #             if "PC" in kw:
 #                 cube.header[f"CD{kw[-3:]}"] = deep_frame.header[kw]
 #             else:
 #                 cube.header[kw] = deep_frame.header[kw]
-#         cube.save(f"data/orion/data_cubes_aligned/{file.split("_df")[0]}_al.fits", overwrite=True)
+#         cube.save(f"data/orion/data_cubes_aligned/{file.split("_df")[0]}.fits", overwrite=True)
+
+
+# Calculate the seeing for each field
+# -----------------------------------
+# seeing_stars = {
+#     "sii_1_df.fits": [0, 1, 5, 6, 7, 8],
+#     "sii_2_df.fits": [1, 2, 5],
+#     "ha_1_df.fits": [0, 1, 3],
+#     "ha_2_df.fits": [2],
+#     "nii_1_df.fits": [0, 1, 3, 4],
+#     "nii_2_df.fits": [1, 2, 4],
+#     "oiii_1_df.fits": [0, 1, 3, 4],
+# }
+# f = open("data/orion/astrometry/seeing.csv", "w")
+# f.write("field,seeing,individual FWHMs\n")
+# for file in os.listdir("data/orion/deep_frames_aligned"):
+#     if file.endswith(".fits") and not "SN3" in file:
+#         image = Map.load(f"data/orion/deep_frames_aligned/{file}")
+#         if file.startswith("ha_2"):
+#             # Use the ha_2 field for the ha_2_df.fits deep frame
+#             image = Cube.load("data/orion/astrometry/data_cubes/ha_2.fits")[16, :, :]
+
+#         star_detections = detect_stars(
+#             image.data,
+#             parameters[file]["threshold_factor"],
+#             parameters[file]["fwhm_pixels"],
+#         )
+#         fwhms = star_detections["mean_fwhm"][parameters[file]["pixel_i"]][seeing_stars[file]]
+#         f.write(f"{file.split('_df')[0]:>6},{np.mean(fwhms):>5.2f},{" ".join([f"{f:.2f}" for f in fwhms])}\n")
+# f.close()

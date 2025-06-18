@@ -1,5 +1,6 @@
 from astropy.table import Table
 import numpy as np
+import src.graphinglib as gl
 
 from photutils.detection import DAOStarFinder
 from astropy.stats import sigma_clipped_stats
@@ -50,27 +51,45 @@ def fit_star_position(image: np.ndarray, star_positions: Table) -> Table:
     """
     fitted_x = []
     fitted_y = []
+    fitted_fwhm = []
     for star in star_positions:
-        x = star['xcentroid']
-        y = star['ycentroid']
-        box_apothem = 3
+        x = star["xcentroid"]
+        y = star["ycentroid"]
+        box_apothem = 10
         x_min = int(max(x - box_apothem, 0))
         x_max = int(min(x + box_apothem + 1, image.shape[1]))
         y_min = int(max(y - box_apothem, 0))
         y_max = int(min(y + box_apothem + 1, image.shape[0]))
         box = image[y_min:y_max, x_min:x_max]
         y_grid, x_grid = np.mgrid[y_min:y_max, x_min:x_max]
-        model = models.Gaussian2D(amplitude=box.max(), x_mean=x, y_mean=y, x_stddev=5, y_stddev=5,
-                                  bounds={"x_mean": (x_min, x_max), "y_mean": (y_min, y_max)})
+        model = (
+            models.Gaussian2D(amplitude=box.max(), x_mean=x, y_mean=y, x_stddev=5, y_stddev=5, theta=0,
+                              bounds={"x_mean": (x_min, x_max), "y_mean": (y_min, y_max)})
+            + models.Planar2D(0, 0, 0)
+        )
         fit_p = fitting.LevMarLSQFitter()
-        try:
-            params = fit_p(model, x_grid, y_grid, box, maxiter=100000)
-            fitted_x.append(params.x_mean.value)
-            fitted_y.append(params.y_mean.value)
-        except Exception:
-            fitted_x.append(x)
-            fitted_y.append(y)
+        params = fit_p(model, x_grid, y_grid, box, maxiter=100000)
+        fitted_x.append(params[0].x_mean.value)
+        fitted_y.append(params[0].y_mean.value)
+        fitted_fwhm.append(np.mean([params[0].x_fwhm, params[0].y_fwhm]))
 
-    star_positions['x_fit'] = fitted_x
-    star_positions['y_fit'] = fitted_y
+        # Show the fitted model and the profile along x
+        # ---------------------------------------------
+        # print(x, y, fitted_fwhm[-1])
+        # gl.SmartFigure(elements=[
+        #     gl.Curve(x_space := min(np.arange(box_apothem*2 + 1) + x_min),
+        #              box[y_val := min(round(params[0].y_mean.value - y_min), box_apothem*2)], label="Profile along x"),
+        #     gl.Curve(
+        #         x_space,
+        #         model.evaluate(
+        #             x_grid, y_grid,
+        #             params[0].amplitude.value, params[0].x_mean.value, params[0].y_mean.value,
+        #             params[0].x_stddev.value, params[0].y_stddev.value, params[0].theta.value,
+        #             params[1].slope_x.value, params[1].slope_y.value, params[1].intercept.value,
+        #         )[y_val], label="Fitted profile along x"),
+        # ]).show()
+
+    star_positions["x_fit"] = fitted_x
+    star_positions["y_fit"] = fitted_y
+    star_positions["mean_fwhm"] = fitted_fwhm
     return star_positions
