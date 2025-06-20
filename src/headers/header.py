@@ -1,4 +1,5 @@
 from __future__ import annotations
+import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from copy import deepcopy
@@ -33,7 +34,7 @@ class Header(fits.Header):
         return keys_equal and values_equal
 
     @property
-    def wcs_object(self) -> WCS:
+    def wcs(self) -> WCS:
         """
         Converts the Header to a WCS object. This is useful for plotting as the returned object can simply be passed to
         the projection argument of the matplotlib/graphinglib figure.
@@ -248,63 +249,72 @@ class Header(fits.Header):
         new_header[f"NAXIS{h_axis}"] += other[f"NAXIS{h_axis}"]
         return new_header
 
-    def get_coordinate(self, value: float, axis: int=0) -> int:
+    def pixel_to_world(self, pixel_coords: list[float] | np.ndarray[float]) -> np.ndarray:
         """
-        Gives the coordinate closest to the specified value, along the given axis. Currently supported projections are
-        the Global Sinusoidal projection (GLS) and the cartesian projection (CAR).
+        Converts pixel coordinates to world coordinates using the WCS of the Header. This method wraps the
+        `astropy.wcs.WCS.pixel_to_world` method, but the order of the `x` and `y` coordinates is inverted.
 
         Parameters
         ----------
-        value : float
-            Value to determine the coordinate. This can be a value in the range of any axis.
-        axis : int, default=0
-            Axis along which to get the coordinate. The default axis (0) gives the coordinate along a cube's spectral
-            axis.
+        pixel_coords : list[float] | np.ndarray[float]
+            Pixel coordinates to convert to world coordinates. This should be a 2D array with shape (n, m) where n is
+            the number of coordinates and the second dimension contains the m-dimensional coordinates in numpy format.
+
+            .. warning::
+                The input pixel coordinates should be in the format (y, x) as per numpy's convention, not (x, y) as per
+                the FITS standard. This means that the first column should contain the y pixel coordinates and the
+                second column should contain the x pixel coordinates. For using ds9 coordinates, see the
+                `src.coordinates.ds9_coords.DS9Coords` class.
 
         Returns
         -------
-        int
-            Coordinate closest to the specified value.
+        np.ndarray
+            World coordinates corresponding to the input pixel coordinates. The output will be a 2D array with shape
+            (n, m) where the second dimension contains the world coordinates (e.g. [RA, DEC, velocity] for an equatorial
+            conversion).
         """
-        h_axis = self._h_axis(axis)
-        if self[f"CTYPE{h_axis}"] == "RA---GLS":
-            DEC_axis = list(self.keys())[list(self.values()).index("DEC--GLS")][5:]
-            frame_number = (value - self[f"CRVAL{h_axis}"]) \
-                         / (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
-                         + self[f"CRPIX{h_axis}"]
-        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR", "    "]:
-            frame_number = (value - self[f"CRVAL{h_axis}"]) / self[f"CDELT{h_axis}"] + self[f"CRPIX{h_axis}"]
-        else:
-            raise NotImplementedError(C.RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.OFF)
-        rounded_frame = round(frame_number)
-        return rounded_frame
+        if isinstance(pixel_coords, list):
+            pixel_coords = np.array(pixel_coords)
+        if pixel_coords.ndim == 1:
+            pixel_coords = pixel_coords.reshape(1, -1)
+        elif pixel_coords.ndim != 2:
+            raise ValueError("pixel_coords must be a 2D array.")
 
-    def get_value(self, coordinate: int, axis: int=0) -> float:
+        transposed_coords = pixel_coords.T[::-1]
+        world_coords = np.array(self.wcs.pixel_to_world_values(*transposed_coords)).T
+        return world_coords
+
+    def world_to_pixel(self, world_coords: list[float] | np.ndarray[float]) -> np.ndarray:
         """
-        Gives the value associated with the specified coordinate, along the given axis. Currently supported projections
-        are the Global Sinusoidal projection (GLS) and the cartesian projection (CAR).
+        Converts world coordinates to pixel coordinates using the WCS of the Header. This method wraps the
+        `astropy.wcs.WCS.world_to_pixel` method.
 
         Parameters
         ----------
-        coordinate : int
-            Coordinate to determine the value. This should be a coordinate in the range of any axis.
-        axis : int, default=0
-            Axis along which to get the value at the specified coordinate. For example, the default axis (0) gives the
-            value along a cube's spectral axis, if the header is associated with a Cube.
+        world_coords : list[float] | np.ndarray[float]
+            World coordinates to convert to pixel coordinates. This should be a 2D array with shape (n, m) where n is
+            the number of coordinates and the second dimension contains the m-dimensional coordinates in standard
+            celestial format (e.g. [RA, DEC, velocity] for an equatorial conversion).
 
         Returns
         -------
-        float
-            Value at the given coordinate.
+        np.ndarray
+            Pixel coordinates corresponding to the input world coordinates. The output will be a 2D array with shape
+            (n, m) where the second dimension contains the pixel coordinates (e.g. [y, x] for a 2D image).
+
+            .. warning::
+                The output pixel coordinates will be in the format (y, x) as per numpy's convention, not (x, y) as per
+                the FITS standard. This means that the first column will contain the y pixel coordinates and the
+                second column will contain the x pixel coordinates. For converting to ds9 coordinates, see the
+                `src.coordinates.ds9_coords.DS9Coords` class.
         """
-        h_axis = self._h_axis(axis)
-        if self[f"CTYPE{h_axis}"] == "RA---GLS":
-            DEC_axis = list(self.keys())[list(self.values()).index("DEC--GLS")][5:]
-            value = (coordinate - self[f"CRPIX{h_axis}"]) \
-                  * (self[f"CDELT{h_axis}"]/cos(radians(self[f"CRVAL{DEC_axis}"]))) \
-                  + self[f"CRVAL{h_axis}"]
-        elif self[f"CTYPE{h_axis}"][-3:] in ["CAR", "LSR", "    "]:
-            value = (coordinate - self[f"CRPIX{h_axis}"]) * self[f"CDELT{h_axis}"] + self[f"CRVAL{h_axis}"]
-        else:
-            raise NotImplementedError(C.RED + f"CTYPE {self[f"CTYPE{h_axis}"]} not supported." + C.OFF)
-        return value
+        if isinstance(world_coords, list):
+            world_coords = np.array(world_coords)
+        if world_coords.ndim == 1:
+            world_coords = world_coords.reshape(1, -1)
+        elif world_coords.ndim != 2:
+            raise ValueError("world_coords must be a 2D array.")
+
+        pixel_coords = self.wcs.world_to_pixel_values(*world_coords.T)
+        pixel_coords = np.array(pixel_coords)[::-1].T
+        return pixel_coords

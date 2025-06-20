@@ -30,7 +30,7 @@ from src.tools.astrometry import *
 # # old_detections = detect_stars(deep_frame.data, old_threshold_factor, old_fwhm_pixels)
 # star_detections = detect_stars(deep_frame.data, threshold_factor, fwhm_pixels)
 # fig = gl.SmartFigureWCS(
-#     projection=deep_frame.header.wcs_object,
+#     projection=deep_frame.header.wcs,
 #     elements=[
 #         (df := deep_frame.data.plot),
 #         # gl.Scatter(
