@@ -5,6 +5,7 @@ import pyregion
 from astropy.io import fits
 from typing import Self, Any
 from colorist import BrightColor as C
+from logging import warning
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
@@ -46,17 +47,28 @@ class Cube(FitsFile):
             raise TypeError(f"{C.RED}Every slice element must be an int or a slice.{C.OFF}")
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
-            map_header = self.header.flatten(axis=int_slices.index(True))
+            if int_slices[0]:
+                map_header = self.header.celestial
+            else:
+                map_header = SilentNone()
+                warning(f"{C.YELLOW}The given slice does not keep the integrity of the celestial header. A SilentNone "
+                        f"header will be placed. Consider using slices that keep intact the celestial or spectral axes."
+                        + C.OFF)
+
             return self.map_type(data=Array2D(self.data[slices]), header=map_header)
         elif int_slices.count(True) == 2:
-            first_int_i = int_slices.index(True)
-            map_header = self.header.flatten(axis=first_int_i)
-            spectrum_header = map_header.flatten(axis=(int_slices.index(True, first_int_i+1)))
+            if not int_slices[0]:
+                spectrum_header = self.header.spectral
+            else:
+                spectrum_header = SilentNone()
+                warning(f"{C.YELLOW}The given slice does not keep the integrity of the celestial header. A SilentNone "
+                        f"header will be placed. Consider using slices that keep intact the celestial or spectral axes."
+                        + C.OFF)
             return self.spectrum_type(data=self.data[slices], header=spectrum_header)
         elif int_slices.count(True) == 3:
             return self.data[slices]
         else:
-            return self.__class__(self.data[slices], self.header.crop_axes(slices))
+            return self.__class__(self.data[slices], self.header.slice(slices))
 
     def __iter__(self) -> Self:
         self.iter_n = -1
@@ -234,5 +246,5 @@ class Cube(FitsFile):
         """
         return self.map_type(
             data=np.nansum(self.data, axis=0),
-            header=self.header.flatten(0)
+            header=self.header.celestial
         )

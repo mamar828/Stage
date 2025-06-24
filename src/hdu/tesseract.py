@@ -3,7 +3,7 @@ import numpy as np
 import awkward as ak
 import astropy.units as u
 from src.graphinglib import Curve
-from typing import Self, Callable
+from typing import Self, Callable, Literal
 from collections import namedtuple
 from astropy.io import fits
 from astropy.modeling.models import Gaussian1D
@@ -280,7 +280,7 @@ class Tesseract(FitsFile):
 
         new_header = self.header.copy()
         for i in range(self.header["NAXIS"] - 2):
-            new_header = new_header.flatten(axis=0)
+            new_header = new_header.celestial
 
         for i, name in zip(range(0, self.data.shape[0], 2), names):
             for j in range(self.data.shape[1]):
@@ -297,7 +297,7 @@ class Tesseract(FitsFile):
         )
         return gm
 
-    def split(self, indice: int, axis: int) -> list[Self, Self]:
+    def split(self, indice: int, axis: Literal[2, 3]) -> list[Self, Self]:
         """
         Splits a Tesseract into two smaller Tesseracts along a certain axis at a given indice.
 
@@ -306,7 +306,7 @@ class Tesseract(FitsFile):
         indice : int
             Indice of where the Tesseract will be splitted. For example, indice=10 will give a Tesseract that goes from
             0 to 9 and another from 10 to ... along a given axis.
-        axis : int
+        axis : Literal[2, 3]
             Axis along which to split the Tesseract. This should be 2 or 3 to split in the coordinate axes.
 
         Returns
@@ -314,13 +314,16 @@ class Tesseract(FitsFile):
         list[Self, Self]
             Tesseracts that were splitted. The list is ordered so the Tesseract with the lowest slice is given first.
         """
+        if axis not in (2, 3):
+            raise ValueError(f"{C.RED}Axis must be 2 or 3, got {axis}.{C.OFF}")
+
         splitted = np.split(self.data, [indice], axis)
-
         slices = [slice(None, indice), slice(indice, None)]
-        header_slices = [[0, 0, 0] for _ in slices]
-        [header_slices[i].insert(axis, slice_) for i, slice_ in enumerate(slices)]
+        header_slices = [[slice(None), slice(None), slice(None), slice(None)] for _ in range(2)]    # this forces copy
+        header_slices[0][axis] = slices[0]
+        header_slices[1][axis] = slices[1]
 
-        tess = [self.__class__(data, self.header.crop_axes(h_slice)) for data, h_slice in zip(splitted, header_slices)]
+        tess = [self.__class__(data, self.header.slice(h_slice)) for data, h_slice in zip(splitted, header_slices)]
         return tess
 
     def concatenate(self, other, axis: int) -> Self:

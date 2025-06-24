@@ -7,6 +7,7 @@ from uncertainties import ufloat
 from reproject import reproject_interp
 from typing import Self
 from colorist import BrightColor as C
+from logging import warning
 
 from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_2d import Array2D
@@ -140,15 +141,16 @@ class Map(FitsFile, MathematicalObject):
     def __getitem__(self, slices: tuple[slice | int]) -> Array2D | Spectrum | Map:
         int_slices = [isinstance(slice_, int) for slice_ in slices]
         if int_slices.count(True) == 1:
-            spectrum_header = self.header.flatten(axis=int_slices.index(True))
-            return self.spectrum_type(data=self.data[slices], header=spectrum_header)
+            warning(f"{C.YELLOW}Slicing a Map with a single integer will result in a spectrum with a SilentNone header."
+                    + C.OFF)
+            return self.spectrum_type(data=self.data[slices], header=SilentNone())
         elif int_slices.count(True) == 2:
             return self.data[slices]
         else:
             return self.__class__(
                 self.data[slices],
                 self.uncertainties[slices],
-                header=self.header.crop_axes(slices)
+                header=self.header.slice(slices)
             )
 
     def __iter__(self) -> Self:

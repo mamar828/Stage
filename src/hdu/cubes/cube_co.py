@@ -62,7 +62,7 @@ class CubeCO(Cube):
                 progressbar.update(1)
             # results is now a list of [y_shape, x_shape, (chi2, fit_results)]
 
-        flattened_header = self.header.flatten(0)
+        flattened_header = self.header.celestial
         results_array = ak.Array(results)
         chi2_array = Map(
             data=Array2D(results_array[:,:,0,0,0]),

@@ -243,7 +243,7 @@ class Spectrum:
 
         reshaped_data = data_copy.reshape((data_copy.shape[0] // bin, bin))
         data_copy = np.mean(reshaped_data, axis=1)
-        return self.__class__(data_copy, self.header.bin([bin]))
+        return self.__class__(data_copy, self.header.bin(bin))
 
     def fit(self, parameter_bounds: dict):
         """

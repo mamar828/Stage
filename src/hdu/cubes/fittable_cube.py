@@ -200,7 +200,7 @@ class FittableCube(Cube):
         fit_params = fit_params.reshape(-1, 2 * number_of_parameters, self.data.shape[1], self.data.shape[2])
         fit_params = fit_params.swapaxes(0, 1)
 
-        tesseract_header = self.header.flatten(0)
+        tesseract_header = self.header.celestial
         tesseract_header["CTYPE3"] = "model index"
         tesseract_header["CTYPE4"] = "param1 + unc., param2 + unc., param3 + unc., ..."
 
