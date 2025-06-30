@@ -93,6 +93,10 @@ class Header(fits.Header):
                 # Remove the old key if it doesn't exist in the new WCS
                 new_header.remove(old_key, ignore_missing=True)
 
+        for h_axis in range(1, new_header["NAXIS"] + 1):
+            if h_axis > wcs.naxis:
+                new_header.remove(f"NAXIS{h_axis}", ignore_missing=True)
+        new_header["NAXIS"] = wcs.naxis  # Update the NAXIS keyword to the new WCS naxis
         return new_header
 
     def bin(self, bins: int | tuple[int, int] | tuple[int, int, int]) -> Self:
