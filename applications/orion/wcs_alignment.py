@@ -87,7 +87,7 @@ parameters = {
 
 # deep_frame = Map.load(f"data/orion/astrometry/deep_frames/{FILENAME}")
 # star_detections = detect_stars(
-#     Cube.load("data/orion/astrometry/data_cubes/ha_2.fits")[16,:,:].data, # only for the ha_2 field
+#     deep_frame.data, # Cube.load("data/orion/astrometry/data_cubes/ha_2.fits")[16,:,:].data, # only for the ha_2 field
 #     parameters[FILENAME]["threshold_factor"],
 #     parameters[FILENAME]["fwhm_pixels"],
 # )
@@ -150,9 +150,8 @@ parameters = {
 #         cube = Cube.load(f"data/orion/astrometry/data_cubes/{file.split("_df")[0]}.fits")
 #         for kw in ["CRPIX1", "CRPIX2", "PC1_1", "PC1_2", "PC2_1", "PC2_2", "CRVAL1", "CRVAL2"]:
 #             if "PC" in kw:
-#                 cube.header[f"CD{kw[-3:]}"] = deep_frame.header[kw]
-#             else:
-#                 cube.header[kw] = deep_frame.header[kw]
+#                 cube.header.remove(f"CD{kw[-3:]}", ignore_missing=True)
+#             cube.header[kw] = deep_frame.header[kw]
 #         cube.save(f"data/orion/data_cubes_aligned/{file.split("_df")[0]}.fits", overwrite=True)
 
 
