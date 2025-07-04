@@ -96,6 +96,7 @@ class Header(fits.Header):
         for h_axis in range(1, new_header["NAXIS"] + 1):
             if h_axis > wcs.naxis:
                 new_header.remove(f"NAXIS{h_axis}", ignore_missing=True)
+                new_header.remove(f"CROTA{h_axis}", ignore_missing=True)
         new_header["NAXIS"] = wcs.naxis  # Update the NAXIS keyword to the new WCS naxis
         return new_header
 
