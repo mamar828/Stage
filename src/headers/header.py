@@ -248,10 +248,10 @@ class Header(fits.Header):
             the number of coordinates and the second dimension contains the m-dimensional coordinates in numpy format.
 
             .. warning::
-                The input pixel coordinates should be in the format (y, x) as per numpy's convention, not (x, y) as per
-                the FITS standard. This means that the first column should contain the y pixel coordinates and the
-                second column should contain the x pixel coordinates. For using ds9 coordinates, see the
-                `src.coordinates.ds9_coords.DS9Coords` class.
+                The input pixel coordinates should be in the format (y, x) with 0-based indexing as per numpy's
+                convention, not (x, y) with 1-based indexing as per the FITS standard. This means that the first column
+                should contain the y pixel coordinates and the second column should contain the x pixel coordinates. For
+                using ds9 coordinates, see the `src.coordinates.ds9_coords.DS9Coords` class.
 
         Returns
         -------
@@ -290,10 +290,10 @@ class Header(fits.Header):
             (n, m) where the second dimension contains the pixel coordinates (e.g. [y, x] for a 2D image).
 
             .. warning::
-                The output pixel coordinates will be in the format (y, x) as per numpy's convention, not (x, y) as per
-                the FITS standard. This means that the first column will contain the y pixel coordinates and the
-                second column will contain the x pixel coordinates. For converting to ds9 coordinates, see the
-                `src.coordinates.ds9_coords.DS9Coords` class.
+                The output pixel coordinates will be in the format (y, x) with 0-based indexing as per numpy's
+                convention, not (x, y) with 1-based indexing as per the FITS standard. This means that the first column
+                will contain the y pixel coordinates and the second column will contain the x pixel coordinates. For
+                converting to ds9 coordinates, see the `src.coordinates.ds9_coords.DS9Coords` class.
         """
         if isinstance(world_coords, list):
             world_coords = np.array(world_coords)

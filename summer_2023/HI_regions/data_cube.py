@@ -47,7 +47,7 @@ class Fits_file():
             except:
                 pass
         return header_copy
-    
+
     def save_as_fits_file(self, filename: str, *, overwrite=False):
         """
         Write an array as a fits file of the specified name with or without a header. If the object has a header, it
@@ -55,7 +55,7 @@ class Fits_file():
 
         Arguments
         ---------
-        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will 
+        filename: str. Indicates the path and name of the created file. If the file already exists, a warning will
         appear and the file can be overwritten.
         overwrite: bool, default=False. Specifies if the file should automatically be erased.
         """
@@ -73,7 +73,7 @@ class Fits_file():
 
                 elif answer == "n":
                     break
-                
+
         except:
             # The file does not yet exist
             fits.writeto(filename, self.data, self.header, overwrite=True)
@@ -93,7 +93,7 @@ class Data_cube(Fits_file):
         ---------
         fits_object: astropy.io.fits.PrimaryHDU. Contains the data values and header of the data cube.
         axes_info: dict, default={"x": "l", "y": "b", "z": "v"}. Specifies what is represented by which axis and it is
-        mainly used in the swap_axes() method. The given dict is stored in the info attribute and information on a 
+        mainly used in the swap_axes() method. The given dict is stored in the info attribute and information on a
         Data_cube's axes can always be found by printing said Data_cube.
         """
         try:
@@ -107,7 +107,7 @@ class Data_cube(Fits_file):
     def __str__(self):
         return f"{C.RED+C.BOLD}FOLLOWING FITS STANDARDS (axes are given in the following order: z,y,x){C.END}\n" + \
                 f"Data_cube shape: {self.data.shape}\nData_cube axes: {list(reversed(self.info.items()))}"
-    
+
     def __eq__(self, other):
         return np.array_equal(self.data, other.data) and self.header == other.header and self.info == other.info
 
@@ -133,15 +133,15 @@ class Data_cube(Fits_file):
         wcs = wcs.dropaxis(2)
         header = wcs.to_header(relax=True)
         return header
-    
+
     def bin_cube(self, nb_pix_bin: int=2) -> Data_cube:
         """
         Bin a specific cube by the amount of pixels given for every channel.
 
         Arguments
         ---------
-        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For 
-        example, the default value 2 will give a new cube in which every pixel at a specific channel is the mean value 
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For
+        example, the default value 2 will give a new cube in which every pixel at a specific channel is the mean value
         of every 4 pixels (2x2 bin) at that same channel.
 
         Returns
@@ -160,17 +160,17 @@ class Data_cube(Fits_file):
         # into a new grid whose size has been divided by the number of pixels to bin
         bin_array = data.reshape(data.shape[0], int(data.shape[1]/nb_pix_bin), nb_pix_bin,
                                                 int(data.shape[2]/nb_pix_bin), nb_pix_bin)
-        
+
         return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=(2,4)), self.bin_header(nb_pix_bin, (1,2))))
-    
+
     def bin_cube_wavelengths(self, nb_pix_bin: int=2) -> Data_cube:
         """
         Bin a specific cube by the amount of pixels given for every channel.
 
         Arguments
         ---------
-        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For 
-        example, the default value 2 will give a new cube in which every pixel at a specific channel is the mean value 
+        nb_pix_bin: int, default=2. Specifies the number of pixels to be binned together along a single axis. For
+        example, the default value 2 will give a new cube in which every pixel at a specific channel is the mean value
         of every 4 pixels (2x2 bin) at that same channel.
 
         Returns
@@ -186,7 +186,7 @@ class Data_cube(Fits_file):
         # Create a 4 dimensional array that places along the same axis the number of pixel to bin of the wavelength
         # axis
         bin_array = data.reshape(int(data.shape[0]/nb_pix_bin), nb_pix_bin, data.shape[1], data.shape[2]) # try unpacking !
-        
+
         return self.__class__(fits.PrimaryHDU(np.nanmean(bin_array, axis=1), self.bin_header(nb_pix_bin, 3)))
 
     def plot_cube(self,
@@ -199,10 +199,10 @@ class Data_cube(Fits_file):
         ):
         """
         Plot a Data_cube by animating the change of frames.
-        
+
         Arguments
         ---------
-        cbar_bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first 
+        cbar_bounds: tuple, optional. Indicates the colorbar's bounds if an autoscale is not desired. The tuple's first
         element is the minimum and the second is the maximum.
         x_bounds: tuple, optional. Sets the plot's horizontal bounds.
         y_bounds: tuple, optional. Sets the plot's vertical bounds.
@@ -229,7 +229,7 @@ class Data_cube(Fits_file):
         def next_slice(frame_number):
             plot.set_array(self.data[frame_number,:,:])
             cbar.update_normal(plot)
-        
+
         animation = FuncAnimation(fig, next_slice, frames=self.data.shape[0], interval=75)
 
         if filename:
@@ -240,11 +240,11 @@ class Data_cube(Fits_file):
     def swap_axes(self, new_axes: dict) -> Data_cube:
         """
         Swap a Data_cube's axes to observe different correlations.
-        
+
         Arguments
         ---------
         new_axes: dict. Each axis needs to be attributed a certain type previously specified in the axes_info.
-        
+
         Returns
         -------
         Data_cube object: newly swapped Data_cube.
@@ -271,7 +271,7 @@ class Data_cube(Fits_file):
             new_data = new_data.swapaxes(0,1)
             new_header = self.get_switched_header(0,1, header=new_header)
 
-        # Look if the axis that needs to be put in second position (y) was the third axis (ù)
+        # Look if the axis that needs to be put in second position (y) was the third axis (z)
         if old_axes_pos[dict_keys[1]] == 2:
             new_data = new_data.swapaxes(1,2)
             new_header = self.get_switched_header(1,2, header=new_header)
@@ -281,14 +281,14 @@ class Data_cube(Fits_file):
     def get_switched_header(self, axis_1: int, axis_2: int, header: fits.Header=None) -> fits.Header:
         """
         Get the astropy header with switched axes to fit a Data_cube whose axes were also swapped.
-        
+
         Arguments
         ---------
         axis_1: int. Source axis.
         axis_2: int. Destination axis.
         header: fits.Header, default=None. By default, the Data_cube's header is taken but if one is provided, it will
         be used instead.
-        
+
         Returns
         -------
         astropy.io.fits.Header: header copy with switched axes.
@@ -297,7 +297,7 @@ class Data_cube(Fits_file):
             new_header = self.header.copy()
         else:
             new_header = header.copy()
-        
+
         h_axis_1, h_axis_2 = axis_1 + 1, axis_2 + 1             # The header uses 1-based indexing
 
         for header_element in deepcopy(list(new_header.keys())):
@@ -305,7 +305,7 @@ class Data_cube(Fits_file):
                 new_header[f"{header_element[:-1]}{h_axis_2}-"] = new_header.pop(header_element)
             elif header_element[-1] == str(h_axis_2):
                 new_header[f"{header_element[:-1]}{h_axis_1}-"] = new_header.pop(header_element)
-        
+
         # The modified header keywords are temporarily named with the suffix "-" to prevent duplicates during the
         # process
         # After the process is done, the suffix is removed
@@ -313,7 +313,7 @@ class Data_cube(Fits_file):
             if header_element[-1] == "-":
                 new_header[header_element[:-1]] = new_header.pop(header_element)
         return new_header
-    
+
     def invert_axis(self, axis: str) -> Data_cube:
         """
         Invert the elements' order along an axis.
