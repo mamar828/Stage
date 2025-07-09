@@ -16,6 +16,10 @@ class Header(fits.Header):
         Values of 0, 1 and 2 target respectively the z, y and x axes.
     """
 
+    def __init__(self, cards=..., copy=False):
+        super().__init__(cards, copy)
+        self.fix()
+
     def __str__(self) -> str:
         return self.__repr__()
 
@@ -72,15 +76,31 @@ class Header(fits.Header):
         h_axis = self["NAXIS"] - axis
         return h_axis
 
-    def _update_wcs(self, wcs: WCS) -> Self:
+    def _update_wcs(self, wcs: WCS, update_self: bool = False) -> Self:
         """
         Updates the Header with a WCS object. This method replaces only the WCS-related keywords in the Header with
         those from the WCS object, while preserving any other metadata that may be present.
+
+        Parameters
+        ----------
+        wcs : WCS
+            WCS object to update the Header with.
+        update_self : bool, optional
+            If True, the Header will be updated in place. If False, a new Header will be created with the updated WCS.
+
+        Returns
+        -------
+        Self
+            Header with the updated WCS. If `update_self` is True, the original Header is modified in place and returned.
+            If `update_self` is False, a new Header with the updated WCS is returned.
         """
         old_wcs_header = self.wcs.to_header()       # this contains all old WCS keywords
         new_wcs_header = wcs.to_header()            # this contains the new WCS keywords to update
         new_wcs_header_keys = list(new_wcs_header.keys()) # this gives all the new WCS keywords
-        new_header = self.copy()
+        if update_self:
+            new_header = self
+        else:
+            new_header = self.copy()
 
         # Look at each old WCS key and update it with the new value if it exists in the new WCS header
         # If it doesn't exist in the new WCS header, remove it from the new header
@@ -99,6 +119,16 @@ class Header(fits.Header):
                 new_header.remove(f"CROTA{h_axis}", ignore_missing=True)
         new_header["NAXIS"] = wcs.naxis  # Update the NAXIS keyword to the new WCS naxis
         return new_header
+
+    def fix(self) -> None:
+        """
+        Fixes the Header by updating its WCS. This is useful for ensuring that the WCS is up to date with the latest
+        changes made to the Header. This method is called automatically when the Header is created, but can also be
+        called manually if the Header is modified after creation.
+        """
+        fixed_wcs = self.wcs.deepcopy()
+        fixed_wcs.fix()
+        self._update_wcs(fixed_wcs, update_self=True)
 
     def bin(self, bins: int | tuple[int, int] | tuple[int, int, int]) -> Self:
         """
