@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import scipy as sp
-from typing import Self, Literal, Callable
+from typing import Self, Literal, Callable, Iterable
 from pathos.pools import ProcessPool
 from pathos.helpers import cpu_count
 from tqdm import tqdm
@@ -22,7 +22,7 @@ class FittableCube(Cube):
     data.
     """
 
-    def find_peaks_gaussian_estimates(self, voigt: bool = False, **kwargs) -> Self:
+    def find_peaks_gaussian_estimates(self, voigt: bool = False, **kwargs) -> Cube:
         """
         Finds gaussian initial guesses using scipy.signal's find_peaks algorithm as well as the peak_widths algorithm.
         These initial guesses can then be used to fit gaussian or voigt functions to the data.
@@ -44,7 +44,7 @@ class FittableCube(Cube):
 
         Returns
         -------
-        Self
+        Cube
             Cube with the initial guesses for the specified model. The guesses are stored along the first axis, ordered
             as (in the case of `voigt=False`): amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the
             first three values are the parameters of the first Gaussian model, the next three are the parameters of the
@@ -95,7 +95,65 @@ class FittableCube(Cube):
         guesses = guesses.reshape(self.data.shape[2], self.data.shape[1], -1)
         guesses = guesses.T
 
-        return self.__class__(guesses, self.header)
+        return Cube(guesses, self.header)
+
+    def range_peak_estimation(
+        self,
+        ranges: Iterable[slice],
+    ) -> Cube:
+        """
+        Finds initial guesses for the peaks in the specified ranges of the Cube data. For each given slice, the
+        algorithm finds the maximum value and its index, which are then used as the initial guesses for the peaks.
+
+        Parameters
+        ----------
+        ranges : Iterable[slice]
+            An iterable of slices specifying the ranges in which to find the peaks. Each slice should be of the form
+            `slice(start, stop)`, where `start` and `stop` are the indices of the range to consider.
+
+            .. warning::
+                As the given slices are treated as 0-based indices, the user must not forget to convert them if using
+                bounds obtained from SAOImage ds9. This means that for slicing from the first channel, you should use
+                `slice(0, n)` and not `slice(1, n)`.
+
+        Returns
+        -------
+        Cube
+            Cube with the initial guesses for the peaks. The guesses are stored along the first axis, ordered as:
+            amplitude1, mean1, stddev1, amplitude2, mean2, stddev2, ..., where the first value is the amplitude of the
+            first peak, the second value is its index, and so on.
+
+            .. warning::
+                As the guesses are made for data cubes, the mean guesses are given in 1-based indexing to be coherent
+                with the data.
+        """
+        for r in ranges:
+            if not isinstance(r, slice):
+                raise TypeError(f"Expected a slice object, got {type(r)} instead.")
+
+        peak_means = []
+        peak_amplitudes = []
+        for r in ranges:
+            range_data = self.data[r, :, :]
+            peaks_i = np.argmax(range_data, axis=0)
+            peak_means.append(peaks_i + r.start)
+            peak_amplitudes.extend(np.take_along_axis(range_data, peaks_i[np.newaxis], axis=0))
+
+        peak_means = np.array(peak_means)
+        peak_amplitudes = np.array(peak_amplitudes)
+
+        peak_widths = np.array([
+            sp.signal.peak_widths(spectrum, peaks)[0]
+            for spectrum, peaks in zip(self.flatten_3d_array(self.data), self.flatten_3d_array(peak_means))
+        ]) / (2 * np.sqrt(2 * np.log(2)))
+        peak_widths = peak_widths.reshape(self.data.shape[2], self.data.shape[1], -1)
+        peak_widths = peak_widths.T
+
+        peak_means += 1       # correct for the 0-based indexing
+
+        guesses = np.stack((peak_amplitudes, peak_means, peak_widths), axis=1)
+        guesses = guesses.reshape(peak_means.shape[0] * 3, self.data.shape[1], self.data.shape[2])
+        return Cube(guesses, self.header)
 
     @notify_function_end
     def fit(
