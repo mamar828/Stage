@@ -335,13 +335,13 @@ class Map(FitsFile, MathematicalObject):
         return map_
 
     @FitsFile.silence_function
-    def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
+    def get_masked_region(self, region: pyregion.Shape | pyregion.ShapeList) -> Self:
         """
         Gives the Map within a region.
 
         Parameters
         ----------
-        region : pyregion.core.ShapeList
+        region : pyregion.Shape | pyregion.ShapeList
             Region that will be kept in the final Map. If None, the whole map is returned.
 
         Returns
@@ -350,6 +350,8 @@ class Map(FitsFile, MathematicalObject):
             Masked Map.
         """
         if region:
+            if isinstance(region, pyregion.Shape):
+                region = pyregion.ShapeList([region])
             if self.header:
                 mask = region.get_mask(self.data.get_PrimaryHDU(self.header))
             else:

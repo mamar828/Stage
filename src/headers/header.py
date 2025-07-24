@@ -18,7 +18,10 @@ class Header(fits.Header):
 
     def __init__(self, cards=..., copy=False):
         super().__init__(cards, copy)
-        self.fix()
+        try:
+            self.fix()
+        except:
+            print(f"{C.RED}Failed to fix the Header. The WCS may not be valid.{C.OFF}")
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -113,11 +116,11 @@ class Header(fits.Header):
                 # Remove the old key if it doesn't exist in the new WCS
                 new_header.remove(old_key, ignore_missing=True)
 
+        new_header["NAXIS"] = wcs.naxis  # Update the NAXIS keyword to the new WCS naxis
         for h_axis in range(1, new_header["NAXIS"] + 1):
             if h_axis > wcs.naxis:
                 new_header.remove(f"NAXIS{h_axis}", ignore_missing=True)
                 new_header.remove(f"CROTA{h_axis}", ignore_missing=True)
-        new_header["NAXIS"] = wcs.naxis  # Update the NAXIS keyword to the new WCS naxis
         return new_header
 
     def fix(self) -> None:
