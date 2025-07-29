@@ -24,8 +24,20 @@ def telegram_send_message(message: str):
     """
     try:
         asyncio_run(_telegram_send.send(messages=[message]))
-    except:
+    except Exception:
         print("No telegram bot configuration was available.")
+
+def printt(*values: object, sep: str = " ", end: str | None = "\n"):
+    """
+    Prints the values to the console as well as on telegram, if a configuration is available.
+    For a full list of arguments, please refer to the built-in print function documentation.
+    """
+    print(*values, sep=sep, end=end)
+    if _telegram_send:
+        try:
+            asyncio_run(_telegram_send.send(messages=[" ".join(map(str, values))]))
+        except Exception:
+            print("No telegram bot configuration was available.")
 
 def notify_function_end(func):
     """
