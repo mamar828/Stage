@@ -20,7 +20,7 @@ class Header(fits.Header):
         super().__init__(cards, copy)
         try:
             self.fix()
-        except:
+        except Exception:
             print(f"{C.RED}Failed to fix the Header. The WCS may not be valid.{C.OFF}")
 
     def __str__(self) -> str:

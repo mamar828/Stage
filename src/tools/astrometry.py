@@ -9,7 +9,7 @@ from astropy.stats import sigma_clipped_stats
 from astropy.table import Table
 from astropy.modeling import models, fitting
 from astropy.table import Table
-from astropy.coordinates import SkyCoord, FK5
+from astropy.coordinates import SkyCoord, FK5, ICRS
 from astropy.wcs.utils import fit_wcs_from_points
 from astropy.wcs import WCS
 from scipy.signal import peak_widths
@@ -53,7 +53,7 @@ def fit_star_position(image: np.ndarray, star_positions: Table) -> Table:
 
         # Estimate the FWHM of the star in the box
         x_width = peak_widths(box[box_apothem,:], [box_apothem])[0]
-        y_width = peak_widths(box[:,box_apothem,], [box_apothem])[0]
+        y_width = peak_widths(box[:,box_apothem], [box_apothem])[0]
 
         model = (
             models.Gaussian2D(
@@ -205,7 +205,7 @@ def get_wcs_transformation(
         The WCS object containing the transformation information.
     """
     fits_pixel_coords = pixel_coords + 1 # FITS convention (1-indexed)
-    sky_coord = SkyCoord(wcs_coords, frame=FK5, unit=unit)
+    sky_coord = SkyCoord(wcs_coords, frame=ICRS, unit=unit)
     wcs = fit_wcs_from_points(
         xy=(fits_pixel_coords[:,0], fits_pixel_coords[:,1]),
         world_coords=sky_coord,
