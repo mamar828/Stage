@@ -42,6 +42,11 @@ class Map(FitsFile, MathematicalObject):
         header : Header, default=SilentNone()
             Header of the Map.
         """
+        if isinstance(uncertainties, Header):
+            raise TypeError(
+                f"{C.RED}Uncertainties must be an Array2D object, not a Header.{C.OFF}"
+            )
+
         self.data = Array2D(data)
         self.uncertainties = Array2D(uncertainties) if not type(uncertainties) == SilentNone else uncertainties
         self.header = header

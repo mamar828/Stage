@@ -6,6 +6,7 @@ from pathos.pools import ProcessPool
 from pathos.helpers import cpu_count
 from tqdm import tqdm
 from astropy.modeling import models
+import warnings
 
 from src.tools.messaging import smart_tqdm
 from src.hdu.fits_file import FitsFile
@@ -22,17 +23,16 @@ class FittableCube(Cube):
     data.
     """
 
-    def find_peaks_gaussian_estimates(self, voigt: bool = False, **kwargs) -> Cube:
+    def find_peaks_estimation(self, voigt: bool = False, **kwargs) -> Cube:
         """
-        Finds gaussian initial guesses using scipy.signal's find_peaks algorithm as well as the peak_widths algorithm.
-        These initial guesses can then be used to fit gaussian or voigt functions to the data.
+        Finds initial guesses using scipy.signal's find_peaks algorithm as well as the peak_widths algorithm. These
+        initial guesses can then be used to fit gaussian or voigt functions to the data.
 
         Parameters
         ----------
         voigt : bool, default=False
             If True, the initial guesses will be made for a Voigt profile instead of a Gaussian profile. This results in
             four parameters per model: amplitude_L, x_0, fwhm_L, fwhm_G.
-
         kwargs : Any
             Arguments to pass to the scipy.signal.find_peaks function. Useful parameters include:
             - `height`: Required height of the peaks.
@@ -67,10 +67,11 @@ class FittableCube(Cube):
         pbar.update(1)
         peak_widths = list_to_array(peak_widths)
         pbar.update(1)
-        assert peak_means.size > 0, \
-            "No peaks were detected in the data. Please check the parameters passed to find_peaks."
+        assert (
+            peak_means.size > 0
+        ), "No peaks were detected in the data. Please check the parameters passed to find_peaks."
 
-        peak_means += 1     # correct for the 0-based indexing in numpy but 1-based indexing in the data
+        peak_means += 1  # correct for the 0-based indexing in numpy but 1-based indexing in the data
 
         if voigt:
             fwhms_L = 0.7 * peak_widths
@@ -78,7 +79,7 @@ class FittableCube(Cube):
 
             # Find the amplitude correction factor to take into account the Voigt profile shape
             non_nan_mask = ~np.isnan(peak_means)
-            amplitude_correction = peak_amplitudes[~np.isnan(peak_means)][0] / models.Voigt1D().evaluate(
+            amplitude_correction = peak_amplitudes[non_nan_mask][0] / models.Voigt1D().evaluate(
                 peak_means[non_nan_mask][0],
                 peak_means[non_nan_mask][0],
                 peak_amplitudes[non_nan_mask][0],
@@ -100,6 +101,7 @@ class FittableCube(Cube):
     def range_peak_estimation(
         self,
         ranges: Iterable[slice],
+        voigt: bool = False,
     ) -> Cube:
         """
         Finds initial guesses for the peaks in the specified ranges of the Cube data. For each given slice, the
@@ -115,6 +117,9 @@ class FittableCube(Cube):
                 As the given slices are treated as 0-based indices, the user must not forget to convert them if using
                 bounds obtained from SAOImage ds9. This means that for slicing from the first channel, you should use
                 `slice(0, n)` and not `slice(1, n)`.
+        voigt : bool, default=False
+            If True, the initial guesses will be made for a Voigt profile instead of a Gaussian profile. This results in
+            four parameters per model: amplitude_L, x_0, fwhm_L, fwhm_G.
 
         Returns
         -------
@@ -142,18 +147,48 @@ class FittableCube(Cube):
         peak_means = np.array(peak_means)
         peak_amplitudes = np.array(peak_amplitudes)
 
-        peak_widths = np.array([
-            sp.signal.peak_widths(spectrum, peaks)[0]
-            for spectrum, peaks in zip(self.flatten_3d_array(self.data), self.flatten_3d_array(peak_means))
-        ]) / (2 * np.sqrt(2 * np.log(2)))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            peak_widths = np.array(
+                [
+                    sp.signal.peak_widths(spectrum, peaks)[0]
+                    for spectrum, peaks in zip(
+                        self.flatten_3d_array(self.data),
+                        self.flatten_3d_array(peak_means),
+                    )
+                ]
+            ) / (2 * np.sqrt(2 * np.log(2)))
+
+        peak_means += 1  # correct for the 0-based indexing
+
         peak_widths = peak_widths.reshape(self.data.shape[2], self.data.shape[1], -1)
         peak_widths = peak_widths.T
+        if voigt:
+            fwhms_L = 0.7 * peak_widths
+            fwhms_G = 0.3 * peak_widths
 
-        peak_means += 1       # correct for the 0-based indexing
-
-        guesses = np.stack((peak_amplitudes, peak_means, peak_widths), axis=1)
+            # Find the amplitude correction factor to take into account the Voigt profile shape
+            non_nan_mask = ~np.isnan(peak_means)
+            amplitude_correction = peak_amplitudes[non_nan_mask][0] / models.Voigt1D().evaluate(
+                peak_means[non_nan_mask][0],
+                peak_means[non_nan_mask][0],
+                peak_amplitudes[non_nan_mask][0],
+                fwhms_L[non_nan_mask][0],
+                fwhms_G[non_nan_mask][0],
+            )
+            # reshape to (n_data, n_models, 4)
+            guesses = np.stack(
+                (peak_amplitudes * amplitude_correction, peak_means, fwhms_L, fwhms_G),
+                axis=1,
+            )
+            guesses = guesses.reshape(
+                peak_means.shape[0] * 4, self.data.shape[1], self.data.shape[2]
+            )
+        else:
+            # reshape to (n_data, n_models, 3)
+            guesses = np.stack((peak_amplitudes, peak_means, peak_widths), axis=1)
         guesses = guesses.reshape(peak_means.shape[0] * 3, self.data.shape[1], self.data.shape[2])
-        return Cube(guesses, self.header)
+        return Cube(guesses, self.header.celestial)
 
     @notify_function_end
     def fit(
@@ -205,12 +240,16 @@ class FittableCube(Cube):
             number_of_tasks = cpu_count() * 10
         x_values = np.arange(self.shape[0]) + 1
         nan_array = np.full(guesses_array.shape[0] * 2, np.nan)
+        bounds = np.array(kwargs.pop("bounds", None))
 
         @FitsFile.silence_function
         def worker_fit_spectrums(spectrums, guesses):
             results = []
             for spectrum_i, guesses_i in zip(spectrums, guesses):
-                valid_guesses = guesses_i[~np.isnan(guesses_i)] # remove NaN values
+                non_nan_mask = ~np.isnan(guesses_i)
+                valid_guesses = guesses_i[non_nan_mask]  # remove NaN values
+                if bounds is not None:
+                    valid_bounds = bounds[0][non_nan_mask], bounds[1][non_nan_mask]
                 if valid_guesses.size == 0:
                     results.append(nan_array)
                 else:
@@ -220,6 +259,7 @@ class FittableCube(Cube):
                             xdata=x_values,
                             ydata=spectrum_i,
                             p0=valid_guesses.flatten(),
+                            bounds=valid_bounds,
                             **kwargs,
                         )
                     except RuntimeError:
