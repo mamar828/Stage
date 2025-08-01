@@ -149,7 +149,7 @@ class Header(fits.Header):
         Self
             Binned Header.
         """
-        list_bins = list([bins] if not isinstance(bins, tuple) else bins)
+        list_bins = list([bins] if not isinstance(bins, (tuple, list)) else bins)
         if len(list_bins) != self["NAXIS"]:
             raise ValueError(
                 f"{C.RED}The number of bins must match the number of axes in the Header. "
