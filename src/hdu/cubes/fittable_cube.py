@@ -187,7 +187,8 @@ class FittableCube(Cube):
         else:
             # reshape to (n_data, n_models, 3)
             guesses = np.stack((peak_amplitudes, peak_means, peak_widths), axis=1)
-        guesses = guesses.reshape(peak_means.shape[0] * 3, self.data.shape[1], self.data.shape[2])
+            guesses = guesses.reshape(peak_means.shape[0] * 3, self.data.shape[1], self.data.shape[2])
+
         return Cube(guesses, self.header.celestial)
 
     @notify_function_end
@@ -262,7 +263,7 @@ class FittableCube(Cube):
                             bounds=valid_bounds,
                             **kwargs,
                         )
-                    except RuntimeError:
+                    except (RuntimeError, ValueError):  # Catch fitting errors
                         results.append(nan_array)
                         continue
 

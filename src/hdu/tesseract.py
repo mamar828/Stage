@@ -278,9 +278,7 @@ class Tesseract(FitsFile):
         maps = namedtuple("maps", names)
         maps = maps(*[[] for _ in names])
 
-        new_header = self.header.copy()
-        for i in range(self.header["NAXIS"] - 2):
-            new_header = new_header.celestial
+        new_header = self.header.celestial
 
         for i, name in zip(range(0, self.data.shape[0], 2), names):
             for j in range(self.data.shape[1]):

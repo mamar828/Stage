@@ -45,10 +45,12 @@ param_bounds = [0, 1, 0, 0], [np.inf, 48, 10, 10]
 # HA FIELD 1 (two components)
 # ---------------------------
 # info = Info("ha_1_binned_3x3.fits", None, "HA FIELD 1", "ha_1.fits")
+# printt(f"Processing {info.name}...")
 # cube = FittableCube.load(f"data/orion/data_cubes/binned/{info.filename}")
 # guesses = cube.find_peaks_estimation(voigt=True, prominence=3, height=15)
-# fits = cube.fit(voigt_model, guesses, number_of_parameters=4, maxfev=10000,
+# fits = cube.fit(voigt_model, guesses, number_of_parameters=4, maxfev=100000,
 #                 bounds=(guesses.shape[0]//4 * param_bounds[0], guesses.shape[0]//4 * param_bounds[1]))
 # save_filename = f"data/orion/fits/{info.save_filename}"
 # fits.save(save_filename)
-# printt(f"Saved fits to {save_filename}.", end="\n\n")
+# print(f"Saved fits to {save_filename}.", end="\n\n")
+# printt("END")
