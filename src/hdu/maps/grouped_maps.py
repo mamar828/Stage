@@ -31,7 +31,7 @@ class GroupedMaps(FitsFile):
             self.names.append(name)
 
     def __getitem__(self, name: str) -> list[Map]:
-        return self.names
+        return getattr(self, name)
 
     @classmethod
     def load(cls, filename: str) -> GroupedMaps:

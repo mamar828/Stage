@@ -222,6 +222,7 @@ parameters["oiii_2_df.fits"] = {"threshold_factor": 1.2, "fwhm_pixels": 8,
 #             if "PC" in kw:
 #                 cube.header.remove(f"CD{kw[-3:]}", ignore_missing=True)
 #             cube.header[kw] = deep_frame.header[kw]
+#         cube.header["CDELT3"] = cube.header["CHAN_KMS"]
 #         cube.save(f"data/orion/data_cubes/{file}", overwrite=True)
 
 # Calculate the seeing for each field
@@ -256,3 +257,16 @@ parameters["oiii_2_df.fits"] = {"threshold_factor": 1.2, "fwhm_pixels": 8,
 #         fwhms = star_detections["mean_fwhm"][parameters[file]["pixel_i"]][seeing_stars[file]]
 #         f.write(f"{file.split('_df')[0]:>6},{np.mean(fwhms):>5.2f},{" ".join([f"{f:.2f}" for f in fwhms])}\n")
 # f.close()
+
+# Binning according to the seeing
+# -------------------------------
+# for file in os.listdir("data/orion/data_cubes"):
+#     if file.endswith(".fits"):
+#         if "1" in file:
+#             binning = 3
+#         else:
+#             binning = 4
+#         Cube.load(f"data/orion/data_cubes/{file}").bin((1, binning, binning)).save(
+#             f"data/orion/data_cubes/binned/{file.split('.fits')[0]}_binned_{binning}x{binning}.fits",
+#             overwrite=True
+#         )

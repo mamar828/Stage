@@ -54,3 +54,10 @@ param_bounds = [0, 1, 0, 0], [np.inf, 48, 10, 10]
 # fits.save(save_filename)
 # print(f"Saved fits to {save_filename}.", end="\n\n")
 # printt("END")
+
+
+# coords = DS9Coords(131, 37)
+
+# cube = FittableCube.load(f"data/orion/data_cubes/binned/nii_1_binned_3x3.fits")
+# tess = Tesseract.load(f"data/orion/fits/nii_1.fits")
+# gl.SmartFigure(elements=tess.get_spectrum_plot(cube, coords, model=voigt_model)).show()
