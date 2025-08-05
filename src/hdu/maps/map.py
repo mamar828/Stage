@@ -370,6 +370,28 @@ class Map(FitsFile, MathematicalObject):
             self.header
         )
 
+    def mask(self, mask: np.ndarray) -> Self:
+        """
+        Masks the Map with a given boolean mask.
+
+        Parameters
+        ----------
+        mask : np.ndarray
+            Boolean mask to apply to the Map. The mask should be of the same shape as the Map's data.
+
+        Returns
+        -------
+        Self
+            Masked Map.
+        """
+        if mask.shape != self.data.shape:
+            raise ValueError(f"{C.RED}Mask shape {mask.shape} does not match Map shape {self.data.shape}.{C.OFF}")
+        return self.__class__(
+            self.data.mask(mask),
+            self.uncertainties.mask(mask),
+            self.header,
+        )
+
     def get_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
         """
         Gives the statistics of the map's data. Supported statistic measures are: median, mean, nbpixels stddev,

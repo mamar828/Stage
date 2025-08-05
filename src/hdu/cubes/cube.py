@@ -218,6 +218,28 @@ class Cube(FitsFile):
             self.header
         )
 
+    def mask(self, mask: np.ndarray) -> Self:
+        """
+        Masks the Cube with a given boolean mask.
+
+        Parameters
+        ----------
+        mask : np.ndarray
+            Boolean mask to apply to the Cube. The mask should be of the same shape as the spatial shape of the Cube.
+
+        Returns
+        -------
+        Self
+            Masked Cube.
+        """
+        if mask.shape != self.data.shape[1:]:
+            raise ValueError(f"{C.RED}Mask shape {mask.shape} does not match the Cube's spatial shape "
+                             f"{self.data.shape[1:]}.{C.OFF}")
+        return self.__class__(
+            self.data.mask(mask),
+            self.header,
+        )
+
     @staticmethod
     def flatten_3d_array(array_3d: Array3D) -> Array2D:
         """

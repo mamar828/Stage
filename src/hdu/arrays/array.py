@@ -88,3 +88,19 @@ class Array(np.ndarray):
                 new_data = func(reshaped_data, axis=ax+1)
 
         return new_data
+
+    def mask(self, mask: np.ndarray) -> Self:
+        """
+        Masks the Array with a given boolean mask.
+
+        Parameters
+        ----------
+        mask : np.ndarray
+            Boolean mask to apply to the Array. This must have the same shape as the Array.
+
+        Returns
+        -------
+        Self
+            Masked Array.
+        """
+        return np.where(mask == 0, np.nan, 1) * self
