@@ -4,6 +4,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from typing import Self
 from colorist import BrightColor as C
+from logging import warning
 
 
 class Header(fits.Header):
@@ -116,11 +117,16 @@ class Header(fits.Header):
                 # Remove the old key if it doesn't exist in the new WCS
                 new_header.remove(old_key, ignore_missing=True)
 
-        new_header["NAXIS"] = wcs.naxis  # Update the NAXIS keyword to the new WCS naxis
+        # Also update non-wcs keywords
+        new_naxis = wcs._naxis
         for h_axis in range(1, new_header["NAXIS"] + 1):
-            if h_axis > wcs.naxis:
+            if h_axis <= wcs.naxis:
+                # The key needs to be updated
+                new_header[f"NAXIS{h_axis}"] = new_naxis[h_axis - 1]
+            else:
+                # The key is not present in the WCS, so we remove it
                 new_header.remove(f"NAXIS{h_axis}", ignore_missing=True)
-                new_header.remove(f"CROTA{h_axis}", ignore_missing=True)
+        new_header["NAXIS"] = wcs.naxis  # Update the NAXIS keyword to the new WCS naxis
         return new_header
 
     def fix(self) -> None:
@@ -132,6 +138,13 @@ class Header(fits.Header):
         fixed_wcs = self.wcs.deepcopy()
         fixed_wcs.fix()
         self._update_wcs(fixed_wcs, update_self=True)
+        # Check if there are any CROTAn keywords and remove them, as they are deprecated
+        crota_kw = list(filter(lambda k: k.startswith("CROTA"), self.keys()))
+        if crota_kw:
+            warning(f"{C.YELLOW}The Header contains deprecated CROTAn keywords. These will be removed as they are "
+                    f"deprecated according to astropy.{C.OFF}")
+        for key in crota_kw:
+            self.remove(key, ignore_missing=True)
 
     def bin(self, bins: int | tuple[int, int] | tuple[int, int, int]) -> Self:
         """
