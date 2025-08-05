@@ -223,6 +223,8 @@ parameters["oiii_2_df.fits"] = {"threshold_factor": 1.2, "fwhm_pixels": 8,
 #                 cube.header.remove(f"CD{kw[-3:]}", ignore_missing=True)
 #             cube.header[kw] = deep_frame.header[kw]
 #         cube.header["CDELT3"] = cube.header["CHAN_KMS"]
+#         if cube.header["CTYPE3"] == "VELOCITY":
+#             cube.header["CTYPE3"] = "VELO"
 #         cube.save(f"data/orion/data_cubes/{file}", overwrite=True)
 
 # Calculate the seeing for each field

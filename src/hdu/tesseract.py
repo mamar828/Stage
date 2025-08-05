@@ -250,7 +250,7 @@ class Tesseract(FitsFile):
         # Make a boolean filter to determine the axes that fulfill the condition
         filter_3d = (((slice.start if slice.start else 0) <= self.data[i,:,:,:]) &
                      (self.data[i,:,:,:] < (slice.stop if slice.stop else 1e5)))
-        filter_4d = np.tile(filter_3d, (6, 1, 1, 1))
+        filter_4d = np.tile(filter_3d, (self.data.shape[0], 1, 1, 1))
         # Convert boolean filter to True/np.nan
         filter_4d = np.where(filter_4d, filter_4d, np.nan)
         return self.__class__(self.data * filter_4d, self.header)
