@@ -1,5 +1,5 @@
 import numpy as np
-import graphinglib as gl
+import src.graphinglib as gl
 from scipy.ndimage import gaussian_filter
 from scipy.optimize import curve_fit
 from functools import partial
@@ -112,7 +112,7 @@ def increments(data: np.ndarray) -> dict:
         increments_dict[increment[0]] = np.array(increment[1:])
     return increments_dict
 
-def evaluate_delta_f2(data: np.ndarray) -> float:
+def evaluate_delta_f2(data: np.ndarray) -> float | None:
     """
     Evaluates the ∆F_2(tau_0) parameter which quantifies the Zurflueh filter's efficiency that implies quasi-homogeneous
     motions.
@@ -124,8 +124,8 @@ def evaluate_delta_f2(data: np.ndarray) -> float:
 
     Returns
     -------
-    delta_f2_tau_0 : float
-        ∆F_2(tau_0) parameter.
+    delta_f2_tau_0 : float | None
+        ∆F_2(tau_0) parameter. If None, no intersection point was found in the autocorrelation function.
     """
     # Find tau_0
     autocorrelation_1d = autocorrelation_function(data, "Boily")
