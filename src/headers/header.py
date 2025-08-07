@@ -4,6 +4,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from typing import Self
 from colorist import BrightColor as C
+import warnings
 from logging import warning
 
 
@@ -135,7 +136,9 @@ class Header(fits.Header):
         changes made to the Header. This method is called automatically when the Header is created, but can also be
         called manually if the Header is modified after creation.
         """
-        fixed_wcs = self.wcs.deepcopy()
+        with warnings.catch_warnings():  # ignores double FITSFixedWarning
+            warnings.simplefilter("ignore")
+            fixed_wcs = self.wcs.deepcopy()
         fixed_wcs.fix()
         self._update_wcs(fixed_wcs, update_self=True)
         # Check if there are any CROTAn keywords and remove them, as they are deprecated

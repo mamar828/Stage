@@ -16,6 +16,7 @@ from src.spectrums.spectrum import Spectrum
 from src.spectrums.spectrum_co import SpectrumCO
 from src.base_objects.mathematical_object import MathematicalObject
 from src.base_objects.silent_none import SilentNone
+from src.tools.miscellaneous import silence_function
 
 
 class Map(FitsFile, MathematicalObject):
@@ -339,7 +340,7 @@ class Map(FitsFile, MathematicalObject):
         map_.uncertainties[mask] = np.NAN
         return map_
 
-    @FitsFile.silence_function
+    @silence_function
     def get_masked_region(self, region: pyregion.Shape | pyregion.ShapeList) -> Self:
         """
         Gives the Map within a region.
@@ -423,7 +424,7 @@ class Map(FitsFile, MathematicalObject):
 
         return stats
 
-    @FitsFile.silence_function
+    @silence_function
     def get_reprojection_on(self, header: Header) -> Self:
         """
         Gives the reprojection of the Map on another Map's coordinate system. This coordinate matching allows for

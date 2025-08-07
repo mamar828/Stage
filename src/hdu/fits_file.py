@@ -1,9 +1,6 @@
-import os
-import warnings
 from typing import Self
 from astropy.io import fits
 from copy import deepcopy
-from contextlib import redirect_stdout
 from colorist import BrightColor as C
 from time import strftime
 
@@ -56,15 +53,3 @@ class FitsFile:
                 hdu_list.writeto(checkpoint_filename, overwrite=True, output_verify="ignore")
                 print(C.GREEN + "File saved automatically upon error to", checkpoint_filename + C.OFF)
                 raise e
-
-    @staticmethod
-    def silence_function(func):
-        """
-        Decorates verbose functions to silence their terminal output.
-        """
-        def inner_func(*args, **kwargs):
-            with open(os.devnull, "w") as outer_space, redirect_stdout(outer_space), warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                return func(*args, **kwargs)
-
-        return inner_func

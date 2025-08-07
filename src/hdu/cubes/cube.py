@@ -15,6 +15,7 @@ from src.spectrums.spectrum import Spectrum
 from src.spectrums.spectrum_co import SpectrumCO
 from src.headers.header import Header
 from src.base_objects.silent_none import SilentNone
+from src.tools.miscellaneous import silence_function
 
 
 class Cube(FitsFile):
@@ -189,7 +190,7 @@ class Cube(FitsFile):
         """
         return self[self.data.get_nan_cropping_slices()]
 
-    @FitsFile.silence_function
+    @silence_function
     def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
         """
         Gives the Cube within a region.

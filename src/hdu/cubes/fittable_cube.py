@@ -15,6 +15,7 @@ from src.hdu.cubes.cube import Cube
 from src.hdu.tesseract import Tesseract
 from src.tools.array_functions import list_to_array
 from src.tools.messaging import notify_function_end
+from src.tools.miscellaneous import silence_function
 
 
 class FittableCube(Cube):
@@ -243,7 +244,7 @@ class FittableCube(Cube):
         nan_array = np.full(guesses_array.shape[0] * 2, np.nan)
         bounds = np.array(kwargs.pop("bounds", None))
 
-        @FitsFile.silence_function
+        @silence_function
         def worker_fit_spectrums(spectrums, guesses):
             results = []
             for spectrum_i, guesses_i in zip(spectrums, guesses):
