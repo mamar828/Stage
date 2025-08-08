@@ -242,7 +242,9 @@ class FittableCube(Cube):
             number_of_tasks = cpu_count() * 10
         x_values = np.arange(self.shape[0]) + 1
         nan_array = np.full(guesses_array.shape[0] * 2, np.nan)
-        bounds = np.array(kwargs.pop("bounds", None))
+        bounds = kwargs.pop("bounds", None)
+        if bounds is not None:
+            bounds = np.array(bounds)
 
         @silence_function
         def worker_fit_spectrums(spectrums, guesses):
@@ -252,6 +254,9 @@ class FittableCube(Cube):
                 valid_guesses = guesses_i[non_nan_mask]  # remove NaN values
                 if bounds is not None:
                     valid_bounds = bounds[0][non_nan_mask], bounds[1][non_nan_mask]
+                else:
+                    valid_bounds = (-np.inf, np.inf)
+
                 if valid_guesses.size == 0:
                     results.append(nan_array)
                 else:

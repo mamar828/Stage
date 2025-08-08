@@ -8,21 +8,36 @@ from src.hdu.tesseract import Tesseract
 from src.coordinates.ds9_coords import DS9Coords
 
 
-cube = FittableCube.load("data/orion/data_cubes/calibration.fits")
-def gaussian_model(x, *args):
-    return sum([models.Gaussian1D.evaluate(x, amplitude=args[i], mean=args[i+1], stddev=args[i+2])
-                for i in range(0, len(args), 3)])
-def voigt_model(x: float, A: float, x_0: float, fwhm_L: float, fwhm_G: float) -> float:
-    return (
-        models.Voigt1D().evaluate(x, amplitude_L=A, x_0=x_0, fwhm_L=fwhm_L, fwhm_G=fwhm_G)
-        + models.Voigt1D().evaluate(x-cube.shape[0], amplitude_L=A, x_0=x_0, fwhm_L=fwhm_L, fwhm_G=fwhm_G)
-    )
+# Bin and fix the cube
+# --------------------
+# calib = FittableCube.load("data/orion/calibration/calibration_cube.fits")
+# calib.header.rename_keyword("RADECSYS", "RADESYSa")
+# calib.header.remove("VELREF")
+# calib = calib.bin([4, 1, 1])
+# calib.save("data/orion/calibration/calibration_binned.fits")
+
+# cube = FittableCube.load("data/orion/calibration/calibration_binned.fits")
+# def gaussian_model(x, *args):
+#     return sum([models.Gaussian1D.evaluate(x, amplitude=args[i], mean=args[i+1], stddev=args[i+2])
+#                 for i in range(0, len(args), 3)])
+# def voigt_model(x: float, A: float, x_0: float, fwhm_L: float, fwhm_G: float) -> float:
+#     return (
+#         models.Voigt1D().evaluate(x, amplitude_L=A, x_0=x_0, fwhm_L=fwhm_L, fwhm_G=fwhm_G)
+#         + models.Voigt1D().evaluate(x-cube.shape[0], amplitude_L=A, x_0=x_0, fwhm_L=fwhm_L, fwhm_G=fwhm_G)
+#     )
 
 # Fit the data
 # ------------
-# guesses = cube.find_peaks_gaussian_estimates(voigt=False, prominence=1, distance=200)
-# calibration_fits = cube.fit(gaussian_model, guesses)
-# calibration_fits.save("data/orion/calibration/calibration_fits_gaussian.fits")
+# guesses = cube.find_peaks_estimation(voigt=True, prominence=1, distance=200)
+# calibration_fits = cube.fit(voigt_model, guesses, number_of_parameters=4)
+# calibration_fits.save("data/orion/calibration/voigt_fits.fits")
+
+# Centroid maps
+# -------------
+# tess = Tesseract.load("data/orion/calibration/voigt_fits.fits")
+# centroids = tess.to_grouped_maps(["amplitude_L", "x_0", "fwhm_L", "fwhm_G"]).x_0
+# assert len(centroids) == 1, "Expected only one component in the fits."
+# centroids[0].save("data/orion/calibration/calibration_centroids.fits")
 
 # See results
 # -----------
