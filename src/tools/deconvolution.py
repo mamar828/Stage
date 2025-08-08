@@ -1,36 +1,95 @@
 import numpy as np
 import src.graphinglib as gl
-from scipy.signal import convolve
+from scipy.signal import fftconvolve
 from typing import Literal
+from tqdm import tqdm
 
 from src.hdu.cubes.cube import Cube
+from src.hdu.maps.map import Map
 
 
-def preprocess_signal(x: np.ndarray, normalize_method: Literal["integral", "max"] = "integral") -> np.ndarray:
+def normalize_signals(x: np.ndarray, method: Literal["integral", "max"] = "integral") -> np.ndarray:
     """
-    Recenters signals in a data cube and normalizes them.
+    Normalizes the given signal using the specified method.
 
     Parameters
     ----------
     x : np.ndarray
-        The data cube containing the spectrums to be preprocessed. This should be a 3D array where the first dimension
+        The data cube containing the spectrums to be normalized. This should be a 3D array where the first dimension
         represents the spectral axis.
-    normalize_method : Literal["integral", "max"], default="integral"
-        The method used for normalization. If "integral", the signal is normalized by its integral. If "max", the signal
+    method : Literal["integral", "max"], default="integral"
+        The normalization method to use. If "integral", the signal is normalized by its integral. If "max", the signal
         is normalized by its maximum value.
-    """
-    centroids = 1 + np.argmax(x, axis=0)
-    shifts = int(np.round(x.shape[0] // 2 - centroids + 1))
-    recentered = np.roll(x, shifts, axis=0)
-    if normalize_method == "integral":
-        normalized = recentered / np.sum(recentered, axis=0, keepdims=True)
-    elif normalize_method == "max":
-        normalized = recentered / np.max(recentered, axis=0, keepdims=True)
-    else:
-        raise ValueError(f"Unknown normalization method: {normalize_method}. Use 'integral' or 'max'.")
-    return normalized
 
-def deconvolve_cube(data: np.ndarray | Cube, lsf: np.ndarray | Cube, n_iterations: int) -> np.ndarray | Cube:
+    Returns
+    -------
+    np.ndarray
+        The normalized signal.
+    """
+    if method == "integral":
+        return x / (np.sum(x, axis=0, keepdims=True) + 1e-10)
+    elif method == "max":
+        return x / (np.max(x, axis=0, keepdims=True) + 1e-10)
+    else:
+        raise ValueError(f"Unknown normalization method: {method}. Use 'integral' or 'max'.")
+
+def estimate_centroids(data: np.ndarray) -> np.ndarray:
+    """
+    Estimates the centroids of the peaks in a given data cube using a quadratic function. This function is a more robust
+    estimator than the `argmax` operator, but does not need the cost of fitting a model to the data.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The data cube containing the spectrums to be processed. This should be a 3D array where the first dimension
+        represents the spectral axis.
+
+    Returns
+    -------
+    np.ndarray
+        An array of the estimated centroids for each spectrum in the data cube. The centroids are given following
+        1-based indexing.
+    """
+    max_indices = np.argmax(data, axis=0)
+    max_indices = np.clip(max_indices, 1, data.shape[0] - 2)  # clip to avoid index out of bounds
+    y_1 = np.take_along_axis(data, max_indices[None, :, :] - 1, axis=0)[0]
+    y_2 = np.take_along_axis(data, max_indices[None, :, :], axis=0)[0]
+    y_3 = np.take_along_axis(data, max_indices[None, :, :] + 1, axis=0)[0]
+    centroids = max_indices + 0.5 * (y_1 - y_3) / (y_1 - 2*y_2 + y_3 + 1e-10) + 1
+    return centroids
+
+def roll_spectrums(data: np.ndarray, offsets: np.ndarray) -> np.ndarray:
+    """
+    Roll each spectrum in a 3D data cube by its individual offset.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        3D array with shape (spectral, y, x) containing the spectrums
+    offsets : np.ndarray
+        2D array with shape (y, x) containing the roll offset for each spectrum
+
+    Returns
+    -------
+    np.ndarray
+        3D array with each spectrum rolled by its corresponding offset
+    """
+    offsets = np.nan_to_num(offsets, nan=0, posinf=0, neginf=0).round().astype(int)
+
+    spectral_indices = np.arange(data.shape[0])[:, None, None]
+    y_indices = np.arange(data.shape[1])[None, :, None]
+    x_indices = np.arange(data.shape[2])[None, None, :]
+
+    rolled_spectral_indices = (spectral_indices - offsets[None, :, :]) % data.shape[0]
+    rolled_data = data[rolled_spectral_indices, y_indices, x_indices]
+    return rolled_data
+
+def deconvolve_cube(
+    data: np.ndarray | Cube,
+    lsf: np.ndarray | Cube,
+    lsf_centroids: np.ndarray | Map,
+    n_iterations: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Deconvolves the spectrums in the given data cube using the provided line spread function (LSF) via Richardson-Lucy
     deconvolution. This removes the instrumental response from the spectrums, allowing for a clearer view of the
@@ -46,26 +105,37 @@ def deconvolve_cube(data: np.ndarray | Cube, lsf: np.ndarray | Cube, n_iteration
         The line spread function (LSF) used for deconvolution given as a data cube. This corresponds to the
         instrumental response function of the Fabry-Pérot interferometer. The spectral axis should be the first
         dimension.
+    lsf_centroids : np.ndarray | Map
+        The centroids of the LSF spectrums. This is used to align the LSF spectrums before deconvolution. These
+        should be obtained from fitting the LSF spectrums to a model for greater precision.
     n_iterations : int
         The number of iterations to perform in the Richardson-Lucy algorithm.
 
     Returns
     -------
-    np.ndarray | Cube
-        The data cube containing the deconvolved spectrums, which is the result of applying Richardson-Lucy
-        deconvolution to each spectrum using their associated LSF.
+    tuple[np.ndarray, np.ndarray, np.ndarray]
+        A tuple containing three elements: (deconvolved_data, offsetted_data, offsetted_lsf). These are given in the
+        same format as the input data, with shape (spectral, y, x).
     """
-    input_spectrums = data.data if isinstance(data, Cube) else data
-    input_spectrums = preprocess_signal(input_spectrums)
-    lsf_spectrums = lsf.data if isinstance(lsf, Cube) else lsf
-    lsf_spectrums = preprocess_signal(lsf_spectrums)
+    data = data.data if isinstance(data, Cube) else data
+    lsf = lsf.data if isinstance(lsf, Cube) else lsf
+    lsf_centroids = lsf_centroids.data if isinstance(lsf_centroids, Map) else lsf_centroids
 
-    output_signal = richardson_lucy_deconvolution(input_spectrums, lsf_spectrums, n_iterations)
-    output_signal = preprocess_signal(output_signal)
-    if isinstance(data, Cube) and isinstance(lsf, Cube):
-        output_signal = Cube(output_signal, header=data.header)
+    data = normalize_signals(data)
+    lsf = normalize_signals(lsf)
 
-    return output_signal
+    lsf_center_offset = data.shape[0] // 2 - (lsf.argmax(axis=0) + 1)  # offset to center the LSF spectrums
+    data_centroids = estimate_centroids(data)
+    data_offset = lsf_centroids - data_centroids + lsf_center_offset
+
+    # Roll LSF and data spectrums by their individual offsets
+    offsetted_lsf = roll_spectrums(lsf, lsf_center_offset)
+    offsetted_data = roll_spectrums(data, data_offset)
+
+    deconvolved_data = richardson_lucy_deconvolution(offsetted_data, offsetted_lsf, n_iterations)
+    deconvolved_data = normalize_signals(deconvolved_data)
+
+    return deconvolved_data, offsetted_data, offsetted_lsf
 
 def richardson_lucy_deconvolution(data: np.ndarray, lsf: np.ndarray, n_iterations: int) -> np.ndarray:
     """
@@ -93,65 +163,52 @@ def richardson_lucy_deconvolution(data: np.ndarray, lsf: np.ndarray, n_iteration
     estimate = np.full_like(data, 0.5)
     reversed_lsf = lsf[::-1]
 
-    def convolve_3d(signal, response):
-        result = np.zeros_like(signal)
-        for i in range(signal.shape[1]):
-            for j in range(signal.shape[2]):
-                result[:, i, j] = convolve(signal[:, i, j], response[:, i, j], mode="same")
-        return result
-
-    for _ in range(n_iterations):
-        convolution = convolve_3d(estimate, lsf)
+    for _ in tqdm(range(n_iterations)):
+        convolution = fftconvolve(estimate, lsf, mode="same", axes=0)
         convolution = np.clip(convolution, limits[0], None)
         ratio = data / convolution
-        correction = convolve_3d(ratio, reversed_lsf)
+        correction = fftconvolve(ratio, reversed_lsf, mode="same", axes=0)
         estimate *= correction
         estimate = np.clip(estimate, 0, limits[1])
     return estimate
 
 def get_deconvolution_error(
-    spectrum: np.ndarray,
-    deconvolved: np.ndarray,
+    data: np.ndarray,
     lsf: np.ndarray,
+    deconvolved: np.ndarray,
     sampling_range: int = 7
-)-> float:
+)-> np.ndarray:
     """
     Gives the deconvolution score for the given spectrum and deconvolved spectrum. This is calculated by reconvolving
     the deconvolved spectrum with the LSF and comparing it to the original spectrum. Only the data points
     ± sampling_range channels around the peak of the original spectrum are considered for the score.
 
+    .. warning::
+        The score must be calculated with aligned and normalized spectra. Use the output from `deconvolve_cube` to
+        ensure proper alignment.
+
     Parameters
     ----------
-    spectrum : np.ndarray
+    data : np.ndarray
         The original spectrum that was deconvolved.
-    deconvolved : np.ndarray
-        The deconvolved spectrum. See the `deconvolve_spectrum` function.
     lsf : np.ndarray
         The line spread function (LSF) used for deconvolution. This corresponds to the instrumental response function
         of the Fabry-Pérot interferometer.
+    deconvolved : np.ndarray
+        The deconvolved spectrum. See the `deconvolve_spectrum` function.
     sampling_range : int, optional
         The number of channels to consider around the peak of the original spectrum for the score calculation.
 
     Returns
     -------
-    float
-        The deconvolution score, which is the mean squared error between the original spectrum and the reconvolved
-        deconvolved spectrum.
+    np.ndarray
+        The deconvolution score for each pixel, which is the mean squared error between the original spectrum and the
+        reconvolved deconvolved spectrum. This helps identify spectrums with poor deconvolution quality.
     """
-    centered_spectrum = preprocess_signal(spectrum, normalize_method="max")
-    centered_deconvolved = preprocess_signal(deconvolved)
-    centered_lsf = preprocess_signal(lsf)
+    peak_index = data.shape[0] // 2 - 1
+    lower_limit, upper_limit = peak_index - sampling_range, peak_index + sampling_range
 
-    reconvolved = convolve(centered_deconvolved, centered_lsf, mode="same")
-    reconvolved = preprocess_signal(reconvolved, normalize_method="max")
-
-    peak_index = np.argmax(centered_spectrum)
-    start_index = max(0, peak_index - sampling_range)
-    end_index = min(len(centered_spectrum), peak_index + sampling_range + 1)
-
-    score = np.mean((centered_spectrum[start_index:end_index] - reconvolved[start_index:end_index]) ** 2)
-    # gl.SmartFigure(elements=[
-    #     gl.Curve(np.arange(len(centered_spectrum[:,0,0])), centered_spectrum[:,0,0], label="Original Spectrum"),
-    #     gl.Curve(np.arange(len(reconvolved[:,0,0])), reconvolved[:,0,0], label="Reconvolved Deconvolved Spectrum")
-    # ]).show()
-    return score
+    reconvolved = fftconvolve(deconvolved, lsf, mode="same", axes=0)
+    reconvolved = normalize_signals(reconvolved)
+    error = np.mean((data[lower_limit:upper_limit, :, :] - reconvolved[lower_limit:upper_limit, :, :]) ** 2, axis=0)
+    return error
