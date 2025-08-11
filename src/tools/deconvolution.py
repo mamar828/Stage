@@ -134,8 +134,12 @@ def deconvolve_cube(
 
     deconvolved_data = richardson_lucy_deconvolution(offsetted_data, offsetted_lsf, n_iterations)
     deconvolved_data = normalize_signals(deconvolved_data)
+    deconvolved_centroids = estimate_centroids(deconvolved_data)
+    deconvolved_offset = deconvolved_centroids
+    deconvolved_offset = data.shape[0] // 2 - deconvolved_centroids
+    offsetted_deconvolved = roll_spectrums(deconvolved_data, deconvolved_offset)
 
-    return deconvolved_data, offsetted_data, offsetted_lsf
+    return offsetted_deconvolved, offsetted_data, offsetted_lsf
 
 def richardson_lucy_deconvolution(data: np.ndarray, lsf: np.ndarray, n_iterations: int) -> np.ndarray:
     """
@@ -176,8 +180,8 @@ def get_deconvolution_error(
     data: np.ndarray,
     lsf: np.ndarray,
     deconvolved: np.ndarray,
-    sampling_range: int = 7
-)-> np.ndarray:
+    sampling_range: int = 5,
+)-> tuple[np.ndarray, np.ndarray]:
     """
     Gives the deconvolution score for the given spectrum and deconvolved spectrum. This is calculated by reconvolving
     the deconvolved spectrum with the LSF and comparing it to the original spectrum. Only the data points
@@ -196,19 +200,28 @@ def get_deconvolution_error(
         of the Fabry-Pérot interferometer.
     deconvolved : np.ndarray
         The deconvolved spectrum. See the `deconvolve_spectrum` function.
-    sampling_range : int, optional
+    sampling_range : int, default=5
         The number of channels to consider around the peak of the original spectrum for the score calculation.
 
     Returns
     -------
-    np.ndarray
-        The deconvolution score for each pixel, which is the mean squared error between the original spectrum and the
-        reconvolved deconvolved spectrum. This helps identify spectrums with poor deconvolution quality.
+    tuple[np.ndarray, np.ndarray]
+        A tuple containing two elements: (error, reconvolved). The error is the deconvolution score for each pixel,
+        which is the mean squared error between the original spectrum and the reconvolved deconvolved spectrum. This
+        helps identify spectrums with poor deconvolution quality. The reconvolved spectrum is the result of
+        reconvolving the deconvolved spectrum with the LSF, which can be useful for visual confirmation.
     """
     peak_index = data.shape[0] // 2 - 1
     lower_limit, upper_limit = peak_index - sampling_range, peak_index + sampling_range
 
     reconvolved = fftconvolve(deconvolved, lsf, mode="same", axes=0)
     reconvolved = normalize_signals(reconvolved)
-    error = np.mean((data[lower_limit:upper_limit, :, :] - reconvolved[lower_limit:upper_limit, :, :]) ** 2, axis=0)
-    return error
+
+    data_centroids = estimate_centroids(data)
+    reconvolved_centroids = estimate_centroids(reconvolved)
+    reconvolved_offset = data_centroids - reconvolved_centroids
+    offsetted_reconvolved = roll_spectrums(reconvolved, reconvolved_offset)
+
+    error = np.mean((data[lower_limit:upper_limit, :, :] - offsetted_reconvolved[lower_limit:upper_limit, :, :]) ** 2,
+                    axis=0)
+    return error, offsetted_reconvolved
