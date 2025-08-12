@@ -107,7 +107,8 @@ def deconvolve_cube(
         dimension.
     lsf_centroids : np.ndarray | Map
         The centroids of the LSF spectrums. This is used to align the LSF spectrums before deconvolution. These
-        should be obtained from fitting the LSF spectrums to a model for greater precision.
+        should be obtained from fitting the LSF spectrums to a model for greater precision. The centroids should be
+        given following 1-based indexing.
     n_iterations : int
         The number of iterations to perform in the Richardson-Lucy algorithm.
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import scipy as sp
-from typing import Self, Literal, Callable, Iterable
+from typing import Literal, Callable, Iterable
 from pathos.pools import ProcessPool
 from pathos.helpers import cpu_count
 from tqdm import tqdm
@@ -9,7 +9,6 @@ from astropy.modeling import models
 import warnings
 
 from src.tools.messaging import smart_tqdm
-from src.hdu.fits_file import FitsFile
 from src.hdu.arrays.array_3d import Array3D
 from src.hdu.cubes.cube import Cube
 from src.hdu.tesseract import Tesseract
