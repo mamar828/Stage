@@ -35,7 +35,7 @@ def autocorrelation_function(data: np.ndarray, method: str="Boily") -> np.ndarra
 
     Returns
     -------
-    autocorrelation_function : np.ndarray
+    np.ndarray
         Two-dimensional array. If method="Boily" every group of three elements represents the lag and its corresponding
         autocorrelation function and uncertainty. If method="Kleiner Dickman" every group of two elements represents
         the lag and its corresponding autocorrelation function, without uncertainty. The returned array is sorted
@@ -64,7 +64,7 @@ def autocorrelation_function_2d(data: np.ndarray, method: str="Boily") -> np.nda
 
     Returns
     -------
-    autocorrelation_function : np.ndarray
+    np.ndarray
         Two-dimensional array with every group of three elements representing the x lag, the y lag and its corresponding
         autocorrelation function.
     """
@@ -86,7 +86,7 @@ def structure_function(data: np.ndarray) -> np.ndarray:
 
     Returns
     -------
-    structure_function : np.ndarray
+    np.ndarray
         Two-dimensional array with every group of three elements representing the lag and its corresponding structure
         function and uncertainty. The returned array is sorted according to the lag value.
     """
@@ -103,7 +103,7 @@ def increments(data: np.ndarray) -> dict:
 
     Returns
     -------
-    increments : dict
+    dict
         Every key is a lag and the corresponding value is the list of increments with this lag.
     """
     increments_dict = {}
@@ -124,7 +124,7 @@ def evaluate_delta_f2(data: np.ndarray) -> float | None:
 
     Returns
     -------
-    delta_f2_tau_0 : float | None
+    float | None
         ∆F_2(tau_0) parameter. If None, no intersection point was found in the autocorrelation function.
     """
     # Find tau_0
@@ -171,7 +171,7 @@ def get_autocorrelation_function_scatter(autocorrelation_function_data: np.ndarr
 
     Returns
     -------
-    scatter plot : gl.Scatter
+    gl.Scatter
         A Scatter object which correctly represents the lag as well as the value and uncertainty of the autocorrelation
         function.
     """
@@ -201,7 +201,7 @@ def get_autocorrelation_function_2d_contour(autocorrelation_function_2d_data: np
 
     Returns
     -------
-    contour plot : gl.Contour
+    gl.Contour
         A Contour object which correctly represents the x and y grid as well as the z data, which has been smoothed with
         a 3x3 gaussian filter.
     """
@@ -238,7 +238,7 @@ def get_fitted_structure_function_figure(
         data: np.ndarray,
         fit_bounds: tuple[float, float],
         number_of_iterations: int=10000
-) -> gl.Figure:
+) -> gl.SmartFigure:
     """
     Gives the figure of a fitted structure function in the given interval, computing the fit using Monte-Carlo
     uncertainties. The log10 of the data is taken and a linear fit is computed.
@@ -256,7 +256,7 @@ def get_fitted_structure_function_figure(
 
     Returns
     -------
-    figure : gl.Figure
+    gl.SmartFigure
         A log-log Figure containing the data points and their uncertainty as well as a linear fit in the given bounds
         with its corresponding equation.
     """
@@ -310,6 +310,5 @@ def get_fitted_structure_function_figure(
         error_curves_line_style=""
     )
 
-    fig = gl.Figure(x_lim=(0,1.35), y_lim=(-0.2,0.5))
-    fig.add_elements(scatter, fit)
+    fig = gl.SmartFigure(x_lim=(0,1.35), y_lim=(-0.2,0.5), elements=[scatter, fit])
     return fig

@@ -24,21 +24,26 @@ from src.tools.deconvolution import deconvolve_cube, get_deconvolution_error
 
 # TEST WITH A SINGLE DECONVOLVED SPECTRUM
 # ---------------------------------------
-nii_global_spec = np.loadtxt("data/orion/linewidths/global_spectrum_tests/nii_1_global_spectrum.dat")
-sii_global_spec = np.loadtxt("data/orion/linewidths/global_spectrum_tests/sii_1_global_spectrum.dat")
+nii_global_spec = np.loadtxt("data/orion/linewidths/global_spectrum_tests/nii_2_global_spectrum.dat")
+nii_cdelt_AA = 3.4076504661393465 / 48
+ha_global_spec = np.loadtxt("data/orion/linewidths/global_spectrum_tests/ha_2_global_spectrum.dat")
+ha_cdelt_AA = 3.3863680690151563 / 48
+
 calib_global_spec = np.loadtxt("data/orion/linewidths/global_spectrum_tests/global_calibration.dat")
-random_array = np.random.normal(
-    np.mean(sii_global_spec[:10, 1], axis=0),
-    np.std(sii_global_spec[:10, 1], axis=0) / 10,
-    24,
-)
-sii_global_spec[:24, 1] = random_array
+# random_array = np.random.normal(
+#     np.mean(ha_global_spec[:10, 1], axis=0),
+#     np.std(ha_global_spec[:10, 1], axis=0) / 10,
+#     24,
+# )
+# ha_global_spec[24:, 1] = random_array
+# ha_global_spec[:24, 1] = random_array
 
 calib_centroids = 7.5
 n_iterations = 100
 
 deconvolved = []
-for line_name, global_spec in zip(["nii_1", "sii_1"], [nii_global_spec, sii_global_spec]):
+figs = []
+for line_name, global_spec in zip(["nii_2", "ha_2"], [nii_global_spec, ha_global_spec]):
     deconvolved_data, offsetted_data, offsetted_lsf = deconvolve_cube(
         global_spec[:, 1][:, None, None],
         calib_global_spec[:, 1][:, None, None],
@@ -49,32 +54,43 @@ for line_name, global_spec in zip(["nii_1", "sii_1"], [nii_global_spec, sii_glob
     print(f"Deconvolution error for {line_name}: {np.mean(deconvolution_error)}")
 
     x_vals = np.arange(48) + 1
-    gl.SmartFigure(
+    figs.append(gl.SmartFigure(
+        title=f"Deconvolution for {line_name}",
         elements=[
             gl.Curve(x_vals, offsetted_data[:,0,0], label="Offsetted Data"),
             gl.Curve(x_vals, offsetted_lsf[:,0,0], label="Offsetted LSF"),
             gl.Curve(x_vals, deconvolved_data[:,0,0], label="Deconvolved Data"),
             gl.Curve(x_vals, reconvolved[:,0,0], label="Reconvolved Data"),
         ],
-    ).show()
+    ))
 
     deconvolved.append(deconvolved_data)
 
 x_vals = np.arange(48) + 1
 nii_deconv_curve = gl.Curve(x_vals, deconvolved[0][:, 0, 0], label="NII Deconvolved Spectrum")
-sii_deconv_curve = gl.Curve(x_vals, deconvolved[1][:, 0, 0], label="SII Deconvolved Spectrum")
+ha_deconv_curve = gl.Curve(x_vals, deconvolved[1][:, 0, 0], label="ha Deconvolved Spectrum")
 
 nii_fit = gl.FitFromGaussian(nii_deconv_curve, guesses=[1, 24, 1])
-sii_fit = gl.FitFromGaussian(sii_deconv_curve, guesses=[1, 24, 1])
+ha_fit = gl.FitFromGaussian(ha_deconv_curve, guesses=[1, 24, 1])
 
 nii_std = nii_fit.parameters[2]
-sii_std = sii_fit.parameters[2]
+ha_std = ha_fit.parameters[2]
 
-gl.SmartFigure(
+
+figs.append(gl.SmartFigure(
     num_rows=2,
-    elements=[[nii_deconv_curve, nii_fit], [sii_deconv_curve, sii_fit]],
+    elements=[[nii_deconv_curve, nii_fit], [ha_deconv_curve, ha_fit]],
     subtitles=[
-        f"$\sigma={nii_std:.2f}$, FWHM$={nii_std*2*np.sqrt(2*np.log(2)) * nii_global_spec[0, 0] / 47:.2f}$",
-        f"$\sigma={sii_std:.2f}$, FWHM$={sii_std*2*np.sqrt(2*np.log(2)) * sii_global_spec[0, 0] / 47:.2f}$",
-    ]
-).show()
+        rf"$\sigma={nii_std:.2f}$ channels, FWHM$={nii_std*2*np.sqrt(2*np.log(2)) * nii_cdelt_AA:.4f}\AA$",
+        rf"$\sigma={ha_std:.2f}$ channels, FWHM$={ha_std*2*np.sqrt(2*np.log(2)) * ha_cdelt_AA:.4f}\AA$",
+    ],
+))
+
+global_fig = gl.SmartFigure(
+    2,
+    2,
+    elements=figs[:2],
+    height_ratios=(2, 3)
+)
+global_fig[1, :] = figs[2]
+global_fig.show()
