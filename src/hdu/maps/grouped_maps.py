@@ -12,7 +12,7 @@ from src.headers.header import Header
 
 class GroupedMaps(FitsFile):
     """
-    Encapsulates the necessary methods to compare and linked maps.
+    Encapsulates the necessary methods to compare any linked maps.
     """
 
     def __init__(self, maps: list[tuple[str, list[Map]]]):

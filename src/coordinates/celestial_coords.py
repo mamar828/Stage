@@ -21,9 +21,6 @@ def equatorial_to_galactic(ra: RA, dec: DEC) -> tuple[l, b]:
     equatorial_coords = SkyCoord(ra=ra.degrees, dec=dec.degrees, unit="deg", frame="icrs")
     galactic_coords = equatorial_coords.galactic
     return l(galactic_coords.l.deg), b(galactic_coords.b.deg)
-    # Placeholder for actual conversion logic
-    # This should be replaced with the actual conversion algorithm
-    return l(0.0), b(0.0)
 
 def galactic_to_equatorial(l: l, b: b) -> tuple[RA, DEC]:
     """
@@ -163,8 +160,3 @@ class b(Coord):
     This class implements a `Coord` for galactic latitude.
     """
     pass
-
-
-# v = [l.from_sexagesimal("+156:18:00.421"), b.from_sexagesimal("+31:34:20.582")]
-# print(*map(str, equatorial_to_galactic(*galactic_to_equatorial(*v))))
-# print(*map(str, galactic_to_equatorial(*v)))
